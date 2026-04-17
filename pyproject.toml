@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+ 
+[project]
+name = "gen_ai_fsms"
+version = "0.1.0"
+description = "AI-Assisted generation of bespoke food safety management systems for restaurants"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = []
+
+authors = [
+  { name = "University of Salford" }
+]
+
+license = { text = "All Rights Reserved. Copyright (c) 2026 University of Salford" }
+
+[project.urls]
+Homepage = "https://live-website.com"
+Repository = "https://github.com"
+
+[project.scripts]
+ 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gen_ai_fsms*"]
