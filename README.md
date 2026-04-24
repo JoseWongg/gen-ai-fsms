@@ -16,11 +16,19 @@ Create a local virtual environment and activate it using the command appropriate
 ```bash
 python -m venv .venv
 ```
-Install dependencies and the project:
+Install the project in editable mode with development dependencies (includes pytest, httpx, and all production dependencies):
 ```bash
-python -m pip install -r requirements.txt
-python -m pip install -e .
+python -m pip install -e ".[dev]"
 ```
+**For production or CI environments** (no tests needed):
+Install only production dependencies with:
+
+```bash
+ python -m pip install -e .
+```
+
+The file requirements.txt is an automatically generated lock file for reproducibility. You can ignore it for local development; pyproject.toml is the source of truth.
+
 ### Required branch workflow
 
 Before making any changes, create and switch to a feature branch. Do not develop directly on main.

@@ -8,7 +8,17 @@ version = "0.1.0"
 description = "AI-Assisted generation of bespoke food safety management systems for restaurants"
 readme = "README.md"
 requires-python = ">=3.8"
-dependencies = []
+dependencies = [
+    "fastapi[standard]",
+    "sqlalchemy",
+    "alembic",
+    "pydantic",
+    "pydantic-settings",
+    "PyMySQL[rsa]",
+    "langgraph",
+    "pytest",
+    "httpx",
+]
 
 authors = [
   { name = "University of Salford" }
