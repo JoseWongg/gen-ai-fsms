@@ -112,3 +112,4 @@ dmypy.json
 
 # Others
 *.sqlite3
+.env.test
