@@ -16,8 +16,6 @@ dependencies = [
     "pydantic-settings",
     "PyMySQL[rsa]",
     "langgraph",
-    "pytest",
-    "httpx",
 ]
 
 authors = [
@@ -31,6 +29,13 @@ Homepage = "https://live-website.com"
 Repository = "https://github.com"
 
 [project.scripts]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "httpx",
+    "pytest-dotenv",
+]
  
 [tool.setuptools.packages.find]
 where = ["."]
