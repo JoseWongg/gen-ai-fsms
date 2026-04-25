@@ -4,6 +4,8 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
+import os # Import os to access environment variables
+from gen_ai_fsms.db.base import Base # Import the Base class for metadata
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -18,7 +20,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = None
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -38,7 +40,8 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    #url = config.get_main_option("sqlalchemy.url")
+    url = os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url")) # Use environment variable if available, otherwise fallback to config
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -50,26 +53,47 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+#ef run_migrations_online() -> None:
+#   """Run migrations in 'online' mode.
+#
+#   In this scenario we need to create an Engine
+#   and associate a connection with the context.
+#
+#   """
+#   connectable = engine_from_config(
+#       config.get_section(config.config_ini_section, {}),
+#       prefix="sqlalchemy.",
+#       poolclass=pool.NullPool,
+#   )
+#
+#   with connectable.connect() as connection:
+#       context.configure(
+#           connection=connection, target_metadata=target_metadata
+#       )
+#
+#       with context.begin_transaction():
+#           context.run_migrations()
+
+
+
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
-
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
-    """
+    """Run migrations in 'online' mode."""
+    # Read DATABASE_URL from environment, fallback to alembic.ini
+    db_url = os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
+    # Get the section from alembic.ini and update the URL
+    configuration = config.get_section(config.config_ini_section, {})
+    configuration["sqlalchemy.url"] = db_url
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
-
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
-
+        context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
+
+
 
 
 if context.is_offline_mode():
