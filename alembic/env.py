@@ -6,6 +6,7 @@ from sqlalchemy import pool
 from alembic import context
 import os # Import os to access environment variables
 from gen_ai_fsms.db.base import Base # Import the Base class for metadata
+import gen_ai_fsms.db.models # Import models to ensure they are registered with the Base metadata
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
