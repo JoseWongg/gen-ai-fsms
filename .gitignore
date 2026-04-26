@@ -113,3 +113,6 @@ dmypy.json
 # Others
 *.sqlite3
 .env.test
+
+# SQLTools session files
+*.session.sql
