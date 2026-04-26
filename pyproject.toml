@@ -16,7 +16,8 @@ dependencies = [
     "pydantic-settings",
     "PyMySQL[rsa]",
     "langgraph",
-    "streamlit"
+    "streamlit",
+    "python-dotenv"
 ]
 
 authors = [
