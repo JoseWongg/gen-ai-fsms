@@ -36,7 +36,7 @@ else:
     API_BASE = "http://localhost:8001"
 
 try:
-    response = httpx.get(f"{API_BASE}/test-records")
+    response = httpx.get(f"{API_BASE}/test-records/")
     response.raise_for_status()
     data = response.json()
     if data:
