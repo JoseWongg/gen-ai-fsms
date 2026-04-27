@@ -17,7 +17,8 @@ dependencies = [
     "PyMySQL[rsa]",
     "langgraph",
     "streamlit",
-    "python-dotenv"
+    "python-dotenv",
+    "httpx"
 ]
 
 authors = [
@@ -35,7 +36,6 @@ Repository = "https://github.com"
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "httpx",
     "pytest-dotenv",
 ]
  
