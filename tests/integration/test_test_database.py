@@ -1,3 +1,5 @@
+# This test verifies that the test database is correctly set up and accessible
+
 from sqlalchemy import text
 
 def test_test_database(test_db_engine):

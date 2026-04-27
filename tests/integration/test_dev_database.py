@@ -1,3 +1,5 @@
+# this test verifies that the dev database is correctly set up and accessible 
+
 from sqlalchemy import text
 
 def test_dev_database(dev_db_engine):
