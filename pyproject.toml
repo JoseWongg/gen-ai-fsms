@@ -18,7 +18,10 @@ dependencies = [
     "langgraph",
     "streamlit",
     "python-dotenv",
-    "httpx"
+    "httpx",
+    "passlib[bcrypt]",
+    "python-jose[cryptography]",
+    "email-validator",
 ]
 
 authors = [

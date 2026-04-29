@@ -4,6 +4,7 @@ annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.13.0
 attrs==26.1.0
+bcrypt==5.0.0
 blinker==1.9.0
 cachetools==7.0.6
 certifi==2026.4.22
@@ -13,11 +14,13 @@ click==8.3.3
 colorama==0.4.6
 cryptography==47.0.0
 dnspython==2.8.0
+ecdsa==0.19.2
 email-validator==2.3.0
 fastapi==0.136.1
 fastapi-cli==0.0.24
 fastapi-cloud-cli==0.17.0
 fastar==0.11.0
+gen_ai_fsms @ file:///C:/Users/jlwon/projects/gen_ai_fsms
 gitdb==4.0.12
 GitPython==3.1.47
 greenlet==3.4.0
@@ -48,9 +51,11 @@ orjson==3.11.8
 ormsgpack==1.12.2
 packaging==26.2
 pandas==3.0.2
+passlib==1.7.4
 pillow==12.2.0
 protobuf==7.34.1
 pyarrow==24.0.0
+pyasn1==0.6.3
 pycparser==3.0
 pydantic==2.13.3
 pydantic-extra-types==2.11.1
@@ -61,6 +66,7 @@ Pygments==2.20.0
 PyMySQL==1.1.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
+python-jose==3.5.0
 python-multipart==0.0.26
 PyYAML==6.0.3
 referencing==0.37.0
@@ -70,6 +76,7 @@ rich==15.0.0
 rich-toolkit==0.19.7
 rignore==0.7.6
 rpds-py==0.30.0
+rsa==4.9.1
 sentry-sdk==2.58.0
 shellingham==1.5.4
 six==1.17.0
