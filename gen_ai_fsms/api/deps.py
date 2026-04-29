@@ -1,3 +1,10 @@
+# This module defines dependencies for the FastAPI application, including database session management and user authentication.
+# The get_db function provides a database session that is properly closed after use, ensuring efficient resource management.
+# The get_current_user function decodes the JWT token to retrieve the user ID, checks if the user is active, and returns the user object. If the token is invalid or the user is inactive, it raises appropriate HTTP exceptions.
+# The require_admin function checks if the current user has admin privileges and raises a 403 Forbidden error if not. This can be used to protect routes that require admin access.
+# These dependencies can be used in route handlers to enforce authentication and authorization, ensuring that only authorized users can access certain endpoints. The use of FastAPI's Depends allows for clean and modular code, making it easy to manage and reuse these dependencies across the application. 
+
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
