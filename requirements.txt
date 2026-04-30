@@ -4,7 +4,7 @@ annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.13.0
 attrs==26.1.0
-bcrypt==5.0.0
+bcrypt==3.2.0
 blinker==1.9.0
 cachetools==7.0.6
 certifi==2026.4.22
@@ -20,6 +20,7 @@ fastapi==0.136.1
 fastapi-cli==0.0.24
 fastapi-cloud-cli==0.17.0
 fastar==0.11.0
+gen_ai_fsms @ file:///C:/Users/jlwon/projects/gen_ai_fsms
 gitdb==4.0.12
 GitPython==3.1.47
 greenlet==3.4.0
