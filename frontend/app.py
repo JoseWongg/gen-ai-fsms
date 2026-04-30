@@ -17,7 +17,6 @@ if "page" not in st.session_state:
     st.session_state.page = "landing"
 
 def landing():
-    # Place buttons at the top using a single row
     col_btn1, col_btn2, col_spacer = st.columns([1,1,2])
     with col_btn1:
         if st.button("Login", use_container_width=True):
@@ -31,11 +30,10 @@ def landing():
     # Centered responsive image
     col1, col_img, col2 = st.columns([1,2,1])
     with col_img:
-        # Use a free placeholder image from picsum (replace with your own local image later)
-        image_url = "https://picsum.photos/id/104/800/400"  # landscape, food theme (or change)
+      
+        image_url = "assets/images/landing_1.png"
         st.image(image_url, use_container_width=True, caption="Food Safety Management")
 
-    # Centered welcome text
     st.markdown(
         """
         <div style="text-align: center;">
