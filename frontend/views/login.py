@@ -33,6 +33,14 @@ def show():
                         st.error(error_data.get("detail", f"Login failed (HTTP {resp.status_code})"))
                 except:
                     st.error(f"Login failed (HTTP {resp.status_code})")
-    if st.button("Forgot password?"):
-        st.session_state.page = "forgot"
-        st.rerun()
+
+
+    col_left, col_right = st.columns(2)
+    with col_left:
+        if st.button("Go Back", use_container_width=True):
+            st.session_state.page = "landing"
+            st.rerun()
+    with col_right:
+        if st.button("Forgot password?", use_container_width=True):
+            st.session_state.page = "forgot"
+            st.rerun()
