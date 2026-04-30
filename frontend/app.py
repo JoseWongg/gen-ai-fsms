@@ -1,13 +1,12 @@
 import streamlit as st
 import requests
 import os
+from dotenv import load_dotenv
 
-# Backend URL
-IS_HEROKU = os.getenv("DYNO") is not None
-if IS_HEROKU:
-    API_BASE = "https://gen-ai-fsms-api-809d8118221b.herokuapp.com"
-else:
-    API_BASE = "http://localhost:8001"
+load_dotenv()  # Load .env file
+
+# Backend URL – read from environment, default to localhost
+API_BASE = os.getenv("BACKEND_URL", "http://localhost:8001")
 
 # Session state
 if "token" not in st.session_state:
