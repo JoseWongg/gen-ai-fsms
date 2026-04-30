@@ -66,6 +66,6 @@ def show():
                             st.error(f"Registration failed (HTTP {resp.status_code})")
 
     # Add a button to go back to login
-    if st.button("← Back to login"):
-        st.session_state.page = "login"
+    if st.button("Go Back"):
+        st.session_state.page = "dashboard"
         st.rerun()
