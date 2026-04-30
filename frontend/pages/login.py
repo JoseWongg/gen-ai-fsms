@@ -1,5 +1,5 @@
 import streamlit as st
-from frontend.api_client import api_request
+from ..api_client import api_request
 
 def show():
     st.title("Login")

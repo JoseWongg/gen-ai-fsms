@@ -1,6 +1,6 @@
 import streamlit as st
-from frontend.api_client import api_request
-from frontend.pages import login, register, dashboard, profile, admin
+from api_client import api_request
+from pages import login, register, dashboard, profile, admin
 
 # Initialise session state
 if "token" not in st.session_state:
