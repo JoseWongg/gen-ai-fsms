@@ -21,7 +21,6 @@ def api_request(method, endpoint, json=None, token=None):
             raise ValueError
         return resp
     except Exception as e:
-        # Log the error to console for debugging
         print(f"API request error: {e}")
         return None
 
@@ -92,16 +91,22 @@ def register_page():
     st.title("Create an account")
     with st.form("register_form"):
         email = st.text_input("Email *")
-        first = st.text_input("First name")
-        last = st.text_input("Last name")
+        first = st.text_input("First name *")
+        last = st.text_input("Last name *")
         password = st.text_input("Password *", type="password")
         st.caption("Password must be at least 8 characters, include uppercase, lowercase, and a special character.")
         submitted = st.form_submit_button("Register")
         if submitted:
             email_val = email.strip()
+            first_val = first.strip()
+            last_val = last.strip()
             password_val = password.strip()
             if not email_val:
                 st.error("Email is required.")
+            elif not first_val:
+                st.error("First name is required.")
+            elif not last_val:
+                st.error("Last name is required.")
             elif not password_val:
                 st.error("Password is required.")
             elif not is_valid_email(email_val):
@@ -114,8 +119,8 @@ def register_page():
                     resp = api_request("POST", "/auth/register", json={
                         "email": email_val,
                         "password": password_val,
-                        "first_name": first.strip() if first else None,
-                        "last_name": last.strip() if last else None
+                        "first_name": first_val,
+                        "last_name": last_val
                     })
                     if resp is None:
                         st.error("Connection error. Please make sure the backend is running.")
@@ -124,7 +129,6 @@ def register_page():
                         st.session_state.page = "login"
                         st.rerun()
                     else:
-                        # Try to extract error detail from response
                         try:
                             detail = resp.json().get("detail", f"Registration failed (HTTP {resp.status_code})")
                             st.error(detail)
