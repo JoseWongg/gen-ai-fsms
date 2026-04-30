@@ -64,3 +64,8 @@ def show():
                             st.error(detail)
                         except:
                             st.error(f"Registration failed (HTTP {resp.status_code})")
+
+    # Add a button to go back to login
+    if st.button("← Back to login"):
+        st.session_state.page = "login"
+        st.rerun()
