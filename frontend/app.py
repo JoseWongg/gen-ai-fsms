@@ -1,9 +1,9 @@
 import streamlit as st
-from pages.login import show as login_page
-from pages.register import show as register_page
-from pages.dashboard import show as dashboard_page
-from pages.profile import show as profile_page
-from pages.admin import show as admin_page
+from views.login import show as login_page
+from views.register import show as register_page
+from views.dashboard import show as dashboard_page
+from views.profile import show as profile_page
+from views.admin import show as admin_page
 
 # Initialise session state
 if "token" not in st.session_state:
@@ -67,3 +67,4 @@ else:
         admin_page()
     else:
         dashboard_page()
+
