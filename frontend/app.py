@@ -1,6 +1,6 @@
 import streamlit as st
-from api_client import api_request
-from pages import login, register, dashboard, profile, admin
+from frontend.api_client import api_request
+from frontend.pages import login, register, dashboard, profile, admin
 
 # Initialise session state
 if "token" not in st.session_state:
@@ -32,7 +32,7 @@ def logout():
     st.session_state.page = "landing"
     st.rerun()
 
-# Page routing
+# Routing
 if not st.session_state.authenticated:
     if st.session_state.page == "login":
         login.show()
@@ -41,7 +41,7 @@ if not st.session_state.authenticated:
     else:
         landing()
 else:
-    # Sidebar navigation
+    # Sidebar for logged‑in users
     st.sidebar.title("Navigation")
     st.sidebar.write(f"Logged in as: {st.session_state.user.get('first_name', st.session_state.user['email'])}")
     if st.sidebar.button("Home"):

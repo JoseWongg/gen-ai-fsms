@@ -1,9 +1,5 @@
 import streamlit as st
-import sys
-import os
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from api_client import api_request
+from frontend.api_client import api_request
 
 def show():
     st.title("Create an account")
@@ -25,6 +21,8 @@ def show():
                 })
                 if resp and resp.status_code == 201:
                     st.success("Account created! You can now log in.")
+                    st.session_state.page = "login"
+                    st.rerun()
                 else:
                     error_detail = resp.json().get("detail", "Registration failed") if resp else "Connection error"
                     st.error(error_detail)

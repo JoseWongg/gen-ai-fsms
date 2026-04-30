@@ -1,10 +1,5 @@
 import streamlit as st
-import sys
-import os
-
-# Add project root to path so absolute imports work
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from api_client import api_request
+from frontend.api_client import api_request
 
 def show():
     st.title("Login")
