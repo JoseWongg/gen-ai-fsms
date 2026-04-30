@@ -10,7 +10,7 @@ def show():
         if submitted:
             resp = api_request("POST", "/auth/login", json={"email": email, "password": password})
             if resp is None:
-                st.error("❌ Cannot reach the backend. Make sure FastAPI is running on port 8001.")
+                st.error("Cannot reach the backend. Make sure FastAPI is running on port 8001.")
             elif resp.status_code == 200:
                 data = resp.json()
                 st.session_state.token = data["access_token"]
