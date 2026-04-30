@@ -1,5 +1,9 @@
 import streamlit as st
-from ..api_client import api_request
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from api_client import api_request
 
 def show():
     st.title("Create an account")

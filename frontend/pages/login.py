@@ -1,5 +1,10 @@
 import streamlit as st
-from ..api_client import api_request
+import sys
+import os
+
+# Add project root to path so absolute imports work
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from api_client import api_request
 
 def show():
     st.title("Login")
@@ -12,7 +17,6 @@ def show():
             if resp and resp.status_code == 200:
                 data = resp.json()
                 st.session_state.token = data["access_token"]
-                # Fetch user profile
                 user_resp = api_request("GET", "/users/me", token=st.session_state.token)
                 if user_resp and user_resp.status_code == 200:
                     st.session_state.user = user_resp.json()
