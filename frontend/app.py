@@ -20,7 +20,8 @@ def api_request(method, endpoint, json=None, token=None):
         else:
             raise ValueError
         return resp
-    except Exception:
+    except Exception as e:
+        st.error(f"API connection error: {e}")
         return None
 
 def validate_password_strength(password):
@@ -33,6 +34,11 @@ def validate_password_strength(password):
     if not re.search(r'[^A-Za-z0-9]', password):
         return False, "Password must contain at least one special character (e.g., !@#$%&*)."
     return True, ""
+
+def is_valid_email(email):
+    # Simple email pattern – accepts something@domain.tld
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
 
 if "token" not in st.session_state:
     st.session_state.token = None
@@ -76,8 +82,8 @@ def login_page():
                 else:
                     st.error("Failed to load profile")
             else:
-                st.error("Invalid credentials")
-    # Forgot password link
+                err = resp.json().get("detail", "Invalid credentials") if resp else "Connection error"
+                st.error(err)
     if st.button("Forgot password?"):
         st.session_state.page = "forgot"
         st.rerun()
@@ -85,29 +91,43 @@ def login_page():
 def register_page():
     st.title("Create an account")
     with st.form("register_form"):
-        email = st.text_input("Email")
+        email = st.text_input("Email *")
         first = st.text_input("First name")
         last = st.text_input("Last name")
-        password = st.text_input("Password", type="password")
-        # Show requirements
+        password = st.text_input("Password *", type="password")
         st.caption("Password must be at least 8 characters, include uppercase, lowercase, and a special character.")
         submitted = st.form_submit_button("Register")
         if submitted:
-            valid, msg = validate_password_strength(password)
-            if not valid:
-                st.error(msg)
+            email_val = email.strip()
+            password_val = password.strip()
+            # Validate empty fields
+            if not email_val:
+                st.error("Email is required.")
+            elif not password_val:
+                st.error("Password is required.")
+            elif not is_valid_email(email_val):
+                st.error("Please enter a valid email address (e.g., name@example.com).")
             else:
-                resp = api_request("POST", "/auth/register", json={
-                    "email": email, "password": password,
-                    "first_name": first, "last_name": last
-                })
-                if resp and resp.status_code == 201:
-                    st.success("Account created! Please login.")
-                    st.session_state.page = "login"
-                    st.rerun()
+                valid, msg = validate_password_strength(password_val)
+                if not valid:
+                    st.error(msg)
                 else:
-                    err = resp.json().get("detail", "Registration failed") if resp else "Connection error"
-                    st.error(err)
+                    resp = api_request("POST", "/auth/register", json={
+                        "email": email_val,
+                        "password": password_val,
+                        "first_name": first.strip() if first else None,
+                        "last_name": last.strip() if last else None
+                    })
+                    if resp:
+                        if resp.status_code == 201:
+                            st.success("Account created! Please login.")
+                            st.session_state.page = "login"
+                            st.rerun()
+                        else:
+                            err = resp.json().get("detail", f"Registration failed (HTTP {resp.status_code})")
+                            st.error(err)
+                    else:
+                        st.error("Connection error. Check if backend is running.")
 
 def forgot_password_page():
     st.title("Reset your password")
@@ -115,38 +135,43 @@ def forgot_password_page():
         email = st.text_input("Your email address")
         submitted = st.form_submit_button("Send reset link")
         if submitted:
-            resp = api_request("POST", "/auth/forgot-password", json={"email": email})
-            if resp and resp.status_code == 200:
-                st.success("If the email exists, you will receive a reset link.")
-                # For development, we can print the token to console (simulate email)
-                # Actually, the backend already returns a message, but we can't retrieve token.
-                # We'll add a separate endpoint to get token in development.
+            if not email.strip():
+                st.error("Email is required.")
             else:
-                st.error("Something went wrong. Please try again.")
+                resp = api_request("POST", "/auth/forgot-password", json={"email": email.strip()})
+                if resp and resp.status_code == 200:
+                    st.success("If the email exists, you will receive a reset link.")
+                    # For development, token printed in backend console (modify auth.py to print)
+                else:
+                    st.error("Something went wrong. Please try again.")
     if st.button("Back to login"):
         st.session_state.page = "login"
         st.rerun()
 
 def reset_password_page():
     st.title("Reset password")
-    # For simplicity, we ask for token manually (in development you can copy from terminal)
     with st.form("reset_form"):
         token = st.text_input("Reset token (check terminal output)")
         new_password = st.text_input("New password", type="password")
         submitted = st.form_submit_button("Reset password")
         if submitted:
-            valid, msg = validate_password_strength(new_password)
-            if not valid:
-                st.error(msg)
+            if not token.strip():
+                st.error("Token is required.")
+            elif not new_password.strip():
+                st.error("New password is required.")
             else:
-                resp = api_request("POST", "/auth/reset-password", json={"token": token, "new_password": new_password})
-                if resp and resp.status_code == 200:
-                    st.success("Password reset successful. You can now log in.")
-                    st.session_state.page = "login"
-                    st.rerun()
+                valid, msg = validate_password_strength(new_password)
+                if not valid:
+                    st.error(msg)
                 else:
-                    err = resp.json().get("detail", "Reset failed") if resp else "Connection error"
-                    st.error(err)
+                    resp = api_request("POST", "/auth/reset-password", json={"token": token.strip(), "new_password": new_password})
+                    if resp and resp.status_code == 200:
+                        st.success("Password reset successful. You can now log in.")
+                        st.session_state.page = "login"
+                        st.rerun()
+                    else:
+                        err = resp.json().get("detail", "Reset failed") if resp else "Connection error"
+                        st.error(err)
     if st.button("Back to login"):
         st.session_state.page = "login"
         st.rerun()
