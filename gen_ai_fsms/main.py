@@ -1,14 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from gen_ai_fsms.api.routes import test_records_router, auth_router, users_router, admin_router
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI(title="SFBB API", version="0.1.0")
 
-origins = [
-    "http://localhost:8501",
-    "https://gen-ai-fsm-production-app.herokuapp.com",
-    "https://gen-ai-fsm-production-app-1d7f924baa0c.herokuapp.com",
-]
+# CORS origins – read from environment, default to localhost
+origins = os.getenv("CORS_ORIGINS", "http://localhost:8501").split(",")
 
 app.add_middleware(
     CORSMiddleware,
