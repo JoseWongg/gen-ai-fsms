@@ -21,7 +21,8 @@ def api_request(method, endpoint, json=None, token=None):
             raise ValueError
         return resp
     except Exception as e:
-        st.error(f"API connection error: {e}")
+        # Log the error to console for debugging
+        print(f"API request error: {e}")
         return None
 
 def validate_password_strength(password):
@@ -36,7 +37,6 @@ def validate_password_strength(password):
     return True, ""
 
 def is_valid_email(email):
-    # Simple email pattern – accepts something@domain.tld
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
@@ -100,7 +100,6 @@ def register_page():
         if submitted:
             email_val = email.strip()
             password_val = password.strip()
-            # Validate empty fields
             if not email_val:
                 st.error("Email is required.")
             elif not password_val:
@@ -118,16 +117,19 @@ def register_page():
                         "first_name": first.strip() if first else None,
                         "last_name": last.strip() if last else None
                     })
-                    if resp:
-                        if resp.status_code == 201:
-                            st.success("Account created! Please login.")
-                            st.session_state.page = "login"
-                            st.rerun()
-                        else:
-                            err = resp.json().get("detail", f"Registration failed (HTTP {resp.status_code})")
-                            st.error(err)
+                    if resp is None:
+                        st.error("Connection error. Please make sure the backend is running.")
+                    elif resp.status_code == 201:
+                        st.success("Account created! Please login.")
+                        st.session_state.page = "login"
+                        st.rerun()
                     else:
-                        st.error("Connection error. Check if backend is running.")
+                        # Try to extract error detail from response
+                        try:
+                            detail = resp.json().get("detail", f"Registration failed (HTTP {resp.status_code})")
+                            st.error(detail)
+                        except:
+                            st.error(f"Registration failed (HTTP {resp.status_code})")
 
 def forgot_password_page():
     st.title("Reset your password")
@@ -141,7 +143,6 @@ def forgot_password_page():
                 resp = api_request("POST", "/auth/forgot-password", json={"email": email.strip()})
                 if resp and resp.status_code == 200:
                     st.success("If the email exists, you will receive a reset link.")
-                    # For development, token printed in backend console (modify auth.py to print)
                 else:
                     st.error("Something went wrong. Please try again.")
     if st.button("Back to login"):
