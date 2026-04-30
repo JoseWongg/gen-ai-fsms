@@ -4,6 +4,7 @@ from views.register import show as register_page
 from views.dashboard import show as dashboard_page
 from views.profile import show as profile_page
 from views.admin import show as admin_page
+from views.forgot import show as forgot_page
 
 # Initialise session state
 if "token" not in st.session_state:
@@ -16,17 +17,34 @@ if "page" not in st.session_state:
     st.session_state.page = "landing"
 
 def landing():
-    st.title("Welcome to Gen-AI Food Safety Management")
-    st.write("Your intelligent assistant for food safety compliance.")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Login"):
+    # Place buttons at the top using a single row
+    col_btn1, col_btn2, col_spacer = st.columns([1,1,2])
+    with col_btn1:
+        if st.button("Login", use_container_width=True):
             st.session_state.page = "login"
             st.rerun()
-    with col2:
-        if st.button("Create Account"):
+    with col_btn2:
+        if st.button("Create Account", use_container_width=True):
             st.session_state.page = "register"
             st.rerun()
+
+    # Centered responsive image
+    col1, col_img, col2 = st.columns([1,2,1])
+    with col_img:
+        # Use a free placeholder image from picsum (replace with your own local image later)
+        image_url = "https://picsum.photos/id/104/800/400"  # landscape, food theme (or change)
+        st.image(image_url, use_container_width=True, caption="Food Safety Management")
+
+    # Centered welcome text
+    st.markdown(
+        """
+        <div style="text-align: center;">
+            <h1>Welcome to Gen-AI Food Safety Management</h1>
+            <p style="font-size:1.2rem;">Your intelligent assistant for food safety compliance.</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 def logout():
     st.session_state.token = None
@@ -41,6 +59,8 @@ if not st.session_state.authenticated:
         login_page()
     elif st.session_state.page == "register":
         register_page()
+    elif st.session_state.page == "forgot":
+        forgot_page()
     else:
         landing()
 else:
@@ -67,4 +87,3 @@ else:
         admin_page()
     else:
         dashboard_page()
-
