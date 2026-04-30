@@ -9,3 +9,4 @@ def show():
     st.write(f"**Email:** {user.get('email', 'N/A')}")
     st.write(f"**Name:** {user.get('first_name', '')} {user.get('last_name', '')}")
     st.write(f"**Role:** {user.get('role', 'user')}")
+

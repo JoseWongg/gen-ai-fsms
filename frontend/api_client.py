@@ -20,3 +20,4 @@ def api_request(method, endpoint, token=None, json=None):
         return resp
     except Exception as e:
         return None
+

@@ -69,3 +69,4 @@ def show():
     if st.button("Go Back"):
         st.session_state.page = "dashboard"
         st.rerun()
+

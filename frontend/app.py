@@ -17,22 +17,25 @@ if "page" not in st.session_state:
     st.session_state.page = "landing"
 
 def landing():
-    col_btn1, col_btn2, col_spacer = st.columns([1,1,2])
+    col_spacer, col_btn1, col_btn2 = st.columns([4, 1, 1])
     with col_btn1:
-        if st.button("Login", use_container_width=True):
+        if st.button("Login", width='stretch'):
             st.session_state.page = "login"
             st.rerun()
     with col_btn2:
-        if st.button("Create Account", use_container_width=True):
+        if st.button("Register", width='stretch'):
             st.session_state.page = "register"
             st.rerun()
 
-    # Centered responsive image
-    col1, col_img, col2 = st.columns([1,2,1])
+    st.markdown("<br><br>", unsafe_allow_html=True)
+
+    # Centered image
+    col1, col_img, col2 = st.columns([1, 2, 1])
     with col_img:
-      
-        image_url = "assets/images/landing_1.png"
-        st.image(image_url, use_container_width=True, caption="Food Safety Management")
+        st.image("assets/images/landing_1.png", width='stretch', caption="")
+
+
+    st.markdown("<br>", unsafe_allow_html=True)
 
     st.markdown(
         """
@@ -85,3 +88,4 @@ else:
         admin_page()
     else:
         dashboard_page()
+

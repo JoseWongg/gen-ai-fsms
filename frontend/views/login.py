@@ -37,10 +37,10 @@ def show():
 
     col_left, col_right = st.columns(2)
     with col_left:
-        if st.button("Go Back", use_container_width=True):
+        if st.button("Go Back", width='stretch'):
             st.session_state.page = "landing"
             st.rerun()
     with col_right:
-        if st.button("Forgot password?", use_container_width=True):
+        if st.button("Forgot password?", width='stretch'):
             st.session_state.page = "forgot"
             st.rerun()
