@@ -1,5 +1,5 @@
 # This script promotes a user to admin based on their email address.
-# To run the script, use the command: python promote_to_admin.py <email>
+# To run the script, use the command: python scripts/promote_to_admin.py <email>
 # Example: python promote_to_admin.py some@email.com
 
 import os
