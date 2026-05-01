@@ -1,1 +1,1 @@
-web: uvicorn gen_ai_fsms.main:app --host 0.0.0.0 --port ${PORT}
+web: streamlit run frontend/app.py --server.port  --server.address 0.0.0.0
