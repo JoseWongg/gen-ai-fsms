@@ -1,21 +1,10 @@
 import streamlit as st
 import re
-from shared import api_request
+from shared import api_request, validate_password_strength
 
 def is_valid_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
-
-def validate_password_strength(password):
-    if len(password) < 8:
-        return False, "Password must be at least 8 characters."
-    if not re.search(r'[A-Z]', password):
-        return False, "Password must contain at least one uppercase letter."
-    if not re.search(r'[a-z]', password):
-        return False, "Password must contain at least one lowercase letter."
-    if not re.search(r'[^A-Za-z0-9]', password):
-        return False, "Password must contain at least one special character (e.g., !@#$%&*)."
-    return True, ""
 
 def show():
     st.title("Create an account")

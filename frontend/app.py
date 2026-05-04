@@ -5,6 +5,14 @@ from views.dashboard import show as dashboard_page
 from views.profile import show as profile_page
 from views.admin import show as admin_page
 from views.forgot import show as forgot_page
+from views.reset_password import show as reset_page
+
+# Check if token is in URL – if yes, show reset page
+query_params = st.query_params
+if "token" in query_params:
+    from views.reset_password import show as reset_page
+    reset_page()
+    st.stop()
 
 # Initialise session state
 if "token" not in st.session_state:
@@ -47,6 +55,7 @@ def landing():
         unsafe_allow_html=True
     )
 
+
 def logout():
     st.session_state.token = None
     st.session_state.user = None
@@ -62,6 +71,8 @@ if not st.session_state.authenticated:
         register_page()
     elif st.session_state.page == "forgot":
         forgot_page()
+    elif st.session_state.page == "reset":
+        reset_page()
     else:
         landing()
 else:

@@ -25,9 +25,18 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
     service = AuthService(db)
     token = service.create_password_reset_token(data.email)
-    # In production, send email with reset link containing token.
-    # For development, you can return the token for testing.
+    if token:
+        # Build the reset link (adjust domain for production)
+        reset_link = f"http://localhost:8501/reset?token={token}"
+        # In production, you would use https://www.ai-fsms.com/reset?token=...
+        from gen_ai_fsms.services.email_service import send_reset_email
+        email_sent = send_reset_email(data.email, reset_link)
+        if email_sent:
+            print(f"Password reset email sent to {data.email}")
+        else:
+            print(f"Failed to send password reset email to {data.email}")
     return {"message": "If the email exists, a reset link has been sent."}
+
 
 @router.post("/reset-password")
 def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
