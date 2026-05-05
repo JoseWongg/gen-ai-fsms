@@ -9,6 +9,7 @@ from views.reset_password import show as reset_page
 
 # Check if token is in URL – if yes, show reset page
 query_params = st.query_params
+st.write(f"DEBUG: query_params = {query_params}")
 if "token" in query_params:
     from views.reset_password import show as reset_page
     reset_page()
