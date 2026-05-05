@@ -7,21 +7,13 @@ from views.admin import show as admin_page
 from views.forgot import show as forgot_page
 from views.reset_password import show as reset_page
 
-# Debug: Print query parameters to console
-st.write("DEBUG: Token from URL =", st.query_params.get("token", "NOT FOUND"))
 
 # If a reset token is present in the URL, show the reset page immediately
 query_params = st.query_params
-print(f"DEBUG (console): query_params = {query_params}")
-
 if "token" in query_params:
-    print("DEBUG: token found, showing reset page")
-    st.write("Token found, loading reset page...")
     from views.reset_password import show as reset_page
     reset_page()
     st.stop()
-else:
-    print("DEBUG: no token found in query_params")
 
 # Initialise session state
 if "token" not in st.session_state:
@@ -108,4 +100,3 @@ else:
         admin_page()
     else:
         dashboard_page()
-
