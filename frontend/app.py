@@ -7,6 +7,9 @@ from views.admin import show as admin_page
 from views.forgot import show as forgot_page
 from views.reset_password import show as reset_page
 
+# Debug: Print query parameters to console
+st.write("DEBUG: Token from URL =", st.query_params.get("token", "NOT FOUND"))
+
 # If a reset token is present in the URL, show the reset page immediately
 query_params = st.query_params
 print(f"DEBUG (console): query_params = {query_params}")
