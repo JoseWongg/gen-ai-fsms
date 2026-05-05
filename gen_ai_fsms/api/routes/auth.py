@@ -25,16 +25,15 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/forgot-password")
 def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    print("DEBUG: forgot_password endpoint reached")
     service = AuthService(db)
     token = service.create_password_reset_token(data.email)
-    print(f"DEBUG: token={token}, calling send_reset_email")
+    print(f"DEBUG: token={token}")
     if token:
-        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8501")
-        reset_link = f"{frontend_url}/reset?token={token}"
+        reset_link = f"http://localhost:8501/reset?token={token}"
         from gen_ai_fsms.services.email_service import send_reset_email
         send_reset_email(data.email, reset_link)
     return {"message": "If the email exists, a reset link has been sent."}
-
 
 @router.post("/reset-password")
 def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
