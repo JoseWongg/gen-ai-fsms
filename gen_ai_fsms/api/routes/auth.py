@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from gen_ai_fsms.api.deps import get_db
 from gen_ai_fsms.schemas.auth import LoginRequest, TokenResponse, RegisterRequest, ForgotPasswordRequest, ResetPasswordRequest
 from gen_ai_fsms.services.auth.auth_service import AuthService
+import os
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -21,20 +22,17 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     service = AuthService(db)
     return service.authenticate_user(data.email, data.password)
 
+
 @router.post("/forgot-password")
 def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
     service = AuthService(db)
     token = service.create_password_reset_token(data.email)
+    print(f"DEBUG: token={token}, calling send_reset_email")
     if token:
-        # Build the reset link (adjust domain for production)
-        reset_link = f"http://localhost:8501/reset?token={token}"
-        # In production, you would use https://www.ai-fsms.com/reset?token=...
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8501")
+        reset_link = f"{frontend_url}/reset?token={token}"
         from gen_ai_fsms.services.email_service import send_reset_email
-        email_sent = send_reset_email(data.email, reset_link)
-        if email_sent:
-            print(f"Password reset email sent to {data.email}")
-        else:
-            print(f"Failed to send password reset email to {data.email}")
+        send_reset_email(data.email, reset_link)
     return {"message": "If the email exists, a reset link has been sent."}
 
 
