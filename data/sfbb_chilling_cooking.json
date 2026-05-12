@@ -192,6 +192,74 @@
           "safe_method_name": "Defrosting",
           "condition_id": "defrosts_food",
           "safe_method_id": "4.3"
+        },
+        {
+          "safe_method_id": "4.4",
+          "safe_method_name": "Freezing",
+          "condition_id": "freezes_food",
+          "safety_points": [
+            {
+              "safety_point_id": "4.4.1.1",
+              "condition_id": "buys_frozen_food",
+              "text": "It is important to take care when freezing food and handle frozen food safely. Put frozen food in the freezer as soon as it is delivered. If frozen food starts to defrost, harmful bacteria could grow.",
+              "source_references": [
+                "SFBB Pack > Chilling > Freezing"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "4.4.1.2",
+              "text": "If you are freezing fresh food, freeze it as soon as it has been delivered or prepared. Freeze hot food as soon as it has been properly chilled. The longer you wait before freezing food, the greater the chance of harmful bacteria growing.",
+              "source_references": [
+                "SFBB Pack > Chilling > Freezing"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "4.4.1.3",
+              "text": "Divide food into smaller portions and put it in containers or freezer bags before freezing. Smaller portions will freeze (and defrost) more quickly. The centre of larger portions takes longer to freeze, allowing harmful bacteria to grow. Using containers and freezer bags prevents cross-contamination.",
+              "source_references": [
+                "SFBB Pack > Chilling > Freezing"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "4.4.1.4",
+              "text": "Food that must be kept frozen (e.g., ice cream) cannot be refrozen once it has started to defrost. You will have to use it immediately or throw it away.",
+              "source_references": [
+                "SFBB Pack > Chilling > Freezing"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "4.4.1.5",
+              "condition_id": "stores_food_that_must_be_kept_frozen",
+              "text": "'Food that needs extra care' guidance: Eggs, you can freeze them for later use if required.",
+              "source_references": [
+                "SFBB Pack > Chilling > Freezing"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "4.4.1.6",
+              "condition_id": "handles_raw_fish",
+              "text": "'Food that needs extra care' guidance: If you buy frozen fish, then keep it frozen until you are ready to use it.",
+              "source_references": [
+                "SFBB Pack > Chilling > Freezing"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "4.4.1.7",
+              "text": "You can use the digital display, a dial thermometer or a probe thermometer to check that your freezer is keeping food at a safe temperature.",
+              "source_references": [
+                "SFBB Pack > Chilling > Freezing"
+              ],
+              "additional_source_references": [
+                "SFBB Pack > Chilling > Freezing > Prove it"
+              ]
+            }
+          ]
         }
       ]
     },
