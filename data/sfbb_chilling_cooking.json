@@ -420,6 +420,58 @@
               ]
             }
           ]
+        },
+        {
+          "safe_method_id": "5.2",
+          "safe_method_name": "Foods That Need Extra Care",
+          "condition_id": "cooks_food",
+          "safety_points": [
+            {
+              "safety_point_id": "5.2.1.1",
+              "condition_id": "handles_eggs",
+              "text": "Cook eggs and foods containing eggs thoroughly until they are steaming hot, or if serving eggs or egg dishes lightly cooked (e.g. soft-boiled or in fresh mayonnaise or mousse), either use:\n• Pasteurised egg, or\n• British Lion code or equivalent assurance scheme\n\nMake sure you rotate stock and use the oldest eggs first. Use eggs within the 'best before' date. You can freeze them for use later if required.\n\nBuy eggs from a reputable supplier. Store eggs in a cool, dry place.\n\nEggs can contain harmful bacteria. If you cook them thoroughly, this kills any bacteria.\n\nThe British Lion code or equivalent assurance schemes demonstrate that eggs have been produced in a safe manner and can therefore be eaten less than thoroughly cooked. Pasteurisation also kills harmful bacteria.\n\nHarmful bacteria can grow in eggs that are not handled or stored correctly.",
+              "source_references": [
+                "SFBB Pack > Cooking > Foods That Need Extra Care"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.2.1.2",
+              "condition_id": "cooks_rice",
+              "text": "When you have cooked rice, make sure you keep it hot until serving or chill it down as quickly as possible and then keep it in the fridge.\n\nYou can make rice chill down more quickly by dividing it into smaller portions, spreading it out on a clean tray, or running it under cold water (make sure the water is clean and of drinking quality).\n\nRice can contain spores of a type of harmful bacteria that may not be killed by cooking or reheating.\n\nIf cooked rice is left at room temperature, spores can multiply and produce toxins that cause food poisoning. Reheating will not get rid of these.",
+              "source_references": [
+                "SFBB Pack > Cooking > Foods That Need Extra Care"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.2.1.3",
+              "condition_id": "cooks_dried_pulses",
+              "text": "Follow the instructions on the packaging on how to soak and cook dried pulses, such as beans.\n\nPulses can contain natural toxins that could make people ill unless they are destroyed by the proper method of soaking and cooking.\n\nTinned pulses will have been soaked and cooked already.",
+              "source_references": [
+                "SFBB Pack > Cooking > Foods That Need Extra Care"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.2.1.4",
+              "condition_id": "handles_raw_molluscs_or_crustaceans",
+              "text": "Make sure you buy shellfish (molluscs and crustaceans) from a reputable supplier. Keep the product label for 60 days after opening.\n\nIf you do not use a reputable supplier, you cannot be confident that shellfish have been caught and handled safely.\n\nIt is a legal requirement to keep labels for 60 days to trace suppliers, if needed.\n\nCrabs, crayfish, lobster and scallops should be prepared by someone with specialist knowledge.\n\nSome parts of these shellfish cannot be eaten, and some are poisonous, so it is important to know how to remove these parts safely.\n\nCrustaceans and molluscs, such as prawns and scallops, should change colour and texture when cooked.\n\nFor example, prawns turn from blue-grey to pink and scallops become milky white and firm.\n\nLangoustines (also called scampi or Dublin Bay prawns) are pink when raw, and the flesh becomes firm and pink-white when they are cooked.\n\nAlways follow the manufacturer's instructions for preparation and storage.\n\nBefore cooking mussels and clams, throw away any with open or damaged shells.\n\nIf the shell is damaged or open before cooking, the shellfish might not be safe to eat.\n\nTo check that a mussel or clam is cooked, make sure the shell is open and that the mussel or clam has shrunk inside the shell. If the shell has not opened during cooking, throw it away.\n\nIf the shell has not opened during cooking, the shellfish might not be safe to eat.",
+              "source_references": [
+                "SFBB Pack > Cooking > Foods That Need Extra Care"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.2.1.5",
+              "condition_id": "handles_raw_fish",
+              "text": "Make sure you buy fish from a reputable supplier.\n\nIf you buy fresh fish, make sure you store it between 0°C and 4°C. If you buy frozen fish, then keep it frozen until you are ready to use it.\n\nCertain types of fish, such as mackerel, tuna, anchovies and herrings, can cause food poisoning if not kept at the correct temperature.",
+              "source_references": [
+                "SFBB Pack > Cooking > Foods That Need Extra Care"
+              ],
+              "additional_source_references": []
+            }
+          ]
         }
       ]
     }
