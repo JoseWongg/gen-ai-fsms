@@ -15,7 +15,7 @@
           "safety_points": [
             {
               "safety_point_id": "4.1.1.1",
-              "text": "Certain foods need to be kept chilled to keep them safe, for example: food with a 'use by' date, food that says 'keep refrigerated' on the label, food you have cooked and will not serve immediately, ready-to-eat food such as salads, cooked meats, sandwiches and cream-based desserts. If these types of food are not kept cold enough, harmful bacteria could grow.",
+              "text": "Certain foods need to be kept chilled to keep them safe, for example: food with a 'use by' date, food that says 'keep refrigerated' on the label, food you have cooked and will not serve immediately such as cooked rice and pasta, ready-to-eat food such as salads, cooked meats, sandwiches and cream-based desserts. If these types of food are not kept cold enough, harmful bacteria could grow.",
               "source_references": [
                 "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
               ],
@@ -23,7 +23,7 @@
             },
             {
               "safety_point_id": "4.1.1.2",
-              "text": "Make sure you use food before its 'use by' date. Food with 'use by' dates, cooked dishes and other ready-to-eat food have a limited shelf life. Food cannot be supplied or served after its 'use by date'.",
+              "text": "Make sure you use food before its 'use by' date. Food with 'use by' dates, cooked dishes and other ready-to-eat food have a limited shelf life. Food cannot be supplied or served after its 'use by date'. For dishes you have prepared or cooked, use stickers or another method of labelling to keep track of when food should be used or thrown away. For guidance on how long to keep food, follow the manufacturer’s storage instructions on the product label. High-risk ready-to-eat foods should be kept for a maximum of 3 days in total (day of cook/opening + 2) unless you have evidence that it is safe to keep them for longer.",
               "source_references": [
                 "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
               ],
@@ -31,7 +31,7 @@
             },
             {
               "safety_point_id": "4.1.1.3",
-              "text": "Follow the manufacturer's instructions on how to use fridges and chilled display equipment. It is important to use equipment properly to make sure food is kept cold enough. It is recommended that fridges and chilled display equipment should be set at 5°C or below. This is to make sure that chilled food is kept at 8°C or below.",
+              "text": "Follow the manufacturer's instructions on how to use fridges and chilled display equipment. It is important to use equipment properly to make sure food is kept cold enough. It is recommended that fridges and chilled display equipment should be set at 5°C or below. This is to make sure that chilled food is kept at 8°C or below. You should check the temperature of your fridges and chilled display equipment at least once a day, starting with your opening checks. To check that chilling equipment is working effectively, you can use a disinfected temperature probe to check that the food is kept at a safe temperature.To make sure equipment is working properly, check temperatures in-between packs of chilled food using a clean, disinfected probe thermometer.Some equipment will have a digital display or dial to show what temperature it is set at. You can use this to check the temperature of your equipment.If you do this, you should check regularly that the temperature shown on the display matches the temperature of a fridge thermometer or probe thermometer.",
               "source_references": [
                 "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
               ],
@@ -42,7 +42,7 @@
             {
               "safety_point_id": "4.1.1.4",
               "condition_id": "displays_chilled_food",
-              "text": "It is important to keep chilled food cold while it is on display to prevent harmful bacteria from growing in the food. Pre-cool the display unit before you put chilled food in it. Only display as much food as you think you will need. Display food for the shortest time possible. You could also use a 'dummy' portion for display (which will not be eaten) or use photographs to show customers what the food looks like.",
+              "text": "It is important to keep chilled food cold while it is on display to prevent harmful bacteria from growing in the food. Pre-cool the display unit before you put chilled food in it. Only display as much food as you think you will need. Display food for the shortest time possible. You could also use a 'dummy' portion for display (which will not be eaten) or use photographs to show customers what the food looks like. When you display cold food (e.g. on a buffet), you should use suitable chilled display equipment to keep it at 8°C or below. If this is not possible, there is a 4-hour rule exception: You can display food out of chilled storage for up to four hours, but you can only do this once. Make sure you know how long food has been on display or kept out of chilled storage. It is a good idea to label foods with the time they were taken out of the fridge or write this information in your diary so you can check the time easily. Food which has been displayed for less than four hours can be put back in the fridge and kept at 8°C or below until it is used. If it has been used for more than four hours, it must be thrown away.",
               "source_references": [
                 "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
               ],
@@ -92,7 +92,7 @@
             },
             {
               "safety_point_id": "4.2.1.2",
-              "text": "Options for chilling down food you can use are: divide food into smaller portions, cut joints of meat in half, cover pans of hot food and move them to a colder area or stand them in cold water, stir food regularly while it is chilling down, spread food out on a tray, use a 'cool' setting on your oven, or consider using a blast chiller.",
+              "text": "Options for chilling down food you can use are: divide food into smaller portions because Smaller amounts of food chill down more quickly. Cut joints of meat in half because Smaller pieces of meat will cool more quickly. Cover pans of hot food and move them to a colder area, stand them in cold water or use ice to speed up chilling to make the food chill more quickly. Stir food regularly while it is chilling down as doing this helps food chill more evenly. Spread food, such as rice, out on a tray as it will help it to cool more quickly. If you have a 'cool' setting on your oven use it to chill down food as it increases the air flow around it (The oven should be cold first). Consider using a blast chiller, which is specially designed to chill down hot foods quickly and safely.",
               "source_references": [
                 "SFBB Pack > Chilling > Chilling Down Hot Food"
               ],
