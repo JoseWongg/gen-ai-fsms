@@ -541,6 +541,117 @@
               "additional_source_references": []
             }
           ]
+        },
+        {
+          "safe_method_id": "5.4",
+          "safe_method_name": "Acrylamide",
+          "condition_id": "handles_bread_bakery_or_potatoes",
+          "safety_points": [
+            {
+              "safety_point_id": "5.4.1.1",
+              "text": "It is important not to overcook certain foods. Acrylamide is a chemical that forms naturally when some foods are cooked at high temperatures (above 120°C), such as by frying, roasting, baking, grilling, and toasting.\n\nLegislation is in place to reduce acrylamide levels in food, as it has the potential to cause cancer in humans.\n\nIf you cook the following types of foods, you must put in place practical steps to reduce acrylamide.\n- Raw potato products such as chips, French fries, other cut (deep-fried) and sliced potato crisps made from fresh potatoes, including potatoes that are deep-fried and finished in the oven.\n- Bread products such as loaves, bread rolls and baguettes, toast and toasted sandwiches.\n- Sweet bakery products such as cookies, biscuits, scones, gingerbread, wafers, crumpets.\n- Savoury bakery products such as crackers, crisp bread, breadsticks.",
+              "source_references": [
+                "SFBB Pack > Cooking > Acrylamide"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.4.1.2",
+              "text": "Cook foods that form acrylamide when cooked above 120°C, to a golden yellow or lighter colour. Overcooking or burning certain foods can make them higher in acrylamide.\n\nSome suppliers have produced colour charts to show which colour is best for certain foods to keep acrylamide levels low. You can ask your supplier whether they have these available. You do not have to use colour charts, but they can be useful for training your staff.",
+              "source_references": [
+                "SFBB Pack > Cooking > Acrylamide"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.4.1.3",
+              "text": "Where possible, set a timer to mark the cooking time. This could be on the oven or fryer, or you can use a separate timer.\n\nThis will remind you to remove foods at the right time to prevent them from overcooking or burning.",
+              "source_references": [
+                "SFBB Pack > Cooking > Acrylamide"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.4.1.4",
+              "text": "When buying raw potatoes, ask your supplier for advice on the best variety to use for the type of cooking you are doing.\n\nCertain potato varieties are lower in natural sugars, and using these will help to keep acrylamide levels lower.\n\nStore raw, unpeeled potatoes for frying, baking, or roasting in the fridge or a cool, dark place.\n\nStorage of potatoes in the fridge doesn't increase acrylamide-forming potential when compared to storage in a cool, dark place. So, you can choose to store either in the fridge or in a cool, dark place.",
+              "source_references": [
+                "SFBB Pack > Cooking > Acrylamide"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.4.1.5",
+              "text": "When buying acrylamide-forming cooked products from a supplier, tell them you will not accept over-baked or burnt products.\n\nCheck deliveries and reject products that are over-baked or burnt, as these will have higher levels of acrylamide.",
+              "source_references": [
+                "SFBB Pack > Cooking > Acrylamide"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.4.1.6",
+              "text": "Ask your cooking oil supplier for advice on the best oil to use for the type of cooking you are doing.\n\nCooking foods in the right oil for the type of cooking will help foods to fry quicker and keep acrylamide levels lower.",
+              "source_references": [
+                "SFBB Pack > Cooking > Acrylamide"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.4.1.7",
+              "text": "When preparing foods that form acrylamide when cooked above 120°C, such as potatoes, cut them to similar sizes.\n\nThis will help all foods to cook more evenly.",
+              "source_references": [
+                "SFBB Pack > Cooking > Acrylamide"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.4.1.8",
+              "text": "These steps will remove excess sugars and help to keep acrylamide levels lower. Follow them where possible, when making home-made chips or cut potatoes that are going to be deep-fried:\n- Soak (for 30--180 mins) in cold water after cutting. Rinse with clean water and drain.\n- Soak for a few minutes in warm water. Rinse with clean water and drain.\n- Blanch potatoes before cooking.",
+              "source_references": [
+                "SFBB Pack > Cooking > Acrylamide"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.4.1.9",
+              "text": "Where possible, and when the preparation process allows, when making bread or dough products, extend the yeast fermentation time. This will help to keep acrylamide levels lower in the finished product.",
+              "source_references": [
+                "SFBB Pack > Cooking > Acrylamide"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.4.1.10",
+              "text": "When baking bread and sweet or savoury bakery products cook to a golden yellow, or lighter colour. Use the lowest oven temperature possible for the food.\n\nBaking foods to a golden yellow, or lighter colour, and at lower oven temperatures will reduce acrylamide levels.",
+              "source_references": [
+                "SFBB Pack > Cooking > Acrylamide"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.4.1.11",
+              "text": "When cooking foods such as toast and toasted sandwiches, do not over-toast or burn.\n\nCooking bread to a golden colour, or lighter, will help to keep acrylamide levels lower.",
+              "source_references": [
+                "SFBB Pack > Cooking > Acrylamide"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.4.1.12",
+              "text": "Where appropriate, follow the manufacturer's cooking instructions for food products.\n\nThe manufacturer has tried and tested cooking methods specifically for its products.",
+              "source_references": [
+                "SFBB Pack > Cooking > Acrylamide"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.4.1.13",
+              "text": "Deep-fry potato products, such as chips and French fries, to a golden yellow or lighter colour. The oil temperature for cooking should ideally be below 175°C.\n\nCooking to a golden yellow, or lighter colour, and deep-frying at lower temperatures will keep acrylamide levels low.\n\nWhen deep-frying, take care not to overfill baskets. Fill the basket only halfway.\n\nThis will help the food to cook more evenly.\n\nKeep cooking oil quality at its best by skimming often to remove crumbs and food particles left in the oil.\n\nThis will prevent crumbs and food particles left in the oil from burning and will keep the oil quality for longer.\n\nFilter, change oils and clean cooking equipment as often as needed or as recommended by suppliers.\n\nReusing old, dirty oil and cooking equipment will increase the levels of acrylamide in deep-fried foods.",
+              "source_references": [
+                "SFBB Pack > Cooking > Acrylamide"
+              ],
+              "additional_source_references": []
+            }
+          ]
         }
       ]
     }
