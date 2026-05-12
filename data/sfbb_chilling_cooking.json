@@ -711,6 +711,89 @@
               "additional_source_references": []
             }
           ]
+        },
+        {
+          "safe_method_id": "5.6",
+          "safe_method_name": "Ready-to-Eat Food",
+          "condition_id": "handles_ready_to_eat_food",
+          "safety_points": [
+            {
+              "safety_point_id": "5.6.1.1",
+              "text": "When preparing and handling food, you should:\n- Keep ready-to-eat food completely separate from raw meat, poultry, fish, eggs and unwashed vegetables.\n- Make sure work surfaces, chopping boards, knives, etc., are clean\n- Ideally, use separate colour-coded chopping boards and utensils for ready-to-eat food\n- Keep ready-to-eat food covered at all times during preparation and storage\n- If you are preparing both raw and ready-to-eat food, you should make sure, where possible, that this is done in separate clean and disinfected areas. If this is not possible, the surface and utensils used must be thoroughly cleaned and then disinfected between tasks.\n- Make sure staff wash their hands thoroughly between tasks, especially when working with raw and ready-to-eat food. This prevents bacteria and allergens from spreading onto foods, surfaces, and equipment.\n\nThis protects food from harmful bacteria and allergens. This is especially important for ready-to-eat foods, which are not cooked or reheated before serving.\n\nIt also helps keep allergens from spreading.",
+              "source_references": [
+                "SFBB Pack > Cooking > Ready-to-Eat Food"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.6.1.2",
+              "text": "Follow the manufacturer's instructions for storing and preparing the food, if available.\n\nThe manufacturer's instructions are designed to keep the food safe.",
+              "source_references": [
+                "SFBB Pack > Cooking > Ready-to-Eat Food"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.6.1.3",
+              "text": "When preparing fruit, vegetables and salad ingredients:\n- Peel, trim, or remove the outer parts, as appropriate\n- Wash them thoroughly by rubbing vigorously in a bowl of clean water\n- Wash the cleanest ones first\n\nWash your hands before and after handling fruit and vegetables.\n\nIf you have prepared vegetables with dirt or soil on the outside, clean them, then disinfect the chopping boards and work surfaces before preparing other food.\n\nDirt on vegetables and salad ingredients can contain harmful bacteria. Peeling and washing help to remove the dirt and bacteria.",
+              "source_references": [
+                "SFBB Pack > Cooking > Ready-to-Eat Food"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.6.1.4",
+              "text": "Make sure you keep ready-to-eat food cold enough.\n\nIf these types of food are not kept cold enough, harmful bacteria could grow.",
+              "source_references": [
+                "SFBB Pack > Cooking > Ready-to-Eat Food"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.6.1.5",
+              "text": "Do not use ready-to-eat food after the use-by date, if there is one.\n\nYou should never use food that has passed its 'use by' date because it might not be safe to eat.",
+              "source_references": [
+                "SFBB Pack > Cooking > Ready-to-Eat Food"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.6.1.6",
+              "text": "For food you have prepared, or removed from its original packaging, use stickers or another method to keep track of when food should be used by or thrown away.\n\nFor guidance on how long to keep food once prepared or opened, follow the manufacturer's storage instructions on the original product label.\n\nReady-to-eat foods should be kept for a maximum of 3 days in total (day of cook/opening +2) unless you have evidence that it is safe to keep them for longer.",
+              "source_references": [
+                "SFBB Pack > Cooking > Ready-to-Eat Food"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.6.1.7",
+              "condition_id": "cooks_rice",
+              "text": "Cooked rice should only be kept for 1 day once prepared.",
+              "source_references": [
+                "SFBB Pack > Cooking > Ready-to-Eat Food"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.6.1.8",
+              "condition_id": "uses_slicer",
+              "text": "When slicing cooked meat, handle it as little as possible -- use clean tongs or slice it straight onto a plate. Hands can easily spread harmful bacteria onto food.\n\nFollow the manufacturer's instructions when you clean the slicer. Meat slicers need careful cleaning and disinfecting to prevent dirt buildup and the growth of harmful bacteria, particularly on the slicing blade.",
+              "source_references": [
+                "SFBB Pack > Cooking > Ready-to-Eat Food"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.6.1.9",
+              "text": "You should not use the same equipment, such as vacuum packing machines, slicers and mincers, for both raw and ready-to-eat food. These are complex pieces of machinery with many moving parts, and it is very difficult to clean them thoroughly, so bacteria from raw food could easily be transferred to ready-to-eat food.",
+              "source_references": [
+                "SFBB Pack > Cooking > Ready-to-Eat Food"
+              ],
+              "additional_source_references": [
+                "SFBB Pack > Cross-contamination > Separating Foods > Think Twice"
+              ]
+            }
+          ]
         }
       ]
     }
