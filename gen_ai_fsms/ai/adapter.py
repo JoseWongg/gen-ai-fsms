@@ -1,3 +1,11 @@
+""" Integration tests for the LLM adapter in the gen_ai_fsms package.
+This test verifies that the LLM adapter can correctly interpret screening answers and provide clarifications.
+Note: These tests require access to the OpenAI API and will be skipped unless the environment variable RUN_LLM_TESTS is set to true.
+
+To run the test (when you want to verify connectivity):
+$env:RUN_LLM_TESTS="true"; pytest tests/integration/test_llm_adapter.py -v; Remove-Item Env:RUN_LLM_TESTS
+"""
+
 import os
 import json
 import logging

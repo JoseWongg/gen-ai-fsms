@@ -233,7 +233,7 @@
             },
             {
               "safety_point_id": "4.4.1.5",
-              "condition_id": "stores_food_that_must_be_kept_frozen",
+              "condition_id": "handles_eggs",
               "text": "'Food that needs extra care' guidance: Eggs, you can freeze them for later use if required.",
               "source_references": [
                 "SFBB Pack > Chilling > Freezing"
