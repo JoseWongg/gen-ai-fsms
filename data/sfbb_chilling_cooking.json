@@ -16,45 +16,61 @@
             {
               "safety_point_id": "4.1.1.1",
               "text": "Certain foods need to be kept chilled to keep them safe, for example: food with a 'use by' date, food that says 'keep refrigerated' on the label, food you have cooked and will not serve immediately, ready-to-eat food such as salads, cooked meats, sandwiches and cream-based desserts. If these types of food are not kept cold enough, harmful bacteria could grow.",
-              "source_references": ["SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"],
+              "source_references": [
+                "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
+              ],
               "additional_source_references": []
             },
             {
               "safety_point_id": "4.1.1.2",
               "text": "Make sure you use food before its 'use by' date. Food with 'use by' dates, cooked dishes and other ready-to-eat food have a limited shelf life. Food cannot be supplied or served after its 'use by date'.",
-              "source_references": ["SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"],
+              "source_references": [
+                "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
+              ],
               "additional_source_references": []
             },
             {
               "safety_point_id": "4.1.1.3",
               "text": "Follow the manufacturer's instructions on how to use fridges and chilled display equipment. It is important to use equipment properly to make sure food is kept cold enough. It is recommended that fridges and chilled display equipment should be set at 5°C or below. This is to make sure that chilled food is kept at 8°C or below.",
-              "source_references": ["SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"],
-              "additional_source_references": ["SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food > Prove it"]
+              "source_references": [
+                "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
+              ],
+              "additional_source_references": [
+                "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food > Prove it"
+              ]
             },
             {
               "safety_point_id": "4.1.1.4",
               "condition_id": "displays_chilled_food",
               "text": "It is important to keep chilled food cold while it is on display to prevent harmful bacteria from growing in the food. Pre-cool the display unit before you put chilled food in it. Only display as much food as you think you will need. Display food for the shortest time possible. You could also use a 'dummy' portion for display (which will not be eaten) or use photographs to show customers what the food looks like.",
-              "source_references": ["SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"],
+              "source_references": [
+                "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
+              ],
               "additional_source_references": []
             },
             {
               "safety_point_id": "4.1.1.5",
               "text": "Some foods require storage at temperatures lower than 8°C to keep them safe, so always follow the manufacturer's storage guidance.",
-              "source_references": ["SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"],
+              "source_references": [
+                "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
+              ],
               "additional_source_references": []
             },
             {
               "safety_point_id": "4.1.1.6",
               "text": "Minimise the time chilled foods are kept out at room temperature during preparation. You can help do this by only preparing small batches one at a time.",
-              "source_references": ["SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"],
+              "source_references": [
+                "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
+              ],
               "additional_source_references": []
             },
             {
               "safety_point_id": "4.1.1.7",
               "condition_id": "handles_raw_fish",
               "text": "\"Food that needs extra care\" guidance: If you buy fresh fish make sure you store it between 0°C and 4°C",
-              "source_references": ["SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"],
+              "source_references": [
+                "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
+              ],
               "additional_source_references": []
             }
           ]
@@ -67,35 +83,115 @@
             {
               "safety_point_id": "4.2.1.1",
               "text": "Harmful bacteria can grow in food that is left to chill slowly rather than chilled as quickly as possible. If you have cooked food that you will not serve immediately, chill it as quickly as possible, then put it in the fridge. Chilling food is a prerequisite for freezing. Freeze hot food as soon as it has been properly chilled.",
-              "source_references": ["SFBB Pack > Chilling > Chilling Down Hot Food"],
-              "additional_source_references": ["SFBB Pack > Chilling > Freezing > Safety Points"]
+              "source_references": [
+                "SFBB Pack > Chilling > Chilling Down Hot Food"
+              ],
+              "additional_source_references": [
+                "SFBB Pack > Chilling > Freezing > Safety Points"
+              ]
             },
             {
               "safety_point_id": "4.2.1.2",
               "text": "Options for chilling down food you can use are: divide food into smaller portions, cut joints of meat in half, cover pans of hot food and move them to a colder area or stand them in cold water, stir food regularly while it is chilling down, spread food out on a tray, use a 'cool' setting on your oven, or consider using a blast chiller.",
-              "source_references": ["SFBB Pack > Chilling > Chilling Down Hot Food"],
+              "source_references": [
+                "SFBB Pack > Chilling > Chilling Down Hot Food"
+              ],
               "additional_source_references": []
             },
             {
               "safety_point_id": "4.2.1.3",
               "text": "Avoid cooking large quantities of food in advance, unless you need to. Large quantities of food are more difficult to chill down quickly, especially solid food.",
-              "source_references": ["SFBB Pack > Chilling > Chilling Down Hot Food"],
+              "source_references": [
+                "SFBB Pack > Chilling > Chilling Down Hot Food"
+              ],
               "additional_source_references": []
             },
             {
               "safety_point_id": "4.2.1.4",
               "text": "When you have just cooked the food, use a probe to test its temperature. Then test the temperature again at regular intervals to find out how fast the food is being chilled down. Remember to use a clean probe each time you check the food.",
-              "source_references": ["SFBB Pack > Chilling > Chilling Down Hot Food"],
-              "additional_source_references": ["SFBB Pack > Chilling > Chilling Down Hot Food > Check it"]
+              "source_references": [
+                "SFBB Pack > Chilling > Chilling Down Hot Food"
+              ],
+              "additional_source_references": [
+                "SFBB Pack > Chilling > Chilling Down Hot Food > Check it"
+              ]
             },
             {
               "safety_point_id": "4.2.1.5",
               "condition_id": "cooks_rice",
               "text": "\"Food that needs extra care\" guidance: When you have cooked rice, make sure you keep it hot until serving or chill it down as quickly as possible and then keep it in the fridge. You can chill down more quickly by dividing it into smaller portions, spreading it out on a clean tray, or running it under cold water (make sure the water is clean and drinking quality).",
-              "source_references": ["SFBB Pack > Chilling > Chilling Down Hot Food"],
+              "source_references": [
+                "SFBB Pack > Chilling > Chilling Down Hot Food"
+              ],
               "additional_source_references": []
             }
           ]
+        },
+        {
+          "safety_points": [
+            {
+              "text": "Food should be thoroughly defrosted before cooking (unless the manufacturer's instructions tell you to cook from frozen or you have a proven safe method). If food is still frozen or partially frozen, it will take longer to cook. The outside of the food could be cooked, but the centre might not be, which means it could contain harmful bacteria.\n\nThe options to defrost food are:\n- Ideally, plan ahead to leave enough time and space to defrost small amounts of food in the fridge. Putting food in the fridge will keep it at a safe temperature while it is defrosting.\n- If you cannot defrost food in the fridge, you could put it in a container and then place it under cold running water. Cold water will help to speed up defrosting without allowing the outside of the food to get too warm. Raw meat and poultry (including large joints and whole birds) should not be defrosted under cold running water unless they are in a sealed container. For more information visit the FSA website.\n- Defrost food in the microwave on the 'defrost' setting. This is a fast way to defrost food.\n- If necessary, you could defrost food at room temperature. Follow the manufacturer's defrosting instructions. Food should be left out at room temperature for the shortest time possible. Ideally, defrost these foods in the fridge. Foods will defrost quite quickly at room temperature, but harmful bacteria could grow in food if it gets too warm while defrosting.",
+              "source_references": [
+                "SFBB Pack > Chilling > Defrosting"
+              ],
+              "additional_source_references": [],
+              "safety_point_id": "4.3.1.1"
+            },
+            {
+              "text": "Keep meat/poultry separate from other food when it is defrosting, to prevent cross-contamination.",
+              "condition_id": "handles_raw_meat_or_poultry",
+              "source_references": [
+                "SFBB Pack > Chilling > Defrosting"
+              ],
+              "additional_source_references": [],
+              "safety_point_id": "4.3.1.2"
+            },
+            {
+              "text": "Once food has been defrosted, you should cook it until it is piping hot all the way through. After cooking, use the food immediately or chill or freeze it safely straight away.",
+              "source_references": [
+                "SFBB Pack > Chilling > Defrosting"
+              ],
+              "additional_source_references": [],
+              "safety_point_id": "4.3.1.3"
+            },
+            {
+              "text": "Harmful bacteria could be spread, contaminating sinks, taps and surfaces. If you use the sink to defrost some food, make sure the sink is clean and empty. The sink should be cleaned and then disinfected after being used for defrosting. Cold running water will help speed up defrosting.",
+              "condition_id": "uses_sink_to_defrost_food",
+              "source_references": [
+                "SFBB Pack > Chilling > Defrosting"
+              ],
+              "additional_source_references": [],
+              "safety_point_id": "4.3.1.4"
+            },
+            {
+              "text": "When you think food has defrosted, it is important to check to make sure. The outside may look defrosted, but the inside could still be frozen. Check for ice crystals in the food using your hand or a skewer. With birds, check the joints are flexible.",
+              "source_references": [
+                "SFBB Pack > Chilling > Defrosting"
+              ],
+              "additional_source_references": [],
+              "safety_point_id": "4.3.1.5"
+            },
+            {
+              "text": "Food that must be kept frozen (e.g., ice cream) cannot be refrozen once it has started to defrost. You will have to use it immediately or throw it away.",
+              "condition_id": "stores_food_that_must_be_kept_frozen",
+              "source_references": [
+                "SFBB Pack > Chilling > Defrosting"
+              ],
+              "additional_source_references": [],
+              "safety_point_id": "4.3.1.6"
+            },
+            {
+              "text": "Once the food is defrosted, its shelf life depends on the number of days left until expiry when it was frozen.",
+              "source_references": [
+                "SFBB Pack > Chilling > Defrosting"
+              ],
+              "additional_source_references": [],
+              "safety_point_id": "4.3.1.7"
+            }
+          ],
+          "safe_method_name": "Defrosting",
+          "condition_id": "defrosts_food",
+          "safe_method_id": "4.3"
         }
       ]
     },
@@ -112,8 +208,12 @@
             {
               "safety_point_id": "5.1.1.1",
               "text": "It is essential to cook food properly to kill any harmful bacteria. If it is not cooked properly, it might not be safe for your customers to eat. Do not forget that cooking does not remove allergens from food, so you need to handle food that contains allergens carefully. It is also very important to handle ready-to-eat food carefully to prevent contamination with harmful bacteria. This is because it will not be cooked or reheated before serving.",
-              "source_references": ["SFBB Pack > Cooking > Cooking Safely"],
-              "additional_source_references": ["SFBB Pack > Cooking > Section Introduction"]
+              "source_references": [
+                "SFBB Pack > Cooking > Cooking Safely"
+              ],
+              "additional_source_references": [
+                "SFBB Pack > Cooking > Section Introduction"
+              ]
             }
           ]
         }
