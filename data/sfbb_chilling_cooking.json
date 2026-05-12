@@ -652,6 +652,65 @@
               "additional_source_references": []
             }
           ]
+        },
+        {
+          "safe_method_id": "5.5",
+          "safe_method_name": "Hot Holding",
+          "condition_id": "hot_holds_food",
+          "safety_points": [
+            {
+              "safety_point_id": "5.5.1.1",
+              "text": "It is very important to keep food hot until serving to prevent harmful bacteria from growing.\n\nIf you need to keep food hot before serving, you should use suitable equipment.\n\nIt is difficult to hold food at a consistent, safe temperature without suitable equipment such as a Bain-marie or a Soup kettle.",
+              "source_references": [
+                "SFBB Pack > Cooking > Hot Holding"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.5.1.2",
+              "text": "Preheat the hot holding equipment before you put any food in it.\n\nPutting food into cold equipment may not keep it hot enough to prevent harmful bacteria from growing.",
+              "source_references": [
+                "SFBB Pack > Cooking > Hot Holding"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.5.1.3",
+              "text": "Food must be cooked thoroughly and steaming hot before hot holding begins.\n\nHot holding equipment is for hot holding only. It should not be used to cook or reheat food.",
+              "source_references": [
+                "SFBB Pack > Cooking > Hot Holding"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.5.1.4",
+              "condition_id": "delivers_food",
+              "text": "If you offer food deliveries, make sure the food is kept hot or cold until it is collected by the delivery driver or customer. Also, make sure food is kept hot or cold during delivery until it arrives at the customer's home. It is a good idea to use an insulated bag or box to transport food and to make sure it stays covered until it is delivered.\n\nIf food is not kept either hot or cold, harmful bacteria can grow in it.\n\nUsing an insulated bag or box to transport food will help keep it at the correct temperature and in its best condition.",
+              "source_references": [
+                "SFBB Pack > Cooking > Hot Holding"
+              ],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "5.5.1.5",
+              "text": "Hot food must be kept at 63°C or above, except for certain exceptions.\n\nRemember to keep the food at a safe temperature until it is used.\n\nUse a disinfected temperature probe to prove your method keeps food at a safe temperature of 63°C or above.",
+              "source_references": [
+                "SFBB Pack > Cooking > Hot Holding"
+              ],
+              "additional_source_references": [
+                "SFBB Pack > Cooking > Hot Holding > Check it"
+              ]
+            },
+            {
+              "safety_point_id": "5.5.1.6",
+              "condition_id": "displays_hot_food",
+              "text": "When you display hot food, e.g., on a buffet, you should use suitable hot-holding equipment to keep it above 63°C.\n\nIt is possible to take food out of the hot holding to display it for up to two hours, but you can only do this once.\n\nFood that has not been used within 2 hours should either be reheated until steaming hot and returned to hot holding, or chilled down as quickly as possible to 8°C or below. If it has been out for more than two hours, throw it away.\n\nIf you do take food out of hot holding to display, remember not to mix new food with the food already on display. This could lead to the older food being left out for too long.",
+              "source_references": [
+                "SFBB Pack > Cooking > Hot Holding"
+              ],
+              "additional_source_references": []
+            }
+          ]
         }
       ]
     }
