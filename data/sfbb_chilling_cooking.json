@@ -1,0 +1,123 @@
+{
+  "_comment": "SFBB compiled content – Chilling and Cooking sections only. Inheritance rule: a safety point inherits the condition_id of its parent safe method unless it explicitly provides its own condition_id. Section condition_id applies to all safe methods under it, but each safe method can override.",
+  "schema_version": "1.0",
+  "sections": [
+    {
+      "section_id": "chilling",
+      "section_name": "Chilling",
+      "condition_id": "chills_food",
+      "safe_methods": [
+        {
+          "safe_method_id": "4.1",
+          "safe_method_name": "Chilled Storage and Displaying Chilled Food",
+          "condition_id": "stores_or_displays_chilled_food",
+          "_comment": "Most safety points inherit stores_or_displays_chilled_food. Only those with a more specific condition (e.g., displays_chilled_food, handles_raw_fish) are listed with their own condition_id.",
+          "safety_points": [
+            {
+              "safety_point_id": "4.1.1.1",
+              "text": "Certain foods need to be kept chilled to keep them safe, for example: food with a 'use by' date, food that says 'keep refrigerated' on the label, food you have cooked and will not serve immediately, ready-to-eat food such as salads, cooked meats, sandwiches and cream-based desserts. If these types of food are not kept cold enough, harmful bacteria could grow.",
+              "source_references": ["SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "4.1.1.2",
+              "text": "Make sure you use food before its 'use by' date. Food with 'use by' dates, cooked dishes and other ready-to-eat food have a limited shelf life. Food cannot be supplied or served after its 'use by date'.",
+              "source_references": ["SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "4.1.1.3",
+              "text": "Follow the manufacturer's instructions on how to use fridges and chilled display equipment. It is important to use equipment properly to make sure food is kept cold enough. It is recommended that fridges and chilled display equipment should be set at 5°C or below. This is to make sure that chilled food is kept at 8°C or below.",
+              "source_references": ["SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"],
+              "additional_source_references": ["SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food > Prove it"]
+            },
+            {
+              "safety_point_id": "4.1.1.4",
+              "condition_id": "displays_chilled_food",
+              "text": "It is important to keep chilled food cold while it is on display to prevent harmful bacteria from growing in the food. Pre-cool the display unit before you put chilled food in it. Only display as much food as you think you will need. Display food for the shortest time possible. You could also use a 'dummy' portion for display (which will not be eaten) or use photographs to show customers what the food looks like.",
+              "source_references": ["SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "4.1.1.5",
+              "text": "Some foods require storage at temperatures lower than 8°C to keep them safe, so always follow the manufacturer's storage guidance.",
+              "source_references": ["SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "4.1.1.6",
+              "text": "Minimise the time chilled foods are kept out at room temperature during preparation. You can help do this by only preparing small batches one at a time.",
+              "source_references": ["SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "4.1.1.7",
+              "condition_id": "handles_raw_fish",
+              "text": "\"Food that needs extra care\" guidance: If you buy fresh fish make sure you store it between 0°C and 4°C",
+              "source_references": ["SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"],
+              "additional_source_references": []
+            }
+          ]
+        },
+        {
+          "safe_method_id": "4.2",
+          "safe_method_name": "Chilling Down Hot Food",
+          "condition_id": "chills_hot_food",
+          "safety_points": [
+            {
+              "safety_point_id": "4.2.1.1",
+              "text": "Harmful bacteria can grow in food that is left to chill slowly rather than chilled as quickly as possible. If you have cooked food that you will not serve immediately, chill it as quickly as possible, then put it in the fridge. Chilling food is a prerequisite for freezing. Freeze hot food as soon as it has been properly chilled.",
+              "source_references": ["SFBB Pack > Chilling > Chilling Down Hot Food"],
+              "additional_source_references": ["SFBB Pack > Chilling > Freezing > Safety Points"]
+            },
+            {
+              "safety_point_id": "4.2.1.2",
+              "text": "Options for chilling down food you can use are: divide food into smaller portions, cut joints of meat in half, cover pans of hot food and move them to a colder area or stand them in cold water, stir food regularly while it is chilling down, spread food out on a tray, use a 'cool' setting on your oven, or consider using a blast chiller.",
+              "source_references": ["SFBB Pack > Chilling > Chilling Down Hot Food"],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "4.2.1.3",
+              "text": "Avoid cooking large quantities of food in advance, unless you need to. Large quantities of food are more difficult to chill down quickly, especially solid food.",
+              "source_references": ["SFBB Pack > Chilling > Chilling Down Hot Food"],
+              "additional_source_references": []
+            },
+            {
+              "safety_point_id": "4.2.1.4",
+              "text": "When you have just cooked the food, use a probe to test its temperature. Then test the temperature again at regular intervals to find out how fast the food is being chilled down. Remember to use a clean probe each time you check the food.",
+              "source_references": ["SFBB Pack > Chilling > Chilling Down Hot Food"],
+              "additional_source_references": ["SFBB Pack > Chilling > Chilling Down Hot Food > Check it"]
+            },
+            {
+              "safety_point_id": "4.2.1.5",
+              "condition_id": "cooks_rice",
+              "text": "\"Food that needs extra care\" guidance: When you have cooked rice, make sure you keep it hot until serving or chill it down as quickly as possible and then keep it in the fridge. You can chill down more quickly by dividing it into smaller portions, spreading it out on a clean tray, or running it under cold water (make sure the water is clean and drinking quality).",
+              "source_references": ["SFBB Pack > Chilling > Chilling Down Hot Food"],
+              "additional_source_references": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "cooking",
+      "section_name": "Cooking",
+      "condition_id": "cooks_food",
+      "safe_methods": [
+        {
+          "safe_method_id": "5.1",
+          "safe_method_name": "Cooking Safely",
+          "condition_id": "cooks_food",
+          "safety_points": [
+            {
+              "safety_point_id": "5.1.1.1",
+              "text": "It is essential to cook food properly to kill any harmful bacteria. If it is not cooked properly, it might not be safe for your customers to eat. Do not forget that cooking does not remove allergens from food, so you need to handle food that contains allergens carefully. It is also very important to handle ready-to-eat food carefully to prevent contamination with harmful bacteria. This is because it will not be cooked or reheated before serving.",
+              "source_references": ["SFBB Pack > Cooking > Cooking Safely"],
+              "additional_source_references": ["SFBB Pack > Cooking > Section Introduction"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
