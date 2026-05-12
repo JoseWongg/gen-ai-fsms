@@ -8,5 +8,4 @@ class Condition(Base):
     condition_id = Column(String(50), unique=True, nullable=False, index=True)
     condition_name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
-    parent_condition_id = Column(String(50), nullable=True)
     status = Column(String(20), default="active")
