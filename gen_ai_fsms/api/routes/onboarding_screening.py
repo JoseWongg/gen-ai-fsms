@@ -1,5 +1,6 @@
 import json
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from gen_ai_fsms.api.deps import get_db, require_admin
 from gen_ai_fsms.db.models import User
@@ -10,13 +11,19 @@ from gen_ai_fsms.ai.adapter import get_llm_adapter
 
 router = APIRouter(prefix="/onboarding/screening", tags=["Onboarding - Screening"])
 
+class AnswerRequest(BaseModel):
+    answer: str
+
 @router.post("/start")
 def start_screening(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    # Get or create the single shared business profile
     profile = db.query(BusinessProfile).first()
+    # This creates a default business profile if none exists, which is necessary for the screening process.
+    # Functionality to update the business name and details can be added later in the application flow.
+    # Multiple profiles and user associations can be implemented in the future as needed.
+    # This version supports only a single business profile for proof of concept purposes.
     if not profile:
         profile = BusinessProfile(
             business_name="My Restaurant",
@@ -26,7 +33,6 @@ def start_screening(
         db.commit()
         db.refresh(profile)
 
-    # Check for existing active screening session
     existing = load_session(db, profile.id, "screening")
     if existing:
         state = json.loads(existing.state_json) if existing.state_json else {}
@@ -37,7 +43,6 @@ def start_screening(
             "progress": state.get("answered_question_ids", [])
         }
 
-    # Create new session
     session_obj = create_session(db, profile.id, current_user.id, "screening")
     first_q = get_next_question({}, set())
     if not first_q:
@@ -82,10 +87,11 @@ def current_screening(
 
 @router.post("/answer")
 def submit_answer(
-    answer: str,
+    req: AnswerRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
+    answer = req.answer
     profile = db.query(BusinessProfile).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Business profile not found")
@@ -134,7 +140,6 @@ def submit_answer(
                 "session_id": session_obj.id
             }
         else:
-            # Max attempts reached – store unknown
             for cond in conditions_to_set:
                 state.setdefault("condition_values", {})[cond] = "unknown"
             state["answered_question_ids"].append(state["current_question_id"])
