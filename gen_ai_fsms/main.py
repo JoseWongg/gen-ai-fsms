@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from gen_ai_fsms.api.routes import test_records_router, auth_router, users_router, admin_router
+from gen_ai_fsms.api.routes.onboarding_screening import router as screening_router
 import os
 from dotenv import load_dotenv
 
@@ -23,6 +24,7 @@ app.include_router(test_records_router)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(admin_router)
+app.include_router(screening_router)
 
 @app.get("/")
 def root():

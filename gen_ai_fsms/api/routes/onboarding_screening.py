@@ -15,17 +15,18 @@ def start_screening(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    profile = db.query(BusinessProfile).filter_by(user_id=current_user.id).first()
+    # Get or create the single shared business profile
+    profile = db.query(BusinessProfile).first()
     if not profile:
         profile = BusinessProfile(
             business_name="My Restaurant",
-            user_id=current_user.id,
             status="active"
         )
         db.add(profile)
         db.commit()
         db.refresh(profile)
 
+    # Check for existing active screening session
     existing = load_session(db, profile.id, "screening")
     if existing:
         state = json.loads(existing.state_json) if existing.state_json else {}
@@ -36,6 +37,7 @@ def start_screening(
             "progress": state.get("answered_question_ids", [])
         }
 
+    # Create new session
     session_obj = create_session(db, profile.id, current_user.id, "screening")
     first_q = get_next_question({}, set())
     if not first_q:
@@ -64,7 +66,7 @@ def current_screening(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    profile = db.query(BusinessProfile).filter_by(user_id=current_user.id).first()
+    profile = db.query(BusinessProfile).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Business profile not found")
     session_obj = load_session(db, profile.id, "screening")
@@ -84,7 +86,7 @@ def submit_answer(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    profile = db.query(BusinessProfile).filter_by(user_id=current_user.id).first()
+    profile = db.query(BusinessProfile).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Business profile not found")
     session_obj = load_session(db, profile.id, "screening")
@@ -170,7 +172,7 @@ def resume_screening(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    profile = db.query(BusinessProfile).filter_by(user_id=current_user.id).first()
+    profile = db.query(BusinessProfile).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Business profile not found")
     session_obj = load_session(db, profile.id, "screening")

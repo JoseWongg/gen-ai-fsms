@@ -23,8 +23,10 @@ def get_db():
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     user_id = decode_access_token(token)
+    
     if user_id is None:
         raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+    
     auth_service = AuthService(db)
     user = auth_service.get_user_by_id(user_id)
     if not user.is_active:

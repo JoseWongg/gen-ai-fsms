@@ -6,12 +6,11 @@ from views.profile import show as profile_page
 from views.admin import show as admin_page
 from views.forgot import show as forgot_page
 from views.reset_password import show as reset_page
-
+from views.onboarding_screening import show as screening_page
 
 # If a reset token is present in the URL, show the reset page immediately
 query_params = st.query_params
 if "token" in query_params:
-    from views.reset_password import show as reset_page
     reset_page()
     st.stop()
 
@@ -35,17 +34,11 @@ def landing():
         if st.button("Register", width='stretch'):
             st.session_state.page = "register"
             st.rerun()
-
     st.markdown("<br><br>", unsafe_allow_html=True)
-
-    # Centered image
     col1, col_img, col2 = st.columns([1, 2, 1])
     with col_img:
         st.image("assets/images/landing_1.png", width='stretch', caption="")
-
-
     st.markdown("<br>", unsafe_allow_html=True)
-
     st.markdown(
         """
         <div style="text-align: center;">
@@ -55,7 +48,6 @@ def landing():
         """,
         unsafe_allow_html=True
     )
-
 
 def logout():
     st.session_state.token = None
@@ -85,9 +77,12 @@ else:
     if st.sidebar.button("Profile"):
         st.session_state.page = "profile"
         st.rerun()
+    if st.sidebar.button("Admin"):
+        st.session_state.page = "admin"
+        st.rerun()
     if st.session_state.user.get("role") == "admin":
-        if st.sidebar.button("Admin"):
-            st.session_state.page = "admin"
+        if st.sidebar.button("Screening"):
+            st.session_state.page = "screening"
             st.rerun()
     if st.sidebar.button("Logout"):
         logout()
@@ -98,5 +93,7 @@ else:
         profile_page()
     elif st.session_state.page == "admin":
         admin_page()
+    elif st.session_state.page == "screening":
+        screening_page()
     else:
         dashboard_page()
