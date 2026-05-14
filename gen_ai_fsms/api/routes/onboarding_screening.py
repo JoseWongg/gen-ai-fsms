@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from gen_ai_fsms.api.deps import get_db, require_admin
 from gen_ai_fsms.db.models import User
 from gen_ai_fsms.db.models.business_profile import BusinessProfile
+from gen_ai_fsms.db.models.condition_value import ConditionValue
 from gen_ai_fsms.services.session_service import create_session, load_session, update_session
 from gen_ai_fsms.services.screening_questions import get_next_question
 from gen_ai_fsms.ai.adapter import get_llm_adapter
@@ -111,8 +112,30 @@ def submit_answer(
     if action == "clear":
         value = result.get("value")
         if value in ("true", "false", "unknown", "not_asked"):
+            
+            # Update in-memory state
             for cond in conditions_to_set:
                 state.setdefault("condition_values", {})[cond] = value
+
+            # Persist to condition_values table
+            for cond in conditions_to_set:
+                existing_cv = db.query(ConditionValue).filter_by(
+                    business_profile_id=profile.id,
+                    condition_id=cond
+                ).first()
+                if existing_cv:
+                    existing_cv.value = value
+                    existing_cv.last_updated_at = None  # let SQLAlchemy auto-update
+                else:
+                    new_cv = ConditionValue(
+                        business_profile_id=profile.id,
+                        condition_id=cond,
+                        value=value,
+                        source="user_answer"
+                    )
+                    db.add(new_cv)
+            db.commit()
+
         state["answered_question_ids"].append(state["current_question_id"])
         state["conversation_history"] = []
         state["clarification_attempts"] = 0
@@ -171,6 +194,32 @@ def submit_answer(
         "question_text": state["current_question_text"],
         "session_id": session_obj.id
     }
+
+
+
+@router.post("/reset")
+def reset_screening(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    profile = db.query(BusinessProfile).first()
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Business profile not found")
+    
+    # Delete the active screening session
+    session_obj = load_session(db, profile.id, "screening")
+
+    if session_obj:
+        db.delete(session_obj)
+        db.commit()
+    
+    # Delete all condition values for this profile
+    db.query(ConditionValue).filter_by(business_profile_id=profile.id).delete()
+    db.commit()
+
+    return {"message": "Screening reset successfully"}
+
 
 @router.post("/resume")
 def resume_screening(

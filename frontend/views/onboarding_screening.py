@@ -13,13 +13,16 @@ def show():
 
     def load_current_session():
         resp = api_request("GET", "/onboarding/screening/current", token=token)
-        if resp and resp.status_code == 200:
+        if resp is None:
+            # Connection error – treat as no session (backend may be starting)
+            return None
+        if resp.status_code == 200:
             return resp.json()
-        elif resp and resp.status_code == 404:
+        if resp.status_code == 404:
             return None
-        else:
-            st.error("Failed to load session. Please try again.")
-            return None
+        # Any other status code (e.g., 500)
+        st.error(f"Failed to load session (HTTP {resp.status_code}). Please try again.")
+        return None
 
     def start_session():
         resp = api_request("POST", "/onboarding/screening/start", token=token)
@@ -93,6 +96,11 @@ def show():
             st.error("Failed to process answer. Check backend logs.")
 
     if st.button("Reset and start over"):
-        st.session_state.screening_session = None
-        st.session_state.screening_messages = []
-        st.rerun()
+        resp = api_request("POST", "/onboarding/screening/reset", token=token)
+        if resp and resp.status_code == 200:
+            st.session_state.screening_session = None
+            st.session_state.screening_messages = []
+            st.rerun()
+        else:
+            st.error("Failed to reset screening. Check backend logs.")
+    
