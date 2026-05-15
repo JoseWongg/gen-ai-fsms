@@ -42,8 +42,8 @@ screening_questions = [
         "order": 5
     },
     {
-        "question_id": "q_cooks_food",
-        "text": "Do you cook food on site?",
+        "question_id": "q_cooks_food", # Note: It includes food preparation, not just cooking with heat.
+        "text": "Do you prepare or cook food on site?",
         "sets_conditions": ["cooks_food"],
         "ask_if": None,
         "order": 6

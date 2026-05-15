@@ -1,11 +1,3 @@
-""" Integration tests for the LLM adapter in the gen_ai_fsms package.
-This test verifies that the LLM adapter can correctly interpret screening answers and provide clarifications.
-Note: These tests require access to the OpenAI API and will be skipped unless the environment variable RUN_LLM_TESTS is set to true.
-
-To run the test (when you want to verify connectivity):
-$env:RUN_LLM_TESTS="true"; pytest tests/integration/test_llm_adapter.py -v; Remove-Item Env:RUN_LLM_TESTS
-"""
-
 import os
 import json
 import logging
@@ -59,9 +51,11 @@ class LLMAdapter:
                     '  "reason": string\n'
                     '}\n'
                     "Rules:\n"
-                    "- clear: answer directly answers -> map to true/false/unknown/not_asked.\n"
-                    "- ambiguous: answer unclear -> provide a clarification_question.\n"
-                    "- unrelated: answer off-topic -> politely ask to answer the question.\n"
+                    "- If the user's answer directly answers the original question, use action 'clear'.\n"
+                    "- If the user's answer is a clear affirmative (e.g., 'yes', 'yeah', 'correct', 'that's right') to a clarification question, treat it as 'clear' for the original question.\n"
+                    "- If the user's answer is a clear negative (e.g., 'no', 'nope', 'incorrect') to a clarification question, treat it as 'clear' with value 'false'.\n"
+                    "- If the answer is unclear or ambiguous, use action 'ambiguous' and provide a short clarification question.\n"
+                    "- If the answer is completely unrelated to the question or clarification, use action 'unrelated'.\n"
                     "Return only valid JSON."
                 )
             },
