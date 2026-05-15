@@ -10,8 +10,8 @@
         {
           "safe_method_id": "4.1",
           "safe_method_name": "Chilled Storage and Displaying Chilled Food",
-          "condition_id": "stores_or_displays_chilled_food",
-          "_comment": "Most safety points inherit stores_or_displays_chilled_food. Only those with a more specific condition (e.g., displays_chilled_food, handles_raw_fish) are listed with their own condition_id.",
+          "condition_id": "chills_food",
+          "_comment": "Most safety points inherit chills_food. Only those with a more specific condition (e.g., displays_chilled_food, handles_raw_fish) are listed with their own condition_id.",
           "safety_points": [
             {
               "safety_point_id": "4.1.1.1",
