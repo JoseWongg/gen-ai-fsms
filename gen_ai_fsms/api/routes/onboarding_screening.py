@@ -56,7 +56,7 @@ def start_screening(
         "answered_question_ids": [],
         "condition_values": {},
         "conversation_history": [],
-        "clarification_attempts": 0,
+        "failed_answer_attempts": 0,
         "next_action": None
     }
     update_session(db, session_obj.id, json.dumps(state), "in_progress")
@@ -93,9 +93,11 @@ def submit_answer(
     current_user: User = Depends(require_admin)
 ):
     answer = req.answer
+
     profile = db.query(BusinessProfile).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Business profile not found")
+
     session_obj = load_session(db, profile.id, "screening")
     if not session_obj:
         raise HTTPException(status_code=404, detail="No active screening session")
@@ -105,96 +107,244 @@ def submit_answer(
     conditions_to_set = state.get("conditions_to_set", [])
     conversation = state.get("conversation_history", [])
 
+    conversation.append({"role": "user", "content": answer})
+
     adapter = get_llm_adapter()
     result = adapter.interpret_screening_answer(question_text, answer, conversation)
 
     action = result.get("action")
-    if action == "clear":
-        value = result.get("value")
-        if value in ("true", "false", "unknown", "not_asked"):
-            
-            # Update in-memory state
-            for cond in conditions_to_set:
-                state.setdefault("condition_values", {})[cond] = value
+    value = result.get("value")
 
-            # Persist to condition_values table
-            for cond in conditions_to_set:
-                existing_cv = db.query(ConditionValue).filter_by(
+    def build_parent_child_condition_map():
+        from gen_ai_fsms.services.screening_questions import screening_questions
+
+        parent_to_children = {}
+
+        for question in screening_questions:
+            ask_if = question.get("ask_if")
+            if not ask_if:
+                continue
+
+            for parent_condition in ask_if:
+                parent_to_children.setdefault(parent_condition, set())
+
+                for child_condition in question.get("sets_conditions", []):
+                    parent_to_children[parent_condition].add(child_condition)
+
+        return parent_to_children
+
+    def apply_false_propagation(values_dict):
+        """
+        If a parent condition is false, all dependent child conditions are false.
+        Parent true does not change child values.
+        Parent unknown does not change child values.
+        """
+        parent_to_children = build_parent_child_condition_map()
+        expanded_values = dict(values_dict)
+
+        stack = [
+            condition_id
+            for condition_id, condition_value in values_dict.items()
+            if condition_value == "false"
+        ]
+
+        while stack:
+            parent_condition = stack.pop()
+
+            for child_condition in parent_to_children.get(parent_condition, set()):
+                if expanded_values.get(child_condition) != "false":
+                    expanded_values[child_condition] = "false"
+                    stack.append(child_condition)
+
+        return expanded_values
+
+    def persist_condition_values(values_dict):
+        values_to_persist = apply_false_propagation(values_dict)
+
+        for cond, val in values_to_persist.items():
+            state.setdefault("condition_values", {})[cond] = val
+
+            existing = db.query(ConditionValue).filter_by(
+                business_profile_id=profile.id,
+                condition_id=cond
+            ).first()
+
+            if existing:
+                existing.value = val
+            else:
+                new_cv = ConditionValue(
                     business_profile_id=profile.id,
-                    condition_id=cond
-                ).first()
-                if existing_cv:
-                    existing_cv.value = value
-                    existing_cv.last_updated_at = None  # let SQLAlchemy auto-update
-                else:
-                    new_cv = ConditionValue(
-                        business_profile_id=profile.id,
-                        condition_id=cond,
-                        value=value,
-                        source="user_answer"
-                    )
-                    db.add(new_cv)
-            db.commit()
+                    condition_id=cond,
+                    value=val,
+                    source="user_answer"
+                )
+                db.add(new_cv)
 
-        state["answered_question_ids"].append(state["current_question_id"])
+        db.commit()
+
+    def get_next_or_unresolved_question(answered_question_ids):
+        """
+        First, try the normal deterministic next-question flow.
+        If no new eligible question remains, re-ask questions already answered as unknown.
+        If none are unknown, screening is complete.
+        """
+        from gen_ai_fsms.services.screening_questions import screening_questions
+
+        next_question = get_next_question(
+            state.get("condition_values", {}),
+            set(answered_question_ids)
+        )
+
+        if next_question:
+            return next_question, "next_question"
+
+        for question in screening_questions:
+            if question["question_id"] not in answered_question_ids:
+                continue
+
+            question_conditions = question.get("sets_conditions", [])
+            has_unknown_condition = any(
+                state.get("condition_values", {}).get(condition_id) == "unknown"
+                for condition_id in question_conditions
+            )
+
+            if has_unknown_condition:
+                return question, "reask_unknown"
+
+        return None, "complete"
+
+    def set_current_question(next_question):
+        state["current_question_id"] = next_question["question_id"]
+        state["current_question_text"] = next_question["text"]
+        state["conditions_to_set"] = next_question["sets_conditions"]
+        state["next_action"] = "next_question"
+
+    if action == "clear":
+        if value in ("true", "false", "unknown", "not_asked"):
+            values_to_set = {cond: value for cond in conditions_to_set}
+            persist_condition_values(values_to_set)
+
+        answered = state.get("answered_question_ids", [])
+        if state["current_question_id"] not in answered:
+            answered.append(state["current_question_id"])
+            state["answered_question_ids"] = answered
+
         state["conversation_history"] = []
+        state["failed_answer_attempts"] = 0
         state["clarification_attempts"] = 0
-        next_q = get_next_question(state["condition_values"], set(state["answered_question_ids"]))
-        if next_q:
-            state["current_question_id"] = next_q["question_id"]
-            state["current_question_text"] = next_q["text"]
-            state["conditions_to_set"] = next_q["sets_conditions"]
-            state["next_action"] = "next_question"
-        else:
-            state["next_action"] = "complete"
-            update_session(db, session_obj.id, json.dumps(state), "completed")
-            return {"action": "complete", "message": "Screening completed"}
+        state["unrelated_attempts"] = 0
 
-    elif action == "ambiguous":
-        attempts = state.get("clarification_attempts", 0)
-        if attempts < 3:
-            state["clarification_attempts"] = attempts + 1
-            state["conversation_history"].append({"role": "user", "content": answer})
-            state["conversation_history"].append({"role": "assistant", "content": result.get("clarification_question")})
+        next_question, next_mode = get_next_or_unresolved_question(answered)
+
+        if next_question:
+            set_current_question(next_question)
             update_session(db, session_obj.id, json.dumps(state), "in_progress")
+
+            if next_mode == "reask_unknown":
+                message = (
+                    f"Your response has been recorded as {value}. "
+                    "Some responses still need to be clarified before screening can finish. "
+                    "I will ask those questions again."
+                )
+            else:
+                message = f"Your response has been recorded as {value}."
+
             return {
-                "action": "clarify",
-                "clarification_question": result.get("clarification_question"),
+                "action": "next_question",
+                "question_id": next_question["question_id"],
+                "question_text": next_question["text"],
+                "message": message,
                 "session_id": session_obj.id
             }
-        else:
-            for cond in conditions_to_set:
-                state.setdefault("condition_values", {})[cond] = "unknown"
-            state["answered_question_ids"].append(state["current_question_id"])
-            state["conversation_history"] = []
-            state["clarification_attempts"] = 0
-            next_q = get_next_question(state["condition_values"], set(state["answered_question_ids"]))
-            if next_q:
-                state["current_question_id"] = next_q["question_id"]
-                state["current_question_text"] = next_q["text"]
-                state["conditions_to_set"] = next_q["sets_conditions"]
-                state["next_action"] = "next_question"
-            else:
-                state["next_action"] = "complete"
-                update_session(db, session_obj.id, json.dumps(state), "completed")
-                return {"action": "complete", "message": "Screening completed"}
 
-    elif action == "unrelated":
-        state["next_action"] = "retry"
-        update_session(db, session_obj.id, json.dumps(state), "in_progress")
+        update_session(db, session_obj.id, json.dumps(state), "completed")
         return {
-            "action": "retry",
-            "message": "Please answer the question directly."
+            "action": "complete",
+            "message": (
+                "Screening completed. Your responses have been recorded. "
+                "You will be able to review the recorded condition values in the profile view later."
+            )
+        }
+
+    elif action in ("ambiguous", "unrelated"):
+        attempts = state.get("failed_answer_attempts", 0)
+
+        if attempts < 2:
+            state["failed_answer_attempts"] = attempts + 1
+            state["conversation_history"] = conversation
+
+            update_session(db, session_obj.id, json.dumps(state), "in_progress")
+
+            return {
+                "action": "ask_again",
+                "message": (
+                    "I could not identify a clear answer. "
+                    "Please answer the question directly.\n\n"
+                    f"{question_text}"
+                ),
+                "session_id": session_obj.id
+            }
+
+        values_to_set = {cond: "unknown" for cond in conditions_to_set}
+        persist_condition_values(values_to_set)
+
+        answered = state.get("answered_question_ids", [])
+        if state["current_question_id"] not in answered:
+            answered.append(state["current_question_id"])
+            state["answered_question_ids"] = answered
+
+        state["conversation_history"] = []
+        state["failed_answer_attempts"] = 0
+        state["clarification_attempts"] = 0
+        state["unrelated_attempts"] = 0
+
+        next_question, next_mode = get_next_or_unresolved_question(answered)
+
+        if next_question:
+            set_current_question(next_question)
+            update_session(db, session_obj.id, json.dumps(state), "in_progress")
+
+            if next_mode == "reask_unknown":
+                message = (
+                    "I am unable to identify an unambiguous response from you. "
+                    "I will record your response as unknown. "
+                    "Some responses still need to be clarified before screening can finish. "
+                    "I will ask those questions again."
+                )
+            else:
+                message = (
+                    "I am unable to identify an unambiguous response from you. "
+                    "I will record your response as unknown. "
+                    "We need to move on."
+                )
+
+            return {
+                "action": "next_question",
+                "question_id": next_question["question_id"],
+                "question_text": next_question["text"],
+                "message": message,
+                "session_id": session_obj.id
+            }
+
+        update_session(db, session_obj.id, json.dumps(state), "completed")
+        return {
+            "action": "complete",
+            "message": (
+                "Screening completed. Your responses have been recorded. "
+                "You will be able to review the recorded condition values in the profile view later."
+            )
         }
 
     update_session(db, session_obj.id, json.dumps(state), "in_progress")
     return {
-        "action": "next_question",
-        "question_id": state["current_question_id"],
-        "question_text": state["current_question_text"],
+        "action": "ask_again",
+        "message": (
+            "I could not process your answer clearly. "
+            "Please answer the question directly.\n\n"
+            f"{question_text}"
+        ),
         "session_id": session_obj.id
     }
-
 
 
 @router.post("/reset")
