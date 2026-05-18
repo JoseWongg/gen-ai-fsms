@@ -6,6 +6,7 @@ from gen_ai_fsms.api.deps import get_db, require_admin
 from gen_ai_fsms.db.models import User
 from gen_ai_fsms.db.models.business_profile import BusinessProfile
 from gen_ai_fsms.db.models.condition_value import ConditionValue
+from gen_ai_fsms.db.models.condition import Condition
 from gen_ai_fsms.services.session_service import create_session, load_session, update_session
 from gen_ai_fsms.services.screening_questions import get_next_question
 from gen_ai_fsms.ai.adapter import get_llm_adapter
@@ -347,6 +348,68 @@ def submit_answer(
     }
 
 
+
+
+
+
+
+
+@router.get("/condition-values")
+def get_screening_condition_values(
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(require_admin) # FastAPI dependency to ensure only admin users can access this endpoint.
+):
+    profile = db.query(BusinessProfile).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Business profile not found")
+
+    rows = (
+        db.query(ConditionValue, Condition)
+        .join(Condition, ConditionValue.condition_id == Condition.condition_id)
+        .filter(ConditionValue.business_profile_id == profile.id)
+        .order_by(Condition.condition_id)
+        .all()
+    )
+
+    return {
+        "business_profile_id": profile.id,
+        "condition_values": [
+            {
+                "condition_id": condition.condition_id,
+                "condition_name": condition.condition_name,
+                "value": condition_value.value,
+                "source": condition_value.source,
+            }
+            for condition_value, condition in rows
+        ],
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 @router.post("/reset")
 def reset_screening(
     db: Session = Depends(get_db),
@@ -389,3 +452,5 @@ def resume_screening(
         "question_text": state.get("current_question_text"),
         "progress": state.get("answered_question_ids", [])
     }
+
+
