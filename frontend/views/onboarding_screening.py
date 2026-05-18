@@ -1,3 +1,4 @@
+import pandas as pd
 import streamlit as st
 from shared import api_request
 
@@ -14,54 +15,164 @@ def show():
 
     def load_current_session():
         resp = api_request("GET", "/onboarding/screening/current", token=token)
+
         if resp is None:
-            # Connection error – treat as no session (backend may be starting)
             return None
+
         if resp.status_code == 200:
             return resp.json()
+
         if resp.status_code == 404:
             return None
 
         st.error(f"Failed to load session (HTTP {resp.status_code}). Please try again.")
         return None
 
+    def load_condition_values():
+        resp = api_request("GET", "/onboarding/screening/condition-values", token=token)
+
+        if resp is None:
+            return None
+
+        if resp.status_code == 200:
+            return resp.json()
+
+        st.error(f"Failed to load condition values (HTTP {resp.status_code}). Please try again.")
+        return None
+
     def start_session():
         resp = api_request("POST", "/onboarding/screening/start", token=token)
+
         if resp and resp.status_code == 200:
             return resp.json()
 
         st.error("Could not start screening. Check backend logs.")
         return None
 
+    def reset_screening():
+        resp = api_request("POST", "/onboarding/screening/reset", token=token)
+
+        if not resp or resp.status_code != 200:
+            st.error("Failed to reset screening. Check backend logs.")
+            return
+
+        st.session_state.screening_session = None
+        st.session_state.screening_messages = []
+        st.session_state.screening_complete = False
+        st.session_state.screening_just_completed = False
+        st.session_state.screening_processing = False
+        st.session_state.pending_screening_answer = None
+        st.session_state.screening_ephemeral_status = None
+        st.session_state.screening_ephemeral_after_index = None
+        st.rerun()
+
+    def render_condition_values_table(condition_values):
+        table = pd.DataFrame(condition_values)
+
+        table = table[["condition_name", "value"]]
+        table = table.rename(columns={
+            "condition_name": "Condition Name",
+            "value": "Value"
+        })
+
+        st.markdown(
+            """
+            <style>
+            table.condition-values-table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            table.condition-values-table th,
+            table.condition-values-table td {
+                text-align: center !important;
+                padding: 0.5rem;
+                border-bottom: 1px solid rgba(49, 51, 63, 0.2);
+            }
+            table.condition-values-table th {
+                font-weight: 600;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+        html_table = table.to_html(
+            index=False,
+            escape=True,
+            classes="condition-values-table"
+        )
+
+        st.markdown(html_table, unsafe_allow_html=True)
+
     if "screening_session" not in st.session_state:
         st.session_state.screening_session = None
+
     if "screening_messages" not in st.session_state:
         st.session_state.screening_messages = []
-    if "screening_status_messages" not in st.session_state:
-        st.session_state.screening_status_messages = []
+
     if "screening_complete" not in st.session_state:
         st.session_state.screening_complete = False
+
+    if "screening_just_completed" not in st.session_state:
+        st.session_state.screening_just_completed = False
+
     if "screening_processing" not in st.session_state:
         st.session_state.screening_processing = False
+
     if "pending_screening_answer" not in st.session_state:
         st.session_state.pending_screening_answer = None
 
+    if "screening_ephemeral_status" not in st.session_state:
+        st.session_state.screening_ephemeral_status = None
+
+    if "screening_ephemeral_after_index" not in st.session_state:
+        st.session_state.screening_ephemeral_after_index = None
+
     current = load_current_session()
+
     if current:
         st.session_state.screening_session = current
+
         if not st.session_state.screening_messages:
             st.session_state.screening_messages.append({
                 "role": "assistant",
                 "content": current["question_text"]
             })
+
     else:
-        if not st.session_state.get("screening_complete"):
+        condition_values_response = load_condition_values()
+
+        if condition_values_response and condition_values_response.get("is_complete"):
+            if not st.session_state.get("screening_just_completed"):
+                st.subheader("Completed screening profile")
+                st.write(
+                    "The screening process is complete. "
+                    "The recorded condition values are shown below."
+                )
+
+                condition_values = condition_values_response.get("condition_values", [])
+
+                if condition_values:
+                    render_condition_values_table(condition_values)
+                else:
+                    st.info("No condition values were found.")
+
+                if st.button("Reset and start over"):
+                    reset_screening()
+
+                return
+
+        else:
             if st.button("Start onboarding"):
                 new_session = start_session()
+
                 if new_session:
                     st.session_state.screening_complete = False
+                    st.session_state.screening_just_completed = False
                     st.session_state.screening_processing = False
                     st.session_state.pending_screening_answer = None
+                    st.session_state.screening_ephemeral_status = None
+                    st.session_state.screening_ephemeral_after_index = None
                     st.session_state.screening_session = new_session
                     st.session_state.screening_messages.append({
                         "role": "assistant",
@@ -72,41 +183,72 @@ def show():
             st.info("Click 'Start onboarding' to begin the screening process.")
             return
 
-    # Display conversation
-    for msg in st.session_state.screening_messages:
+    # Display conversation and any one-time status message in the correct position.
+    for index, msg in enumerate(st.session_state.screening_messages):
         if msg["role"] == "user":
             st.chat_message("user").write(msg["content"])
         else:
             st.chat_message("assistant").write(msg["content"])
 
-    # Display processing or latest status message
+        if (
+            st.session_state.get("screening_ephemeral_status")
+            and st.session_state.get("screening_ephemeral_after_index") == index
+        ):
+            st.info(st.session_state.screening_ephemeral_status)
+
+    # If a response is being processed, show the processing message directly
+    # below the latest submitted user response.
     if st.session_state.get("screening_processing", False):
         st.info("Processing your response...")
-    elif st.session_state.get("screening_status_messages"):
-        st.info(st.session_state.screening_status_messages[-1])
 
-    user_input = st.chat_input(
+    if st.session_state.get("screening_just_completed"):
+        st.session_state.screening_just_completed = False
+
+    # Ephemeral status is shown for one render only.
+    if st.session_state.get("screening_ephemeral_status"):
+        st.session_state.screening_ephemeral_status = None
+        st.session_state.screening_ephemeral_after_index = None
+
+
+    def submit_screening_answer():
+        if (
+            st.session_state.get("screening_complete", False)
+            or st.session_state.get("screening_processing", False)
+            or st.session_state.get("pending_screening_answer") is not None
+        ):
+            return
+
+        submitted_answer = st.session_state.get("screening_chat_input")
+
+        if not submitted_answer:
+            return
+
+        st.session_state.screening_messages.append({
+            "role": "user",
+            "content": submitted_answer
+        })
+
+        st.session_state.pending_screening_answer = submitted_answer
+        st.session_state.screening_processing = True
+
+
+    st.chat_input(
         "Type your answer here...",
+        key="screening_chat_input",
         disabled=(
             st.session_state.get("screening_complete", False)
             or st.session_state.get("screening_processing", False)
-        )
+        ),
+        on_submit=submit_screening_answer
     )
 
-    if user_input and not st.session_state.get("screening_processing", False):
-        st.session_state.screening_messages.append({
-            "role": "user",
-            "content": user_input
-        })
-        st.session_state.pending_screening_answer = user_input
-        st.session_state.screening_processing = True
-        st.rerun()
 
     if (
         st.session_state.get("screening_processing", False)
         and st.session_state.get("pending_screening_answer")
     ):
         pending_answer = st.session_state.pending_screening_answer
+        latest_user_message_index = len(st.session_state.screening_messages) - 1
 
         resp = api_request(
             "POST",
@@ -123,10 +265,11 @@ def show():
             action = data.get("action")
             message = data.get("message")
 
-            if message and action not in ("ask_again",):
-                st.session_state.screening_status_messages.append(message)
-
             if action == "next_question":
+                if message:
+                    st.session_state.screening_ephemeral_status = message
+                    st.session_state.screening_ephemeral_after_index = latest_user_message_index
+
                 question_text = data["question_text"]
 
                 st.session_state.screening_messages.append({
@@ -157,29 +300,18 @@ def show():
                 })
 
                 st.session_state.screening_complete = True
+                st.session_state.screening_just_completed = True
                 st.session_state.screening_session = None
 
             else:
-                st.session_state.screening_status_messages.append(
-                    "Unexpected response from server."
-                )
+                st.session_state.screening_ephemeral_status = "Unexpected response from server."
+                st.session_state.screening_ephemeral_after_index = latest_user_message_index
 
         else:
-            st.session_state.screening_status_messages.append(
-                "Failed to process answer. Check backend logs."
-            )
+            st.session_state.screening_ephemeral_status = "Failed to process answer. Check backend logs."
+            st.session_state.screening_ephemeral_after_index = latest_user_message_index
 
         st.rerun()
 
     if st.button("Reset and start over"):
-        resp = api_request("POST", "/onboarding/screening/reset", token=token)
-        if resp and resp.status_code == 200:
-            st.session_state.screening_session = None
-            st.session_state.screening_messages = []
-            st.session_state.screening_status_messages = []
-            st.session_state.screening_complete = False
-            st.session_state.screening_processing = False
-            st.session_state.pending_screening_answer = None
-            st.rerun()
-        else:
-            st.error("Failed to reset screening. Check backend logs.")
+        reset_screening()

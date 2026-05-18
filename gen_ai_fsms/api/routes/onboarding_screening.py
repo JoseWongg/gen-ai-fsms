@@ -263,7 +263,7 @@ def submit_answer(
             "action": "complete",
             "message": (
                 "Screening completed. Your responses have been recorded. "
-                "You will be able to review the recorded condition values in the profile view later."
+                "You will be able to view the recorded condition values when you visit this page again."
             )
         }
 
@@ -348,16 +348,10 @@ def submit_answer(
     }
 
 
-
-
-
-
-
-
 @router.get("/condition-values")
 def get_screening_condition_values(
     db: Session = Depends(get_db),
-    _current_user: User = Depends(require_admin) # FastAPI dependency to ensure only admin users can access this endpoint.
+    _current_user: User = Depends(require_admin)
 ):
     profile = db.query(BusinessProfile).first()
     if not profile:
@@ -371,17 +365,46 @@ def get_screening_condition_values(
         .all()
     )
 
+    condition_values = [
+        {
+            "condition_id": condition.condition_id,
+            "condition_name": condition.condition_name,
+            "value": condition_value.value,
+            "source": condition_value.source,
+        }
+        for condition_value, condition in rows
+    ]
+
+    values_by_condition_id = {
+        item["condition_id"]: item["value"]
+        for item in condition_values
+    }
+
+    from gen_ai_fsms.services.screening_questions import screening_questions # imported here to avoid circular dependency
+
+    active_condition_ids = {
+        condition_id
+        for question in screening_questions
+        for condition_id in question.get("sets_conditions", [])
+    }
+
+    completed_active_conditions = {
+        condition_id
+        for condition_id in active_condition_ids
+        if values_by_condition_id.get(condition_id) in ("true", "false")
+    }
+
+    is_complete = (
+        len(active_condition_ids) > 0
+        and completed_active_conditions == active_condition_ids
+    )
+
     return {
         "business_profile_id": profile.id,
-        "condition_values": [
-            {
-                "condition_id": condition.condition_id,
-                "condition_name": condition.condition_name,
-                "value": condition_value.value,
-                "source": condition_value.source,
-            }
-            for condition_value, condition in rows
-        ],
+        "is_complete": is_complete,
+        "active_condition_count": len(active_condition_ids),
+        "completed_active_condition_count": len(completed_active_conditions),
+        "condition_values": condition_values,
     }
 
 
