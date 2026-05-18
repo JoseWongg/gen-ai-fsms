@@ -104,6 +104,20 @@ def show():
 
         st.markdown(html_table, unsafe_allow_html=True)
 
+    def render_progress_indicator(condition_values_response):
+        if not condition_values_response:
+            return
+
+        active_count = condition_values_response.get("active_condition_count", 0)
+        completed_count = condition_values_response.get("completed_active_condition_count", 0)
+
+        if active_count <= 0:
+            return
+
+        progress = completed_count / active_count
+        st.progress(progress)
+
+
     if "screening_session" not in st.session_state:
         st.session_state.screening_session = None
 
@@ -129,6 +143,7 @@ def show():
         st.session_state.screening_ephemeral_after_index = None
 
     current = load_current_session()
+    condition_values_response = load_condition_values()
 
     if current:
         st.session_state.screening_session = current
@@ -140,8 +155,6 @@ def show():
             })
 
     else:
-        condition_values_response = load_condition_values()
-
         if condition_values_response and condition_values_response.get("is_complete"):
             if not st.session_state.get("screening_just_completed"):
                 st.subheader("Completed screening profile")
@@ -149,6 +162,8 @@ def show():
                     "The screening process is complete. "
                     "The recorded condition values are shown below."
                 )
+
+                render_progress_indicator(condition_values_response)
 
                 condition_values = condition_values_response.get("condition_values", [])
 
@@ -204,11 +219,14 @@ def show():
     if st.session_state.get("screening_just_completed"):
         st.session_state.screening_just_completed = False
 
-    # Ephemeral status is shown for one render only.
+    # Ephemeral status is shown for one render only. 
+    # Ephemeral status is used to show one-time messages that are directly relevant to the latest user response, such as errors or unexpected conditions. It is cleared on every render to ensure it does not persist longer than intended.
     if st.session_state.get("screening_ephemeral_status"):
         st.session_state.screening_ephemeral_status = None
         st.session_state.screening_ephemeral_after_index = None
 
+    if current:
+        render_progress_indicator(condition_values_response)
 
     def submit_screening_answer():
         if (
@@ -231,7 +249,6 @@ def show():
         st.session_state.pending_screening_answer = submitted_answer
         st.session_state.screening_processing = True
 
-
     st.chat_input(
         "Type your answer here...",
         key="screening_chat_input",
@@ -241,7 +258,6 @@ def show():
         ),
         on_submit=submit_screening_answer
     )
-
 
     if (
         st.session_state.get("screening_processing", False)
