@@ -15,7 +15,6 @@ def seed():
     
     conditions = [
         {"condition_id": "chills_food", "condition_name": "Chills Food", "description": "Restaurant keeps any food chilled in fridges or display units"},
-        {"condition_id": "stores_or_displays_chilled_food", "condition_name": "Stores or Displays Chilled Food", "description": "Restaurant stores or displays chilled food"},
         {"condition_id": "displays_chilled_food", "condition_name": "Displays Chilled Food", "description": "Restaurant displays chilled food for customers (buffet, self-service)"},
         {"condition_id": "chills_hot_food", "condition_name": "Chills Hot Food", "description": "Restaurant cools hot cooked food for later use"},
         {"condition_id": "defrosts_food", "condition_name": "Defrosts Food", "description": "Restaurant defrosts frozen food before use"},
@@ -23,7 +22,7 @@ def seed():
         {"condition_id": "freezes_food", "condition_name": "Freezes Food", "description": "Restaurant freezes food on site or stores food in freezers"},
         {"condition_id": "buys_frozen_food", "condition_name": "Buys Frozen Food", "description": "Restaurant buys food that arrives frozen"},
         {"condition_id": "stores_food_that_must_be_kept_frozen", "condition_name": "Stores Must-Keep-Frozen Food", "description": "Restaurant stores food that must remain frozen (e.g., ice cream)"},
-        {"condition_id": "cooks_food", "condition_name": "Cooks Food", "description": "Restaurant cooks food on site"},
+        {"condition_id": "cooks_food", "condition_name": "Cooks or Prepares Food", "description": "Restaurant prepares or cooks food on site"},
         {"condition_id": "reheats_food", "condition_name": "Reheats Food", "description": "Restaurant reheats previously cooked food"},
         {"condition_id": "uses_microwave_reheating", "condition_name": "Uses Microwave for Reheating", "description": "Restaurant uses a microwave to reheat food"},
         {"condition_id": "hot_holds_food", "condition_name": "Hot Holds Food", "description": "Restaurant keeps food hot before serving"},
@@ -52,7 +51,7 @@ def seed():
             session.add(condition)
     
     session.commit()
-    print(f"Seeded {len(conditions)} conditions into test database.")
+    print(f"Seeded/verified {len(conditions)} conditions.")
     session.close()
 
 if __name__ == "__main__":
