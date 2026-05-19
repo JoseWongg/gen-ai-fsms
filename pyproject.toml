@@ -17,6 +17,7 @@ dependencies = [
     "PyMySQL[rsa]",
     "langgraph",
     "streamlit",
+    "streamlit-antd-components==0.3.2",
     "python-dotenv",
     "httpx",
     "passlib[bcrypt]",
