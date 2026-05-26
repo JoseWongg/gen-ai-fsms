@@ -16,6 +16,8 @@ class UserResponse(UserBase):
     is_active: bool
     created_at: datetime
     updated_at: Optional[datetime]
+    business_name: Optional[str] = None
+    site_name: Optional[str] = None
 
     class Config:
         from_attributes = True

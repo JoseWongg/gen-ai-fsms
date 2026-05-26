@@ -409,8 +409,18 @@ def render_sidebar():
     st.sidebar.title("Navigation")
 
     user = st.session_state.user or {}
-    display_name = user.get("first_name", user.get("email", "User"))
+    display_name = user.get("first_name") or user.get("email", "User")
+
     st.sidebar.write(f"Logged in as: {display_name}")
+
+    business_name = user.get("business_name")
+    site_name = user.get("site_name")
+
+    if business_name:
+        st.sidebar.write(f"Business: {business_name}")
+
+    if site_name:
+        st.sidebar.write(f"Venue: {site_name}")
 
     with st.sidebar:
         selected_label = sac.menu(
