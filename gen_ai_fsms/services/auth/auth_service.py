@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import secrets
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
+from gen_ai_fsms.db.models import BusinessProfile, User
 from gen_ai_fsms.repositories.auth.user_repository import UserRepository
 from gen_ai_fsms.repositories.auth.token_repository import TokenRepository
 from gen_ai_fsms.services.auth.password_service import hash_password, verify_password
@@ -13,12 +14,41 @@ class AuthService:
         self.user_repo = UserRepository(db)
         self.token_repo = TokenRepository(db)
 
-    def register_user(self, email: str, password: str, first_name: str | None, last_name: str | None) -> dict:
+    def register_user(
+        self,
+        business_name: str,
+        site_name: str,
+        email: str,
+        password: str,
+        first_name: str | None,
+        last_name: str | None,
+    ) -> dict:
         existing = self.user_repo.get_by_email(email)
         if existing:
             raise HTTPException(status_code=400, detail="Email already registered")
-        hashed = hash_password(password)
-        user = self.user_repo.create(email, hashed, first_name, last_name, role="user")
+
+        profile = BusinessProfile(
+            business_name=business_name,
+            site_name=site_name,
+            status="active",
+        )
+
+        self.db.add(profile)
+        self.db.flush()
+
+        user = User(
+            email=email,
+            hashed_password=hash_password(password),
+            first_name=first_name,
+            last_name=last_name,
+            role="admin",
+            is_active=True,
+            business_profile_id=profile.id,
+        )
+
+        self.db.add(user)
+        self.db.commit()
+
         return {"message": "User created successfully"}
 
     def authenticate_user(self, email: str, password: str) -> dict:

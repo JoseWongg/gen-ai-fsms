@@ -1,39 +1,64 @@
 import json
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
+from gen_ai_fsms.ai.adapter import get_llm_adapter
 from gen_ai_fsms.api.deps import get_db, require_admin
 from gen_ai_fsms.db.models import User
 from gen_ai_fsms.db.models.business_profile import BusinessProfile
-from gen_ai_fsms.db.models.condition_value import ConditionValue
 from gen_ai_fsms.db.models.condition import Condition
-from gen_ai_fsms.services.session_service import create_session, load_session, update_session
+from gen_ai_fsms.db.models.condition_value import ConditionValue
 from gen_ai_fsms.services.screening_questions import get_next_question
-from gen_ai_fsms.ai.adapter import get_llm_adapter
+from gen_ai_fsms.services.session_service import (
+    create_session,
+    load_session,
+    update_session,
+)
+
 
 router = APIRouter(prefix="/onboarding/screening", tags=["Onboarding - Screening"])
+
 
 class AnswerRequest(BaseModel):
     answer: str
 
+
+def get_current_user_profile(db: Session, current_user: User) -> BusinessProfile:
+    """
+    Return the venue workspace linked to the authenticated user.
+
+    Each user must only access screening data belonging to their own
+    BusinessProfile.
+    """
+    if current_user.business_profile_id is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No business profile is linked to the current user",
+        )
+
+    profile = (
+        db.query(BusinessProfile)
+        .filter(BusinessProfile.id == current_user.business_profile_id)
+        .first()
+    )
+
+    if not profile:
+        raise HTTPException(
+            status_code=404,
+            detail="Business profile not found for current user",
+        )
+
+    return profile
+
+
 @router.post("/start")
 def start_screening(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(require_admin),
 ):
-    profile = db.query(BusinessProfile).first()
-    # This creates a default business profile if none exists, which is necessary for the screening process.
-    # Functionality to update the business name and details can be added later in the application flow.
-    # Multiple profiles and user associations can be implemented in the future as needed.
-    # This version supports only a single business profile for proof of concept purposes.
-    if not profile:
-        profile = BusinessProfile(
-            business_name="My Restaurant",
-            status="active"
-        )
-        db.add(profile)
-        db.commit()
-        db.refresh(profile)
+    profile = get_current_user_profile(db, current_user)
 
     existing = load_session(db, profile.id, "screening")
     if existing:
@@ -42,11 +67,12 @@ def start_screening(
             "session_id": existing.id,
             "question_id": state.get("current_question_id"),
             "question_text": state.get("current_question_text"),
-            "progress": state.get("answered_question_ids", [])
+            "progress": state.get("answered_question_ids", []),
         }
 
     session_obj = create_session(db, profile.id, current_user.id, "screening")
     first_q = get_next_question({}, set())
+
     if not first_q:
         raise HTTPException(status_code=500, detail="No screening questions defined")
 
@@ -58,46 +84,48 @@ def start_screening(
         "condition_values": {},
         "conversation_history": [],
         "failed_answer_attempts": 0,
-        "next_action": None
+        "next_action": None,
     }
+
     update_session(db, session_obj.id, json.dumps(state), "in_progress")
+
     return {
         "session_id": session_obj.id,
         "question_id": first_q["question_id"],
         "question_text": first_q["text"],
-        "progress": []
+        "progress": [],
     }
+
 
 @router.get("/current")
 def current_screening(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(require_admin),
 ):
-    profile = db.query(BusinessProfile).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Business profile not found")
+    profile = get_current_user_profile(db, current_user)
+
     session_obj = load_session(db, profile.id, "screening")
     if not session_obj:
         raise HTTPException(status_code=404, detail="No active screening session")
+
     state = json.loads(session_obj.state_json) if session_obj.state_json else {}
+
     return {
         "session_id": session_obj.id,
         "question_id": state.get("current_question_id"),
         "question_text": state.get("current_question_text"),
-        "progress": state.get("answered_question_ids", [])
+        "progress": state.get("answered_question_ids", []),
     }
+
 
 @router.post("/answer")
 def submit_answer(
     req: AnswerRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(require_admin),
 ):
     answer = req.answer
-
-    profile = db.query(BusinessProfile).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Business profile not found")
+    profile = get_current_user_profile(db, current_user)
 
     session_obj = load_session(db, profile.id, "screening")
     if not session_obj:
@@ -165,10 +193,14 @@ def submit_answer(
         for cond, val in values_to_persist.items():
             state.setdefault("condition_values", {})[cond] = val
 
-            existing = db.query(ConditionValue).filter_by(
-                business_profile_id=profile.id,
-                condition_id=cond
-            ).first()
+            existing = (
+                db.query(ConditionValue)
+                .filter_by(
+                    business_profile_id=profile.id,
+                    condition_id=cond,
+                )
+                .first()
+            )
 
             if existing:
                 existing.value = val
@@ -177,7 +209,7 @@ def submit_answer(
                     business_profile_id=profile.id,
                     condition_id=cond,
                     value=val,
-                    source="user_answer"
+                    source="user_answer",
                 )
                 db.add(new_cv)
 
@@ -186,14 +218,14 @@ def submit_answer(
     def get_next_or_unresolved_question(answered_question_ids):
         """
         First, try the normal deterministic next-question flow.
-        If no new eligible question remains, re-ask questions already answered as unknown.
-        If none are unknown, screening is complete.
+        If no new eligible question remains, re-ask questions already answered
+        as unknown. If none are unknown, screening is complete.
         """
         from gen_ai_fsms.services.screening_questions import screening_questions
 
         next_question = get_next_question(
             state.get("condition_values", {}),
-            set(answered_question_ids)
+            set(answered_question_ids),
         )
 
         if next_question:
@@ -255,19 +287,20 @@ def submit_answer(
                 "question_id": next_question["question_id"],
                 "question_text": next_question["text"],
                 "message": message,
-                "session_id": session_obj.id
+                "session_id": session_obj.id,
             }
 
         update_session(db, session_obj.id, json.dumps(state), "completed")
+
         return {
             "action": "complete",
             "message": (
                 "Screening completed. Your responses have been recorded. "
                 "You will be able to view the recorded condition values when you visit this page again."
-            )
+            ),
         }
 
-    elif action in ("ambiguous", "unrelated"):
+    if action in ("ambiguous", "unrelated"):
         attempts = state.get("failed_answer_attempts", 0)
 
         if attempts < 2:
@@ -283,7 +316,7 @@ def submit_answer(
                     "Please answer the question directly.\n\n"
                     f"{question_text}"
                 ),
-                "session_id": session_obj.id
+                "session_id": session_obj.id,
             }
 
         values_to_set = {cond: "unknown" for cond in conditions_to_set}
@@ -324,19 +357,21 @@ def submit_answer(
                 "question_id": next_question["question_id"],
                 "question_text": next_question["text"],
                 "message": message,
-                "session_id": session_obj.id
+                "session_id": session_obj.id,
             }
 
         update_session(db, session_obj.id, json.dumps(state), "completed")
+
         return {
             "action": "complete",
             "message": (
                 "Screening completed. Your responses have been recorded. "
                 "You will be able to review the recorded condition values in the profile view later."
-            )
+            ),
         }
 
     update_session(db, session_obj.id, json.dumps(state), "in_progress")
+
     return {
         "action": "ask_again",
         "message": (
@@ -344,18 +379,16 @@ def submit_answer(
             "Please answer the question directly.\n\n"
             f"{question_text}"
         ),
-        "session_id": session_obj.id
+        "session_id": session_obj.id,
     }
 
 
 @router.get("/condition-values")
 def get_screening_condition_values(
     db: Session = Depends(get_db),
-    _current_user: User = Depends(require_admin)
+    current_user: User = Depends(require_admin),
 ):
-    profile = db.query(BusinessProfile).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Business profile not found")
+    profile = get_current_user_profile(db, current_user)
 
     rows = (
         db.query(ConditionValue, Condition)
@@ -380,7 +413,7 @@ def get_screening_condition_values(
         for item in condition_values
     }
 
-    from gen_ai_fsms.services.screening_questions import screening_questions # imported here to avoid circular dependency
+    from gen_ai_fsms.services.screening_questions import screening_questions
 
     active_condition_ids = {
         condition_id
@@ -408,49 +441,19 @@ def get_screening_condition_values(
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @router.post("/reset")
 def reset_screening(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(require_admin),
 ):
-    profile = db.query(BusinessProfile).first()
+    profile = get_current_user_profile(db, current_user)
 
-    if not profile:
-        raise HTTPException(status_code=404, detail="Business profile not found")
-    
-    # Delete the active screening session
     session_obj = load_session(db, profile.id, "screening")
 
     if session_obj:
         db.delete(session_obj)
         db.commit()
-    
-    # Delete all condition values for this profile
+
     db.query(ConditionValue).filter_by(business_profile_id=profile.id).delete()
     db.commit()
 
@@ -460,20 +463,19 @@ def reset_screening(
 @router.post("/resume")
 def resume_screening(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(require_admin),
 ):
-    profile = db.query(BusinessProfile).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Business profile not found")
+    profile = get_current_user_profile(db, current_user)
+
     session_obj = load_session(db, profile.id, "screening")
     if not session_obj:
         raise HTTPException(status_code=404, detail="No active screening session")
+
     state = json.loads(session_obj.state_json) if session_obj.state_json else {}
+
     return {
         "session_id": session_obj.id,
         "question_id": state.get("current_question_id"),
         "question_text": state.get("current_question_text"),
-        "progress": state.get("answered_question_ids", [])
+        "progress": state.get("answered_question_ids", []),
     }
-
-

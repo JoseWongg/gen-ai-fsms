@@ -16,6 +16,21 @@ def show():
                 st.session_state.token = data["access_token"]
                 user_resp = api_request("GET", "/users/me", token=st.session_state.token)
                 if user_resp and user_resp.status_code == 200:
+                    screening_state_keys = (
+                        "screening_session",
+                        "screening_messages",
+                        "screening_complete",
+                        "screening_just_completed",
+                        "screening_processing",
+                        "pending_screening_answer",
+                        "screening_ephemeral_status",
+                        "screening_ephemeral_after_index",
+                        "screening_chat_input",
+                    )
+
+                    for key in screening_state_keys:
+                        st.session_state.pop(key, None)
+
                     st.session_state.user = user_resp.json()
                     st.session_state.authenticated = True
                     st.rerun()
@@ -31,7 +46,9 @@ def show():
                         st.error(msg)
                     else:
                         st.error(error_data.get("detail", f"Login failed (HTTP {resp.status_code})"))
-                except:
+                except (ValueError, AttributeError):
+                    # resp.json() could raise ValueError/JSONDecodeError or the parsed
+                    # response might not be a dict (AttributeError on .get)
                     st.error(f"Login failed (HTTP {resp.status_code})")
 
 

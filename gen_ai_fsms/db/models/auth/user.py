@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.sql import func
+
 from gen_ai_fsms.db.base import Base
+
 
 class User(Base):
     __tablename__ = "users"
@@ -12,5 +14,11 @@ class User(Base):
     last_name = Column(String(100), nullable=True)
     role = Column(String(50), default="user")  # "admin" or "user"
     is_active = Column(Boolean, default=True)
+    business_profile_id = Column(
+        Integer,
+        ForeignKey("business_profiles.id"),
+        nullable=True,
+        index=True,
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

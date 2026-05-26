@@ -65,6 +65,21 @@ def landing():
 
 
 def logout():
+    screening_state_keys = (
+        "screening_session",
+        "screening_messages",
+        "screening_complete",
+        "screening_just_completed",
+        "screening_processing",
+        "pending_screening_answer",
+        "screening_ephemeral_status",
+        "screening_ephemeral_after_index",
+        "screening_chat_input",
+    )
+
+    for key in screening_state_keys:
+        st.session_state.pop(key, None)
+
     st.session_state.token = None
     st.session_state.user = None
     st.session_state.authenticated = False

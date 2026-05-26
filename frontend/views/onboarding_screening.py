@@ -28,20 +28,6 @@ def show():
         st.error(f"Failed to load session (HTTP {resp.status_code}). Please try again.")
         return None
 
-    #def load_condition_values():
-        #resp = api_request("GET", "/onboarding/screening/condition-values", token=token)
-
-        #if resp is None:
-            #return None
-
-        #if resp.status_code == 200:
-            #return resp.json()
-
-        #st.error(f"Failed to load condition values (HTTP {resp.status_code}). Please try again.")
-        #return None
-
-
-
 
 
 
@@ -60,15 +46,6 @@ def show():
 
         st.error(f"Failed to load condition values (HTTP {resp.status_code}). Please try again.")
         return None
-
-
-
-
-
-
-
-
-
 
 
     def start_session():

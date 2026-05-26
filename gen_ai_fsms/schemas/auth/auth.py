@@ -9,6 +9,8 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 class RegisterRequest(BaseModel):
+    business_name: str
+    site_name: str
     email: EmailStr
     password: str
     first_name: str | None = None
