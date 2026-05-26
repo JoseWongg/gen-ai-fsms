@@ -17,7 +17,7 @@ class User(Base):
     business_profile_id = Column(
         Integer,
         ForeignKey("business_profiles.id"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
