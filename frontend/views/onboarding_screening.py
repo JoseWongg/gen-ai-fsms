@@ -157,10 +157,15 @@ def show():
         st.session_state.screening_session = current
 
         if not st.session_state.screening_messages:
-            st.session_state.screening_messages.append({
-                "role": "assistant",
-                "content": current["question_text"]
-            })
+            st.session_state.screening_messages = current.get(
+                "display_messages",
+                [
+                    {
+                        "role": "assistant",
+                        "content": current["question_text"]
+                    }
+                ]
+            )
 
     else:
         if condition_values_response and condition_values_response.get("is_complete"):

@@ -52,6 +52,14 @@ def get_current_user_profile(db: Session, current_user: User) -> BusinessProfile
 
     return profile
 
+def add_display_message(state: dict, role: str, content: str) -> None:
+    state.setdefault("display_messages", []).append(
+        {
+            "role": role,
+            "content": content,
+        }
+    )
+
 
 @router.post("/start")
 def start_screening(
@@ -63,12 +71,24 @@ def start_screening(
     existing = load_session(db, profile.id, "screening")
     if existing:
         state = json.loads(existing.state_json) if existing.state_json else {}
+        display_messages = state.get("display_messages")
+
+        if not display_messages and state.get("current_question_text"):
+            display_messages = [
+                {
+                    "role": "assistant",
+                    "content": state.get("current_question_text"),
+                }
+            ]
+
         return {
             "session_id": existing.id,
             "question_id": state.get("current_question_id"),
             "question_text": state.get("current_question_text"),
             "progress": state.get("answered_question_ids", []),
+            "display_messages": display_messages or [],
         }
+
 
     session_obj = create_session(db, profile.id, current_user.id, "screening")
     first_q = get_next_question({}, set())
@@ -83,9 +103,16 @@ def start_screening(
         "answered_question_ids": [],
         "condition_values": {},
         "conversation_history": [],
+        "display_messages": [
+            {
+                "role": "assistant",
+                "content": first_q["text"],
+            }
+        ],
         "failed_answer_attempts": 0,
         "next_action": None,
     }
+
 
     update_session(db, session_obj.id, json.dumps(state), "in_progress")
 
@@ -94,7 +121,9 @@ def start_screening(
         "question_id": first_q["question_id"],
         "question_text": first_q["text"],
         "progress": [],
+        "display_messages": state["display_messages"],
     }
+
 
 
 @router.get("/current")
@@ -109,13 +138,24 @@ def current_screening(
         raise HTTPException(status_code=404, detail="No active screening session")
 
     state = json.loads(session_obj.state_json) if session_obj.state_json else {}
+    display_messages = state.get("display_messages")
+
+    if not display_messages and state.get("current_question_text"):
+        display_messages = [
+            {
+                "role": "assistant",
+                "content": state.get("current_question_text"),
+            }
+        ]
 
     return {
         "session_id": session_obj.id,
         "question_id": state.get("current_question_id"),
         "question_text": state.get("current_question_text"),
         "progress": state.get("answered_question_ids", []),
+        "display_messages": display_messages or [],
     }
+
 
 
 @router.post("/answer")
@@ -136,6 +176,10 @@ def submit_answer(
     conditions_to_set = state.get("conditions_to_set", [])
     conversation = state.get("conversation_history", [])
 
+    if not state.get("display_messages") and question_text:
+        add_display_message(state, "assistant", question_text)
+
+    add_display_message(state, "user", answer)
     conversation.append({"role": "user", "content": answer})
 
     adapter = get_llm_adapter()
@@ -271,6 +315,7 @@ def submit_answer(
 
         if next_question:
             set_current_question(next_question)
+            add_display_message(state, "assistant", next_question["text"])
             update_session(db, session_obj.id, json.dumps(state), "in_progress")
 
             if next_mode == "reask_unknown":
@@ -290,14 +335,17 @@ def submit_answer(
                 "session_id": session_obj.id,
             }
 
+        completion_message = (
+            "Screening completed. Your responses have been recorded. "
+            "You will be able to view the recorded condition values when you visit this page again."
+        )
+
+        add_display_message(state, "assistant", completion_message)
         update_session(db, session_obj.id, json.dumps(state), "completed")
 
         return {
             "action": "complete",
-            "message": (
-                "Screening completed. Your responses have been recorded. "
-                "You will be able to view the recorded condition values when you visit this page again."
-            ),
+            "message": completion_message,
         }
 
     if action in ("ambiguous", "unrelated"):
@@ -307,15 +355,18 @@ def submit_answer(
             state["failed_answer_attempts"] = attempts + 1
             state["conversation_history"] = conversation
 
+            ask_again_message = (
+                "I could not identify a clear answer. "
+                "Please answer the question directly.\n\n"
+                f"{question_text}"
+            )
+
+            add_display_message(state, "assistant", ask_again_message)
             update_session(db, session_obj.id, json.dumps(state), "in_progress")
 
             return {
                 "action": "ask_again",
-                "message": (
-                    "I could not identify a clear answer. "
-                    "Please answer the question directly.\n\n"
-                    f"{question_text}"
-                ),
+                "message": ask_again_message,
                 "session_id": session_obj.id,
             }
 
@@ -336,6 +387,7 @@ def submit_answer(
 
         if next_question:
             set_current_question(next_question)
+            add_display_message(state, "assistant", next_question["text"])
             update_session(db, session_obj.id, json.dumps(state), "in_progress")
 
             if next_mode == "reask_unknown":
@@ -360,25 +412,31 @@ def submit_answer(
                 "session_id": session_obj.id,
             }
 
+        completion_message = (
+            "Screening completed. Your responses have been recorded. "
+            "You will be able to review the recorded condition values in the profile view later."
+        )
+
+        add_display_message(state, "assistant", completion_message)
         update_session(db, session_obj.id, json.dumps(state), "completed")
 
         return {
             "action": "complete",
-            "message": (
-                "Screening completed. Your responses have been recorded. "
-                "You will be able to review the recorded condition values in the profile view later."
-            ),
+            "message": completion_message,
         }
 
+    ask_again_message = (
+        "I could not process your answer clearly. "
+        "Please answer the question directly.\n\n"
+        f"{question_text}"
+    )
+
+    add_display_message(state, "assistant", ask_again_message)
     update_session(db, session_obj.id, json.dumps(state), "in_progress")
 
     return {
         "action": "ask_again",
-        "message": (
-            "I could not process your answer clearly. "
-            "Please answer the question directly.\n\n"
-            f"{question_text}"
-        ),
+        "message": ask_again_message,
         "session_id": session_obj.id,
     }
 
@@ -472,10 +530,20 @@ def resume_screening(
         raise HTTPException(status_code=404, detail="No active screening session")
 
     state = json.loads(session_obj.state_json) if session_obj.state_json else {}
+    display_messages = state.get("display_messages")
+
+    if not display_messages and state.get("current_question_text"):
+        display_messages = [
+            {
+                "role": "assistant",
+                "content": state.get("current_question_text"),
+            }
+        ]
 
     return {
         "session_id": session_obj.id,
         "question_id": state.get("current_question_id"),
         "question_text": state.get("current_question_text"),
         "progress": state.get("answered_question_ids", []),
+        "display_messages": display_messages or [],
     }
