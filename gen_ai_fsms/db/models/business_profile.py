@@ -7,7 +7,7 @@ class BusinessProfile(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     business_name = Column(String(255), nullable=False)
-    site_name = Column(String(255), nullable=True)
+    site_name = Column(String(255), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     status = Column(String(50), default="active")
