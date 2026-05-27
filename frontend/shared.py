@@ -18,8 +18,10 @@ def api_request(method, endpoint, json=None, token=None):
             resp = requests.get(url, headers=headers)
         elif method == "POST":
             resp = requests.post(url, json=json, headers=headers)
+        elif method == "PATCH":
+            resp = requests.patch(url, json=json, headers=headers)
         else:
-            raise ValueError
+            raise ValueError(f"Unsupported HTTP method: {method}")
         return resp
     except Exception as e:
         print(f"API error: {e}")
