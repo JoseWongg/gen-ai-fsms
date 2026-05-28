@@ -39,6 +39,24 @@ def show():
         st.info("No users were found for this venue.")
         return
 
+    status_filter = st.selectbox(
+        "Show users",
+        options=["Active users", "Inactive users", "All users"],
+    )
+
+    if status_filter == "Active users":
+        filtered_users = [
+            user for user in users
+            if user.get("is_active")
+        ]
+    elif status_filter == "Inactive users":
+        filtered_users = [
+            user for user in users
+            if not user.get("is_active")
+        ]
+    else:
+        filtered_users = users
+
     display_users = [
         {
             "Name": " ".join(
@@ -48,11 +66,121 @@ def show():
             ),
             "Email": user.get("email"),
             "Role": user.get("role"),
+            "Status": "Active" if user.get("is_active") else "Inactive",
         }
-        for user in users
+        for user in filtered_users
     ]
 
-    st.dataframe(display_users, hide_index=True)
+    if display_users:
+        st.dataframe(display_users, hide_index=True)
+    else:
+        st.info("No users match the selected status filter.")
+
+    st.divider()
+    st.subheader("Deactivate user")
+
+    active_users_to_deactivate = [
+        user for user in users
+        if user.get("is_active")
+        and user.get("id") != current_user.get("id")
+    ]
+
+    if not active_users_to_deactivate:
+        st.info("There are no other active users available to deactivate.")
+    else:
+        deactivate_options = {
+            f"{user.get('first_name', '')} {user.get('last_name', '')} "
+            f"({user.get('email')}) - {user.get('role')}".strip(): user["id"]
+            for user in active_users_to_deactivate
+        }
+
+        with st.form("deactivate_venue_user_form"):
+            selected_active_user_label = st.selectbox(
+                "Select active user",
+                options=list(deactivate_options.keys()),
+            )
+
+            deactivate_submitted = st.form_submit_button("Deactivate user")
+
+            if deactivate_submitted:
+                target_user_id = deactivate_options[selected_active_user_label]
+
+                deactivate_response = api_request(
+                    "PATCH",
+                    f"/admin/users/{target_user_id}/deactivate",
+                    token=token,
+                )
+
+                if deactivate_response is None:
+                    st.error("Could not connect to the backend.")
+                elif deactivate_response.status_code == 200:
+                    st.success("User deactivated successfully.")
+                    st.rerun()
+                else:
+                    try:
+                        detail = deactivate_response.json().get(
+                            "detail",
+                            f"Failed to deactivate user "
+                            f"(HTTP {deactivate_response.status_code}).",
+                        )
+                        st.error(detail)
+                    except (ValueError, AttributeError):
+                        st.error(
+                            f"Failed to deactivate user "
+                            f"(HTTP {deactivate_response.status_code})."
+                        )
+    st.divider()
+    st.subheader("Reactivate user")
+
+    inactive_users_to_reactivate = [
+        user for user in users
+        if not user.get("is_active")
+    ]
+
+    if not inactive_users_to_reactivate:
+        st.info("There are no inactive users available to reactivate.")
+    else:
+        reactivate_options = {
+            f"{user.get('first_name', '')} {user.get('last_name', '')} "
+            f"({user.get('email')}) - {user.get('role')}".strip(): user["id"]
+            for user in inactive_users_to_reactivate
+        }
+
+        with st.form("reactivate_venue_user_form"):
+            selected_inactive_user_label = st.selectbox(
+                "Select inactive user",
+                options=list(reactivate_options.keys()),
+            )
+
+            reactivate_submitted = st.form_submit_button("Reactivate user")
+
+            if reactivate_submitted:
+                target_user_id = reactivate_options[selected_inactive_user_label]
+
+                reactivate_response = api_request(
+                    "PATCH",
+                    f"/admin/users/{target_user_id}/reactivate",
+                    token=token,
+                )
+
+                if reactivate_response is None:
+                    st.error("Could not connect to the backend.")
+                elif reactivate_response.status_code == 200:
+                    st.success("User reactivated successfully.")
+                    st.rerun()
+                else:
+                    try:
+                        detail = reactivate_response.json().get(
+                            "detail",
+                            f"Failed to reactivate user "
+                            f"(HTTP {reactivate_response.status_code}).",
+                        )
+                        st.error(detail)
+                    except (ValueError, AttributeError):
+                        st.error(
+                            f"Failed to reactivate user "
+                            f"(HTTP {reactivate_response.status_code})."
+                        )
 
     st.divider()
     st.subheader("Promote user to admin")
@@ -60,10 +188,11 @@ def show():
     standard_users = [
         user for user in users
         if user.get("role") == "user"
+        and user.get("is_active")
     ]
 
     if not standard_users:
-        st.info("There are no standard users available to promote.")
+        st.info("There are no active standard users available to promote.")
     else:
         promote_options = {
             f"{user.get('first_name', '')} {user.get('last_name', '')} ({user.get('email')})".strip(): user["id"]

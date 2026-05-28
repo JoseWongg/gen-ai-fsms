@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from gen_ai_fsms.api.deps import get_db, require_admin
 from gen_ai_fsms.db.models import User
 from gen_ai_fsms.db.models.business_profile import BusinessProfile
+from gen_ai_fsms.repositories.auth.token_repository import TokenRepository
 from gen_ai_fsms.repositories.auth.user_repository import UserRepository
 from gen_ai_fsms.schemas.user import UserCreate, UserResponse
 from gen_ai_fsms.services.auth.password_service import hash_password
@@ -110,6 +111,12 @@ def promote_venue_user(
             detail="User not found in your venue",
         )
 
+    if not target_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive users cannot be promoted to admin",
+        )
+
     if target_user.role != "admin":
         target_user.role = "admin"
         user_repo.update(target_user)
@@ -153,17 +160,116 @@ def demote_venue_user(
         )
 
     if target_user.role == "admin":
-        admin_count = user_repo.count_admins_by_business_profile(
-            current_user.business_profile_id
-        )
-
-        if admin_count <= 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="A venue must retain at least one admin user",
+        if target_user.is_active:
+            active_admin_count = user_repo.count_active_admins_by_business_profile(
+                current_user.business_profile_id
             )
 
+            if active_admin_count <= 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A venue must retain at least one active admin user",
+                )
+
         target_user.role = "user"
+        user_repo.update(target_user)
+
+    profile = (
+        db.query(BusinessProfile)
+        .filter(BusinessProfile.id == current_user.business_profile_id)
+        .first()
+    )
+
+    return {
+        "id": target_user.id,
+        "email": target_user.email,
+        "first_name": target_user.first_name,
+        "last_name": target_user.last_name,
+        "role": target_user.role,
+        "is_active": target_user.is_active,
+        "created_at": target_user.created_at,
+        "updated_at": target_user.updated_at,
+        "business_name": profile.business_name if profile else None,
+        "site_name": profile.site_name if profile else None,
+    }
+
+@router.patch("/users/{user_id}/deactivate", response_model=UserResponse)
+def deactivate_venue_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    user_repo = UserRepository(db)
+    token_repo = TokenRepository(db)
+
+    target_user = user_repo.get_by_id_and_business_profile(
+        user_id=user_id,
+        business_profile_id=current_user.business_profile_id,
+    )
+
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found in your venue",
+        )
+
+    if target_user.is_active:
+        if target_user.role == "admin":
+            active_admin_count = user_repo.count_active_admins_by_business_profile(
+                current_user.business_profile_id
+            )
+
+            if active_admin_count <= 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A venue must retain at least one active admin user",
+                )
+
+        target_user.is_active = False
+        target_user.access_token_version += 1
+        token_repo.invalidate_unused_tokens_for_user(target_user.id)
+        user_repo.update(target_user)
+
+    profile = (
+        db.query(BusinessProfile)
+        .filter(BusinessProfile.id == current_user.business_profile_id)
+        .first()
+    )
+
+    return {
+        "id": target_user.id,
+        "email": target_user.email,
+        "first_name": target_user.first_name,
+        "last_name": target_user.last_name,
+        "role": target_user.role,
+        "is_active": target_user.is_active,
+        "created_at": target_user.created_at,
+        "updated_at": target_user.updated_at,
+        "business_name": profile.business_name if profile else None,
+        "site_name": profile.site_name if profile else None,
+    }
+
+@router.patch("/users/{user_id}/reactivate", response_model=UserResponse)
+def reactivate_venue_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    user_repo = UserRepository(db)
+
+    target_user = user_repo.get_by_id_and_business_profile(
+        user_id=user_id,
+        business_profile_id=current_user.business_profile_id,
+    )
+
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found in your venue",
+        )
+
+    if not target_user.is_active:
+        target_user.is_active = True
         user_repo.update(target_user)
 
     profile = (

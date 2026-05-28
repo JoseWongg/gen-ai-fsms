@@ -22,15 +22,25 @@ def get_db():
         db.close()
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    user_id = decode_access_token(token)
-    
-    if user_id is None:
-        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-    
+    decoded_token = decode_access_token(token)
+
+    if decoded_token is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication credentials",
+        )
+
+    user_id, token_version = decoded_token
+
     auth_service = AuthService(db)
     user = auth_service.get_user_by_id(user_id)
-    if not user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
+
+    if user.access_token_version != token_version:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication session is no longer valid",
+        )
+
     return user
 
 def require_admin(current_user = Depends(get_current_user)):

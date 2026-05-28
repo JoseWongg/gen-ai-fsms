@@ -32,14 +32,23 @@ def show():
                         "POST", "/auth/reset-password",
                         json={"token": token, "new_password": new_password}
                     )
-                    if resp and resp.status_code == 200:
+                    if resp is not None and resp.status_code == 200:
                         st.success("Password reset successful! You can now log in.")
                         st.query_params.clear()
                         st.session_state.page = "login"
                         st.rerun()
-                    else:
-                        err = resp.json().get("detail", "Reset failed") if resp else "Connection error"
+                    elif resp is not None:
+                        try:
+                            err = resp.json().get(
+                                "detail",
+                                f"Reset failed (HTTP {resp.status_code}).",
+                            )
+                        except (ValueError, AttributeError):
+                            err = f"Reset failed (HTTP {resp.status_code})."
+
                         st.error(err)
+                    else:
+                        st.error("Connection error.")
 
     if st.button("Back to login"):
         st.query_params.clear()

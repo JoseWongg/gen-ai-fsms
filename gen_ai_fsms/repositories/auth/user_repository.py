@@ -56,12 +56,13 @@ class UserRepository:
             .all()
         )
 
-    def count_admins_by_business_profile(self, business_profile_id: int) -> int:
+    def count_active_admins_by_business_profile(self, business_profile_id: int) -> int:
         return (
             self.db.query(User)
             .filter(
                 User.business_profile_id == business_profile_id,
                 User.role == "admin",
+                User.is_active.is_(True),
             )
             .count()
         )

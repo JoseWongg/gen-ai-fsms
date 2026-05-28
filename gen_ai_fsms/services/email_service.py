@@ -4,8 +4,6 @@ import requests
 def send_reset_email(to_email: str, reset_link: str) -> bool:
     api_key = os.getenv("MAILGUN_API_KEY")
     domain = os.getenv("MAILGUN_DOMAIN")
-    print(f"DEBUG: MAILGUN_API_KEY={api_key[:10] if api_key else None}...")
-    print(f"DEBUG: MAILGUN_DOMAIN={domain}")
     from_email = f"noreply@{domain}" if domain else "noreply@example.com"
 
     if not api_key or not domain:
@@ -20,7 +18,11 @@ def send_reset_email(to_email: str, reset_link: str) -> bool:
                 "from": from_email,
                 "to": [to_email],
                 "subject": "Reset your password",
-                "text": f"Reset link: {reset_link}"
+                "text": (
+                    f"Reset link: {reset_link}\n\n"
+                    "Link valid for 24 hours.\n"
+                    "If you did not request a password reset, report this to our support team."
+                ),
             },
             timeout=10
         )

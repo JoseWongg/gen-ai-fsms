@@ -14,11 +14,7 @@ class User(Base):
     last_name = Column(String(100), nullable=True)
     role = Column(String(50), default="user")  # "admin" or "user"
     is_active = Column(Boolean, default=True)
-    business_profile_id = Column(
-        Integer,
-        ForeignKey("business_profiles.id"),
-        nullable=False,
-        index=True,
-    )
+    access_token_version = Column(Integer, nullable=False, default=0, server_default="0") # for invalidating login sessions when a user is deactivated
+    business_profile_id = Column(Integer,ForeignKey("business_profiles.id"),nullable=False,index=True,)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

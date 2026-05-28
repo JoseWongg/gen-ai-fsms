@@ -31,10 +31,8 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/forgot-password")
 def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    print("DEBUG: forgot_password endpoint reached")
     service = AuthService(db)
     token = service.create_password_reset_token(data.email)
-    print(f"DEBUG: token={token}")
     if token:
         
         # [Developer Note]: For local development, use the BACKEND_URL from the .env file to construct the reset link

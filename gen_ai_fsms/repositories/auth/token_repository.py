@@ -29,3 +29,12 @@ class TokenRepository:
     def mark_used(self, token: PasswordResetToken) -> None:
         token.used = True
         self.db.commit()
+
+    def invalidate_unused_tokens_for_user(self, user_id: int) -> None:
+        self.db.query(PasswordResetToken).filter(
+            PasswordResetToken.user_id == user_id,
+            PasswordResetToken.used.is_(False),
+        ).update(
+            {PasswordResetToken.used: True},
+            synchronize_session=False,
+        )

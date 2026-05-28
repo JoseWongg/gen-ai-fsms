@@ -53,9 +53,20 @@ class AuthService:
 
     def authenticate_user(self, email: str, password: str) -> dict:
         user = self.user_repo.get_by_email(email)
+
         if not user or not verify_password(password, user.hashed_password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        access_token = create_access_token(user.id)
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is inactive",
+            )
+
+        access_token = create_access_token(
+            user.id,
+            user.access_token_version,
+        )
         return {"access_token": access_token, "token_type": "bearer"}
 
     def get_user_by_id(self, user_id: int):
@@ -66,20 +77,22 @@ class AuthService:
 
     def create_password_reset_token(self, email: str) -> str | None:
         user = self.user_repo.get_by_email(email)
-        if not user:
+
+        if not user or not user.is_active:
             return None  # silently ignore for security
+
         token = secrets.token_urlsafe(32)
         expires_at = datetime.utcnow() + timedelta(hours=24)
         self.token_repo.create_reset_token(user.id, token, expires_at)
         return token
-
+    
     def reset_password(self, token: str, new_password: str) -> bool:
         reset_token = self.token_repo.get_valid_token(token)
         if not reset_token:
             raise HTTPException(status_code=400, detail="Invalid or expired token")
         user = self.user_repo.get_by_id(reset_token.user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+        if not user or not user.is_active:
+            raise HTTPException(status_code=400, detail="Invalid or expired token")
         user.hashed_password = hash_password(new_password)
         self.user_repo.update(user)
         self.token_repo.mark_used(reset_token)
