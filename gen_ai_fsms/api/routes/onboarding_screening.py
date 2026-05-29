@@ -370,9 +370,6 @@ def submit_answer(
         next_question, next_mode = get_next_or_unresolved_question(answered)
 
         if next_question:
-            set_current_question(next_question)
-            add_display_message(state, "assistant", next_question["text"])
-
             recorded_message = build_recorded_response_message(state, value)
 
             if next_mode == "reask_unknown":
@@ -383,6 +380,11 @@ def submit_answer(
                 )
             else:
                 message = recorded_message
+
+            add_display_message(state, "assistant", message)
+
+            set_current_question(next_question)
+            add_display_message(state, "assistant", next_question["text"])
 
             update_session(db, session_obj.id, json.dumps(state), "in_progress")
 
@@ -445,9 +447,6 @@ def submit_answer(
         next_question, next_mode = get_next_or_unresolved_question(answered)
 
         if next_question:
-            set_current_question(next_question)
-            add_display_message(state, "assistant", next_question["text"])
-
             recorded_message = build_recorded_response_message(state, "unknown")
 
             if next_mode == "reask_unknown":
@@ -461,6 +460,11 @@ def submit_answer(
                     f"{recorded_message} "
                     "We need to move on."
                 )
+
+            add_display_message(state, "assistant", message)
+
+            set_current_question(next_question)
+            add_display_message(state, "assistant", next_question["text"])
 
             update_session(db, session_obj.id, json.dumps(state), "in_progress")
 

@@ -296,8 +296,10 @@ def show():
 
             if action == "next_question":
                 if message:
-                    st.session_state.screening_ephemeral_status = message
-                    st.session_state.screening_ephemeral_after_index = latest_user_message_index
+                    st.session_state.screening_messages.append({
+                        "role": "assistant",
+                        "content": message
+                    })
 
                 question_text = data["question_text"]
 
