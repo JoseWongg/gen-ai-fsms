@@ -1,4 +1,5 @@
 import json
+import random
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -60,6 +61,61 @@ def add_display_message(state: dict, role: str, content: str) -> None:
         }
     )
 
+def build_recorded_response_message(state: dict, value: str) -> str:
+    messages_by_value = {
+        "true": [
+            "Noted. This activity applies to your business.",
+            "Understood. I have recorded that you carry out this activity.",
+            "Recorded. This activity is part of your business operation.",
+            "Thank you. I have recorded this activity as applicable.",
+            "Got it. This activity is relevant to your business.",
+            "Thank you. I have noted that this activity takes place in your business.",
+            "Understood. This activity has been recorded as part of your operation.",
+            "Recorded. Your business carries out this activity.",
+            "Noted. This has been included in your screening information.",
+            "Thank you. I have captured that this activity applies.",
+        ],
+        "false": [
+            "Noted. This activity does not apply to your business.",
+            "Understood. I have recorded that you do not carry out this activity.",
+            "Recorded. This activity is not part of your business operation.",
+            "Thank you. I have recorded this activity as not applicable.",
+            "Got it. This activity is not relevant to your business.",
+            "Thank you. I have noted that this activity does not take place in your business.",
+            "Understood. This activity has been recorded as outside your operation.",
+            "Recorded. Your business does not carry out this activity.",
+            "Noted. This has not been included as an activity in your screening information.",
+            "Thank you. I have captured that this activity does not apply.",
+        ],
+        "unknown": [
+            "I could not determine a clear answer, so I have recorded this as unknown for now.",
+            "I have not been able to establish whether this activity applies, so it has been recorded as unknown.",
+            "Your response remains unclear, so I have marked this activity as unknown for now.",
+            "I could not confirm whether this activity takes place, so I have recorded an unknown response.",
+            "This activity could not be determined from your response, so it has been marked as unknown.",
+            "I have recorded this as unknown because a clear answer could not be identified.",
+            "I could not establish a clear outcome for this activity, so it remains recorded as unknown.",
+            "Your response did not allow me to confirm this activity, so I have marked it as unknown.",
+            "I was unable to determine whether this applies, so an unknown response has been recorded.",
+            "This response could not be resolved clearly, so I have recorded the activity as unknown.",
+        ],
+    }
+
+    messages = messages_by_value.get(
+        value,
+        ["Your response has been recorded."],
+    )
+
+    previous_message = state.get("last_recorded_message")
+    available_messages = [
+        message for message in messages
+        if message != previous_message
+    ]
+
+    selected_message = random.choice(available_messages or messages)
+    state["last_recorded_message"] = selected_message
+
+    return selected_message
 
 @router.post("/start")
 def start_screening(
@@ -316,16 +372,19 @@ def submit_answer(
         if next_question:
             set_current_question(next_question)
             add_display_message(state, "assistant", next_question["text"])
-            update_session(db, session_obj.id, json.dumps(state), "in_progress")
+
+            recorded_message = build_recorded_response_message(state, value)
 
             if next_mode == "reask_unknown":
                 message = (
-                    f"Your response has been recorded as {value}. "
+                    f"{recorded_message} "
                     "Some responses still need to be clarified before screening can finish. "
                     "I will ask those questions again."
                 )
             else:
-                message = f"Your response has been recorded as {value}."
+                message = recorded_message
+
+            update_session(db, session_obj.id, json.dumps(state), "in_progress")
 
             return {
                 "action": "next_question",
@@ -388,21 +447,22 @@ def submit_answer(
         if next_question:
             set_current_question(next_question)
             add_display_message(state, "assistant", next_question["text"])
-            update_session(db, session_obj.id, json.dumps(state), "in_progress")
+
+            recorded_message = build_recorded_response_message(state, "unknown")
 
             if next_mode == "reask_unknown":
                 message = (
-                    "I am unable to identify an unambiguous response from you. "
-                    "I will record your response as unknown. "
+                    f"{recorded_message} "
                     "Some responses still need to be clarified before screening can finish. "
                     "I will ask those questions again."
                 )
             else:
                 message = (
-                    "I am unable to identify an unambiguous response from you. "
-                    "I will record your response as unknown. "
+                    f"{recorded_message} "
                     "We need to move on."
                 )
+
+            update_session(db, session_obj.id, json.dumps(state), "in_progress")
 
             return {
                 "action": "next_question",

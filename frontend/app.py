@@ -278,8 +278,8 @@ ROUTES = {
         ),
         "admin_only": False,
     },
-    "admin": {
-        "title": "Admin",
+    "admin_users": {
+        "title": "Venue User Administration",
         "view": admin_page,
         "admin_only": True,
     },
@@ -323,7 +323,7 @@ MENU_LABEL_TO_ROUTE = {
     "HR Compliance": "compliance_hr",
 
     "Settings": "settings",
-    "Admin": "admin",
+    "Users": "admin_users",
 }
 
 
@@ -398,7 +398,11 @@ def get_navigation_items():
     menu_items.append(sac.MenuItem("Settings", icon="gear"))
 
     if is_admin():
-        menu_items.append(sac.MenuItem("Admin", icon="person-gear"))
+        menu_items.append(
+            sac.MenuItem("Admin", icon="person-gear", children=[
+                sac.MenuItem("Users"),
+            ])
+        )
 
     menu_items.append(sac.MenuItem("Logout", icon="box-arrow-right"))
 

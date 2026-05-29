@@ -18,6 +18,7 @@ dependencies = [
     "langgraph",
     "streamlit",
     "streamlit-antd-components==0.3.2",
+    "streamlit-aggrid==1.2.1.post2",
     "python-dotenv",
     "httpx",
     "passlib[bcrypt]",

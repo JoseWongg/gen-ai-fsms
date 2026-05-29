@@ -1,4 +1,6 @@
+import pandas as pd
 import streamlit as st
+from st_aggrid import AgGrid, GridOptionsBuilder # Dependency used for displaying user tables with sorting and filtering capabilities
 
 from shared import api_request, validate_password_strength
 
@@ -72,7 +74,38 @@ def show():
     ]
 
     if display_users:
-        st.dataframe(display_users, hide_index=True)
+        users_dataframe = pd.DataFrame(display_users)
+
+        grid_builder = GridOptionsBuilder.from_dataframe(users_dataframe)
+        grid_builder.configure_default_column(
+            sortable=True,
+            filter=True,
+            resizable=True,
+        )
+        grid_builder.configure_column("Name", flex=2)
+        grid_builder.configure_column("Email", flex=3)
+        grid_builder.configure_column(
+            "Role",
+            flex=1,
+            cellStyle={"textAlign": "center"},
+        )
+        grid_builder.configure_column(
+            "Status",
+            flex=1,
+            cellStyle={"textAlign": "center"},
+        )
+
+        AgGrid(
+            users_dataframe,
+            gridOptions=grid_builder.build(),
+            custom_css={
+                ".ag-header-cell-label": {
+                    "justify-content": "center",
+                },
+            },
+            fit_columns_on_grid_load=True,
+            height=250,
+        )
     else:
         st.info("No users match the selected status filter.")
 
