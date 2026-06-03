@@ -15,7 +15,7 @@ def show():
 
     response = api_request(
         "GET",
-        "/onboarding/screening/condition-values",
+        "/onboarding/safety-points/readiness",
         token=token,
     )
 
@@ -42,7 +42,7 @@ def show():
 
     screening_status = response.json()
 
-    if not screening_status.get("is_complete"):
+    if not screening_status.get("is_ready"):
         st.warning(
             "Complete the Food Safety Profile screening before starting the "
             "Food Safety Management System Builder. Use the button below to open the screening page."
