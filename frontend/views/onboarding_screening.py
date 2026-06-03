@@ -325,9 +325,14 @@ def show():
                     "Screening completed. Your responses have been recorded."
                 )
 
+                builder_message = (
+                    "You can now continue to the Food Safety Management System Builder, "
+                    "where the relevant safety points for your business will be reviewed and approved."
+                )
+
                 st.session_state.screening_messages.append({
                     "role": "assistant",
-                    "content": completion_message
+                    "content": f"{completion_message} {builder_message}"
                 })
 
                 st.session_state.screening_complete = True

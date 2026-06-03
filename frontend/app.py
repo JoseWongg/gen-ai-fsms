@@ -8,6 +8,7 @@ from views.admin import show as admin_page
 from views.forgot import show as forgot_page
 from views.reset_password import show as reset_page
 from views.onboarding_screening import show as screening_page
+from views.onboarding_approval import show as approval_page
 
 
 # If a reset token is present in the URL, show the reset page immediately.
@@ -215,7 +216,7 @@ ROUTES = {
     },
     "compliance_food_safety_fsms_builder": {
         "title": "Food Safety Management System Builder",
-        "message": "AI-Assisted chatbot to approve relevant food safety methods.",
+        "view": approval_page,
         "admin_only": True,
     },
     "compliance_food_safety_approved_methods": {
@@ -426,6 +427,22 @@ def render_sidebar():
     if site_name:
         st.sidebar.write(f"Venue: {site_name}")
 
+    pending_navigation_route = st.session_state.pop(
+        "pending_navigation_route",
+        None,
+    )
+
+    pending_navigation_label = st.session_state.pop(
+        "pending_navigation_label",
+        None,
+    )
+
+    if pending_navigation_route:
+        st.session_state.page = pending_navigation_route
+
+    if pending_navigation_label:
+        st.session_state.main_navigation = pending_navigation_label
+
     with st.sidebar:
         selected_label = sac.menu(
             items=get_navigation_items(),
@@ -440,7 +457,6 @@ def render_sidebar():
 
     if selected_route:
         st.session_state.page = selected_route
-
 
 def render_current_page():
     current_page = st.session_state.page
