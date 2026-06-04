@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from gen_ai_fsms.db.base import Base
 
@@ -13,3 +14,8 @@ class ApprovedSafetyPoint(Base):
     safety_point_text = Column(Text, nullable=False)
     approved_by_user_id = Column(Integer, nullable=False)
     approved_at = Column(DateTime(timezone=True), server_default=func.now())
+    responses = relationship(
+        "ApprovedSafetyPointResponse",
+        back_populates="approved_safety_point",
+        cascade="all, delete-orphan",
+    )
