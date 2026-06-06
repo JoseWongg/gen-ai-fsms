@@ -37,6 +37,13 @@
               ],
               "additional_source_references": [
                 "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food > Prove it"
+              ],
+              "additional_questions": [
+                {
+                  "question_key": "chilling_equipment_temperature_checks",
+                  "question_text": "How do you check the temperature of each item of chilling equipment, such as a fridge or chilled display unit? For example: digital display, dial thermometer, fridge thermometer, or checking between chilled food packs using a probe thermometer.",
+                  "required": true
+                }
               ]
             },
             {
@@ -128,70 +135,94 @@
           ]
         },
         {
+          "safe_method_id": "4.3",
+          "safe_method_name": "Defrosting",
+          "condition_id": "defrosts_food",
           "safety_points": [
             {
+              "safety_point_id": "4.3.1.1",
               "text": "Food should be thoroughly defrosted before cooking (unless the manufacturer's instructions tell you to cook from frozen or you have a proven safe method). If food is still frozen or partially frozen, it will take longer to cook. The outside of the food could be cooked, but the centre might not be, which means it could contain harmful bacteria.\n\nThe options to defrost food are:\n- Ideally, plan ahead to leave enough time and space to defrost small amounts of food in the fridge. Putting food in the fridge will keep it at a safe temperature while it is defrosting.\n- If you cannot defrost food in the fridge, you could put it in a container and then place it under cold running water. Cold water will help to speed up defrosting without allowing the outside of the food to get too warm. Raw meat and poultry (including large joints and whole birds) should not be defrosted under cold running water unless they are in a sealed container. For more information visit the FSA website.\n- Defrost food in the microwave on the 'defrost' setting. This is a fast way to defrost food.\n- If necessary, you could defrost food at room temperature. Follow the manufacturer's defrosting instructions. Food should be left out at room temperature for the shortest time possible. Ideally, defrost these foods in the fridge. Foods will defrost quite quickly at room temperature, but harmful bacteria could grow in food if it gets too warm while defrosting.",
               "source_references": [
                 "SFBB Pack > Chilling > Defrosting"
               ],
               "additional_source_references": [],
-              "safety_point_id": "4.3.1.1"
+              "additional_questions": [
+                {
+                  "question_key": "foods_defrosted_under_cold_running_water",
+                  "question_text": "Which food products are defrosted under cold running water?",
+                  "required": true
+                },
+                {
+                  "question_key": "foods_defrosted_in_microwave",
+                  "question_text": "Which food products are defrosted in a microwave?",
+                  "required": true
+                },
+                {
+                  "question_key": "foods_defrosted_at_room_temperature",
+                  "question_text": "Which food products are defrosted at room temperature?",
+                  "required": true
+                }
+              ]
             },
             {
-              "text": "Keep meat/poultry separate from other food when it is defrosting, to prevent cross-contamination.",
+              "safety_point_id": "4.3.1.2",
               "condition_id": "handles_raw_meat_or_poultry",
+              "text": "Keep meat/poultry separate from other food when it is defrosting, to prevent cross-contamination.",
               "source_references": [
                 "SFBB Pack > Chilling > Defrosting"
               ],
-              "additional_source_references": [],
-              "safety_point_id": "4.3.1.2"
+              "additional_source_references": []
             },
             {
+              "safety_point_id": "4.3.1.3",
               "text": "Once food has been defrosted, you should cook it until it is piping hot all the way through. After cooking, use the food immediately or chill or freeze it safely straight away.",
               "source_references": [
                 "SFBB Pack > Chilling > Defrosting"
               ],
-              "additional_source_references": [],
-              "safety_point_id": "4.3.1.3"
+              "additional_source_references": []
             },
             {
-              "text": "Harmful bacteria could be spread, contaminating sinks, taps and surfaces. If you use the sink to defrost some food, make sure the sink is clean and empty. The sink should be cleaned and then disinfected after being used for defrosting. Cold running water will help speed up defrosting.",
+              "safety_point_id": "4.3.1.4",
               "condition_id": "uses_sink_to_defrost_food",
+              "text": "Harmful bacteria could be spread, contaminating sinks, taps and surfaces. If you use the sink to defrost some food, make sure the sink is clean and empty. The sink should be cleaned and then disinfected after being used for defrosting. Cold running water will help speed up defrosting.",
               "source_references": [
                 "SFBB Pack > Chilling > Defrosting"
               ],
               "additional_source_references": [],
-              "safety_point_id": "4.3.1.4"
+              "additional_questions": [
+                {
+                  "question_key": "foods_defrosted_in_sink",
+                  "question_text": "Which food products are defrosted in a sink?",
+                  "required": true
+                }
+              ]
             },
             {
+              "safety_point_id": "4.3.1.5",
               "text": "When you think food has defrosted, it is important to check to make sure. The outside may look defrosted, but the inside could still be frozen. Check for ice crystals in the food using your hand or a skewer. With birds, check the joints are flexible.",
               "source_references": [
                 "SFBB Pack > Chilling > Defrosting"
               ],
-              "additional_source_references": [],
-              "safety_point_id": "4.3.1.5"
+              "additional_source_references": []
             },
             {
-              "text": "Food that must be kept frozen (e.g., ice cream) cannot be refrozen once it has started to defrost. You will have to use it immediately or throw it away.",
+              "safety_point_id": "4.3.1.6",
               "condition_id": "stores_food_that_must_be_kept_frozen",
+              "text": "Food that must be kept frozen (e.g., ice cream) cannot be refrozen once it has started to defrost. You will have to use it immediately or throw it away.",
               "source_references": [
                 "SFBB Pack > Chilling > Defrosting"
               ],
-              "additional_source_references": [],
-              "safety_point_id": "4.3.1.6"
+              "additional_source_references": []
             },
             {
+              "safety_point_id": "4.3.1.7",
               "text": "Once the food is defrosted, its shelf life depends on the number of days left until expiry when it was frozen.",
               "source_references": [
                 "SFBB Pack > Chilling > Defrosting"
               ],
-              "additional_source_references": [],
-              "safety_point_id": "4.3.1.7"
+              "additional_source_references": []
             }
-          ],
-          "safe_method_name": "Defrosting",
-          "condition_id": "defrosts_food",
-          "safe_method_id": "4.3"
+          ]
         },
         {
           "safe_method_id": "4.4",
@@ -317,6 +348,13 @@
               ],
               "additional_source_references": [
                 "SFBB Pack > Cooking > Cooking Safely > Check it"
+              ],
+              "additional_questions": [
+                {
+                  "question_key": "dishes_containing_cooked_whole_birds",
+                  "question_text": "Which dishes on the menu contain cooked whole birds, such as roasted chicken?",
+                  "required": true
+                }
               ]
             },
             {
@@ -336,6 +374,13 @@
               ],
               "additional_source_references": [
                 "SFBB Pack > Cooking > Cooking Safely > Check it"
+              ],
+              "additional_questions": [
+                {
+                  "question_key": "liquid_dishes",
+                  "question_text": "Which liquid dishes are on the menu, such as soups, gravies, sauces or stews?",
+                  "required": true
+                }
               ]
             },
             {
@@ -345,7 +390,14 @@
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
-              "additional_source_references": []
+              "additional_source_references": [],
+              "additional_questions": [
+                {
+                  "question_key": "dishes_containing_rare_beef_or_lamb",
+                  "question_text": "Which dishes on the menu contain beef or lamb served rare, limited to whole cuts such as steaks and whole joints?",
+                  "required": true
+                }
+              ]
             },
             {
               "safety_point_id": "5.1.1.9",
@@ -356,6 +408,23 @@
               ],
               "additional_source_references": [
                 "SFBB Pack > Cooking > Cooking Safely > Check it"
+              ],
+              "additional_questions": [
+                {
+                  "question_key": "dishes_containing_pork",
+                  "question_text": "Which dishes on the menu contain pork?",
+                  "required": true
+                },
+                {
+                  "question_key": "dishes_containing_rolled_joints_of_meat",
+                  "question_text": "Which dishes on the menu contain rolled joints of meat, such as three-bird roast, rolled brisket, or similar rolled joints?",
+                  "required": true
+                },
+                {
+                  "question_key": "dishes_containing_processed_meat_products",
+                  "question_text": "Which dishes on the menu contain processed meat products, such as sausages, burgers, meatballs, or similar products?",
+                  "required": true
+                }
               ]
             },
             {
@@ -365,7 +434,14 @@
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
-              "additional_source_references": []
+              "additional_source_references": [],
+              "additional_questions": [
+                {
+                  "question_key": "dishes_containing_offal",
+                  "question_text": "Which dishes on the menu contain offal, such as liver pâté or parfait?",
+                  "required": true
+                }
+              ]
             },
             {
               "safety_point_id": "5.1.1.11",
@@ -395,6 +471,13 @@
               ],
               "additional_source_references": [
                 "SFBB Pack > Cooking > Cooking Safely > Check it"
+              ],
+              "additional_questions": [
+                {
+                  "question_key": "curries_stews_with_large_pieces_of_meat",
+                  "question_text": "Which curries, stews, or similar dishes on the menu contain large pieces of meat?",
+                  "required": true
+                }
               ]
             },
             {
@@ -406,6 +489,13 @@
               ],
               "additional_source_references": [
                 "SFBB Pack > Cooking > Cooking Safely > Check it"
+              ],
+              "additional_questions": [
+                {
+                  "question_key": "combination_dishes",
+                  "question_text": "Which combination dishes are on the menu, such as chicken and leek pie or Cornish steak pasty?",
+                  "required": true
+                }
               ]
             },
             {
@@ -417,6 +507,18 @@
               ],
               "additional_source_references": [
                 "SFBB Pack > Cooking > Cooking Safely > Check it"
+              ],
+              "additional_questions": [
+                {
+                  "question_key": "dishes_containing_cooked_fish",
+                  "question_text": "Which dishes on the menu contain cooked fish?",
+                  "required": true
+                },
+                {
+                  "question_key": "dishes_containing_rare_fish",
+                  "question_text": "Which dishes on the menu contain rare fish, such as fish sushi, ceviche, tuna tartare, or similar dishes?",
+                  "required": true
+                }
               ]
             }
           ]
@@ -433,7 +535,14 @@
               "source_references": [
                 "SFBB Pack > Cooking > Foods That Need Extra Care"
               ],
-              "additional_source_references": []
+              "additional_source_references": [],
+              "additional_questions": [
+                {
+                  "question_key": "dishes_containing_eggs",
+                  "question_text": "Which dishes on the menu contain eggs?",
+                  "required": true
+                }
+              ]
             },
             {
               "safety_point_id": "5.2.1.2",
@@ -460,7 +569,19 @@
               "source_references": [
                 "SFBB Pack > Cooking > Foods That Need Extra Care"
               ],
-              "additional_source_references": []
+              "additional_source_references": [],
+              "additional_questions": [
+                {
+                  "question_key": "dishes_containing_crustaceans",
+                  "question_text": "Which dishes on the menu contain crustaceans, and which crustaceans does each dish contain?",
+                  "required": true
+                },
+                {
+                  "question_key": "dishes_containing_molluscs",
+                  "question_text": "Which dishes on the menu contain molluscs, and which molluscs does each dish contain?",
+                  "required": true
+                }
+              ]
             },
             {
               "safety_point_id": "5.2.1.5",
@@ -664,7 +785,14 @@
               "source_references": [
                 "SFBB Pack > Cooking > Hot Holding"
               ],
-              "additional_source_references": []
+              "additional_source_references": [],
+              "additional_questions": [
+                {
+                  "question_key": "hot_holding_equipment",
+                  "question_text": "What type of equipment is used for hot holding, such as a bain-marie, soup kettle, hot cupboard, heated display unit, or similar equipment?",
+                  "required": true
+                }
+              ]
             },
             {
               "safety_point_id": "5.5.1.2",
