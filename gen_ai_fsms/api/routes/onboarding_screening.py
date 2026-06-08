@@ -1,3 +1,21 @@
+"""
+FastAPI routes for the Food Safety Profile screening workflow.
+
+This module contains the active deterministic implementation of the onboarding
+screening process. It is responsible for starting, resuming, resetting, and
+progressing a business profile through the screening questions used to determine
+which SFBB conditions apply to the business.
+
+The workflow asks one screening question at a time, interprets the user's answer
+with the LLM adapter, records condition values, handles ambiguous or unrelated
+answers, applies deterministic progression rules, and persists the screening
+state in onboarding_sessions.
+
+The saved condition values are later used to decide which safe methods and
+safety points are relevant during the safety point approval stage.
+"""
+
+
 import json
 import random
 
