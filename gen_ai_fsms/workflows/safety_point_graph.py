@@ -40,6 +40,9 @@ class SafetyPointApprovalState(TypedDict, total=False):
     status: str
     next_action: Optional[str]
     assistant_message: Optional[str]
+    current_safety_point_view: Dict[str, Any]
+    approval_progress: Dict[str, int]
+    current_additional_question: Optional[Dict[str, Any]]
     condition_values: Dict[str, str]
     active_condition_count: int
     completed_active_condition_count: int
@@ -60,6 +63,81 @@ def _get_current_safety_point(
 
     return safety_points[current_index]
 
+def _get_current_additional_question(
+    state: SafetyPointApprovalState,
+) -> Optional[Dict[str, Any]]:
+    pending_questions = state.get("pending_additional_questions", [])
+    current_index = state.get("current_additional_question_index")
+
+    if current_index is None:
+        return None
+
+    if current_index < 0 or current_index >= len(pending_questions):
+        return None
+
+    return pending_questions[current_index]
+
+
+def _build_current_safety_point_view(
+    state: SafetyPointApprovalState,
+) -> Dict[str, Any]:
+    current_safety_point = state.get("current_safety_point")
+    safety_points = state.get("safety_points_list", [])
+    current_index = state.get("current_safety_point_index", 0)
+    approved_ids = state.get("approved_safety_point_ids", [])
+
+    total_count = len(safety_points)
+
+    progress = {
+        "current_index": current_index,
+        "current_number": current_index + 1 if total_count else 0,
+        "total_count": total_count,
+        "approved_count": len(approved_ids),
+        "remaining_count": max(total_count - len(approved_ids), 0),
+    }
+
+    state["approval_progress"] = progress
+
+    if current_safety_point is None:
+        return {
+            "safety_point_id": None,
+            "safety_point_text": None,
+            "section_id": None,
+            "section_name": None,
+            "safe_method_id": None,
+            "safe_method_name": None,
+            "source_references": [],
+            "additional_source_references": [],
+            "pending_additional_questions": [],
+            "current_additional_question": None,
+            "progress": progress,
+        }
+
+    current_additional_question = _get_current_additional_question(state)
+    state["current_additional_question"] = current_additional_question
+
+    return {
+        "safety_point_id": current_safety_point.get("safety_point_id"),
+        "safety_point_text": (
+            current_safety_point.get("text")
+            or current_safety_point.get("safety_point_text")
+        ),
+        "section_id": current_safety_point.get("section_id"),
+        "section_name": current_safety_point.get("section_name"),
+        "safe_method_id": current_safety_point.get("safe_method_id"),
+        "safe_method_name": current_safety_point.get("safe_method_name"),
+        "source_references": current_safety_point.get("source_references", []),
+        "additional_source_references": current_safety_point.get(
+            "additional_source_references",
+            [],
+        ),
+        "pending_additional_questions": state.get(
+            "pending_additional_questions",
+            [],
+        ),
+        "current_additional_question": current_additional_question,
+        "progress": progress,
+    }
 
 def _set_current_safety_point_context(
     state: SafetyPointApprovalState,
@@ -70,6 +148,8 @@ def _set_current_safety_point_context(
     if current_safety_point is None:
         state["pending_additional_questions"] = []
         state["current_additional_question_index"] = None
+        state["current_additional_question"] = None
+        state["current_safety_point_view"] = _build_current_safety_point_view(state)
         return state
 
     additional_questions = current_safety_point.get("additional_questions", [])
@@ -80,8 +160,20 @@ def _set_current_safety_point_context(
 
     state["pending_additional_questions"] = required_questions
 
-    if required_questions and state.get("current_additional_question_index") is None:
-        state["current_additional_question_index"] = 0
+    if required_questions:
+        current_question_index = state.get("current_additional_question_index")
+
+        if (
+            current_question_index is None
+            or current_question_index < 0
+            or current_question_index >= len(required_questions)
+        ):
+            state["current_additional_question_index"] = 0
+    else:
+        state["current_additional_question_index"] = None
+
+    state["current_additional_question"] = _get_current_additional_question(state)
+    state["current_safety_point_view"] = _build_current_safety_point_view(state)
 
     return state
 
@@ -196,7 +288,7 @@ def create_safety_point_graph():
 
         state["status"] = "in_progress"
         state["next_action"] = "awaiting_user_message"
-        state["assistant_message"] = None
+        state["assistant_message"] = "Review the current safety point."
         return state
 
     def interpret_safety_point_response(
