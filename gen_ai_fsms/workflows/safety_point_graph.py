@@ -11,11 +11,12 @@ from typing import Any, Dict, List, Optional, TypedDict
 
 from langgraph.graph import END, StateGraph
 
-from gen_ai_fsms.db.models.condition import Condition
-from gen_ai_fsms.db.models.condition_value import ConditionValue
 from gen_ai_fsms.db.session import SessionLocal
-from gen_ai_fsms.services.content_service import ContentService
-from gen_ai_fsms.services.screening_questions import screening_questions
+from gen_ai_fsms.services.safety_point_approval_service import (
+    get_condition_values_for_profile,
+    get_relevant_safety_points_for_profile,
+    get_screening_completion_status,
+)
 
 
 class SafetyPointApprovalState(TypedDict, total=False):
@@ -43,68 +44,6 @@ class SafetyPointApprovalState(TypedDict, total=False):
     active_condition_count: int
     completed_active_condition_count: int
     relevant_safety_point_count: int
-
-
-def _get_screening_completion_status(business_profile_id: int) -> Dict[str, Any]:
-    db = SessionLocal()
-
-    try:
-        rows = (
-            db.query(ConditionValue, Condition)
-            .join(Condition, ConditionValue.condition_id == Condition.condition_id)
-            .filter(ConditionValue.business_profile_id == business_profile_id)
-            .all()
-        )
-
-        values_by_condition_id = {
-            condition.condition_id: condition_value.value
-            for condition_value, condition in rows
-        }
-
-        active_condition_ids = {
-            condition_id
-            for question in screening_questions
-            for condition_id in question.get("sets_conditions", [])
-        }
-
-        completed_active_conditions = {
-            condition_id
-            for condition_id in active_condition_ids
-            if values_by_condition_id.get(condition_id) in ("true", "false")
-        }
-
-        is_complete = (
-            len(active_condition_ids) > 0
-            and completed_active_conditions == active_condition_ids
-        )
-
-        return {
-            "is_complete": is_complete,
-            "active_condition_count": len(active_condition_ids),
-            "completed_active_condition_count": len(completed_active_conditions),
-        }
-
-    finally:
-        db.close()
-
-
-def _get_condition_values_for_profile(business_profile_id: int) -> Dict[str, str]:
-    db = SessionLocal()
-
-    try:
-        rows = (
-            db.query(ConditionValue)
-            .filter(ConditionValue.business_profile_id == business_profile_id)
-            .all()
-        )
-
-        return {
-            row.condition_id: row.value
-            for row in rows
-        }
-
-    finally:
-        db.close()
 
 
 def _get_current_safety_point(
@@ -165,7 +104,12 @@ def create_safety_point_graph():
             )
             return state
 
-        status = _get_screening_completion_status(business_profile_id)
+        db = SessionLocal()
+
+        try:
+            status = get_screening_completion_status(db, business_profile_id)
+        finally:
+            db.close()
 
         state["active_condition_count"] = status["active_condition_count"]
         state["completed_active_condition_count"] = (
@@ -203,10 +147,16 @@ def create_safety_point_graph():
             )
             return state
 
-        condition_values = _get_condition_values_for_profile(business_profile_id)
-        relevant_safety_points = ContentService().get_safety_points_by_conditions(
-            condition_values
-        )
+        db = SessionLocal()
+
+        try:
+            condition_values = get_condition_values_for_profile(db, business_profile_id)
+            relevant_safety_points = get_relevant_safety_points_for_profile(
+                db,
+                business_profile_id,
+            )
+        finally:
+            db.close()
 
         state["condition_values"] = condition_values
         state["safety_points_list"] = relevant_safety_points
