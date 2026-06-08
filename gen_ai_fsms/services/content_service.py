@@ -54,14 +54,18 @@ class ContentService:
         result = []
         content = self.load_content()
         
+        # Iterate through all safety points and determine if they should be included based on their effective condition
         for section in content.get("sections", []):
+            section_condition = section.get("condition_id")
+
             for safe_method in section.get("safe_methods", []):
-                safe_method_condition = safe_method.get("condition_id")
+                safe_method_condition = safe_method.get("condition_id") or section_condition
+
                 for sp in safe_method.get("safety_points", []):
                     # Determine effective condition for this safety point
                     sp_condition = sp.get("condition_id")
                     effective_condition = sp_condition if sp_condition else safe_method_condition
-                    
+
                     # Check if condition is present and true
                     if effective_condition and condition_values.get(effective_condition) == "true":
                         # Augment safety point with inherited metadata

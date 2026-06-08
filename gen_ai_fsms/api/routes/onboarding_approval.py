@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from gen_ai_fsms.api.deps import get_db, require_admin
@@ -7,6 +7,7 @@ from gen_ai_fsms.db.models import User
 from gen_ai_fsms.db.models.condition import Condition
 from gen_ai_fsms.db.models.condition_value import ConditionValue
 from gen_ai_fsms.services.screening_questions import screening_questions
+from gen_ai_fsms.services.content_service import ContentService
 
 
 router = APIRouter(
@@ -52,6 +53,19 @@ def get_screening_completion_status(db: Session, business_profile_id: int) -> di
     }
 
 
+def get_condition_values_for_profile(db: Session, business_profile_id: int) -> dict:
+    rows = (
+        db.query(ConditionValue)
+        .filter(ConditionValue.business_profile_id == business_profile_id)
+        .all()
+    )
+
+    return {
+        row.condition_id: row.value
+        for row in rows
+    }
+
+
 @router.get("/readiness")
 def get_safety_point_readiness(
     db: Session = Depends(get_db),
@@ -75,3 +89,39 @@ def get_safety_point_readiness(
         "message": "Food Safety Profile screening is complete.",
         **status,
     }
+
+# Retrieve the safety points that apply to the current business profile based on the completed screening condition values.
+@router.get("/relevant")
+def get_relevant_safety_points(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    profile = get_current_user_profile(db, current_user)
+    status = get_screening_completion_status(db, profile.id)
+
+    if not status["is_complete"]:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Complete the Food Safety Profile screening before retrieving "
+                "relevant safety points."
+            ),
+        )
+
+    condition_values = get_condition_values_for_profile(db, profile.id)
+
+    content_service = ContentService()
+    relevant_safety_points = content_service.get_safety_points_by_conditions(
+        condition_values
+    )
+
+    return {
+        "business_profile_id": profile.id,
+        "relevant_safety_point_count": len(relevant_safety_points),
+        "relevant_safety_point_ids": [
+            safety_point.get("safety_point_id")
+            for safety_point in relevant_safety_points
+        ],
+        "relevant_safety_points": relevant_safety_points,
+    }
+
