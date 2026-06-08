@@ -11,6 +11,12 @@ from typing import Any, Dict, List, Optional, TypedDict
 
 from langgraph.graph import END, StateGraph
 
+from gen_ai_fsms.db.models.condition import Condition
+from gen_ai_fsms.db.models.condition_value import ConditionValue
+from gen_ai_fsms.db.session import SessionLocal
+from gen_ai_fsms.services.content_service import ContentService
+from gen_ai_fsms.services.screening_questions import screening_questions
+
 
 class SafetyPointApprovalState(TypedDict, total=False):
     """
@@ -33,7 +39,72 @@ class SafetyPointApprovalState(TypedDict, total=False):
     status: str
     next_action: Optional[str]
     assistant_message: Optional[str]
-    pass
+    condition_values: Dict[str, str]
+    active_condition_count: int
+    completed_active_condition_count: int
+    relevant_safety_point_count: int
+
+
+def _get_screening_completion_status(business_profile_id: int) -> Dict[str, Any]:
+    db = SessionLocal()
+
+    try:
+        rows = (
+            db.query(ConditionValue, Condition)
+            .join(Condition, ConditionValue.condition_id == Condition.condition_id)
+            .filter(ConditionValue.business_profile_id == business_profile_id)
+            .all()
+        )
+
+        values_by_condition_id = {
+            condition.condition_id: condition_value.value
+            for condition_value, condition in rows
+        }
+
+        active_condition_ids = {
+            condition_id
+            for question in screening_questions
+            for condition_id in question.get("sets_conditions", [])
+        }
+
+        completed_active_conditions = {
+            condition_id
+            for condition_id in active_condition_ids
+            if values_by_condition_id.get(condition_id) in ("true", "false")
+        }
+
+        is_complete = (
+            len(active_condition_ids) > 0
+            and completed_active_conditions == active_condition_ids
+        )
+
+        return {
+            "is_complete": is_complete,
+            "active_condition_count": len(active_condition_ids),
+            "completed_active_condition_count": len(completed_active_conditions),
+        }
+
+    finally:
+        db.close()
+
+
+def _get_condition_values_for_profile(business_profile_id: int) -> Dict[str, str]:
+    db = SessionLocal()
+
+    try:
+        rows = (
+            db.query(ConditionValue)
+            .filter(ConditionValue.business_profile_id == business_profile_id)
+            .all()
+        )
+
+        return {
+            row.condition_id: row.value
+            for row in rows
+        }
+
+    finally:
+        db.close()
 
 
 def _get_current_safety_point(
@@ -83,29 +154,79 @@ def create_safety_point_graph():
     def check_screening_complete(
         state: SafetyPointApprovalState,
     ) -> SafetyPointApprovalState:
-        """
-        Placeholder node for screening completion checks.
+        """Confirm that Food Safety Profile screening is complete."""
+        business_profile_id = state.get("business_profile_id")
 
-        The full database-backed check will be implemented in a later Step 8
-        increment. For now, this node keeps the graph structure explicit.
-        """
-        state.setdefault("status", "in_progress")
-        state.setdefault("next_action", None)
+        if business_profile_id is None:
+            state["status"] = "blocked"
+            state["next_action"] = "missing_business_profile"
+            state["assistant_message"] = (
+                "No business profile is linked to this approval workflow."
+            )
+            return state
+
+        status = _get_screening_completion_status(business_profile_id)
+
+        state["active_condition_count"] = status["active_condition_count"]
+        state["completed_active_condition_count"] = (
+            status["completed_active_condition_count"]
+        )
+
+        if not status["is_complete"]:
+            state["status"] = "blocked"
+            state["next_action"] = "screening_incomplete"
+            state["assistant_message"] = (
+                "Complete the Food Safety Profile screening before starting the "
+                "safety point approval workflow."
+            )
+            return state
+
+        state["status"] = "in_progress"
+        state["next_action"] = "load_relevant_safety_points"
+        state["assistant_message"] = None
         return state
 
     def load_relevant_safety_points(
         state: SafetyPointApprovalState,
     ) -> SafetyPointApprovalState:
-        """
-        Placeholder node for relevant safety point loading.
+        """Load relevant safety points using stored screening condition values."""
+        if state.get("status") == "blocked":
+            return state
 
-        The database-backed loading logic will be added in the next increment.
-        """
-        state.setdefault("safety_points_list", [])
+        business_profile_id = state.get("business_profile_id")
+
+        if business_profile_id is None:
+            state["status"] = "blocked"
+            state["next_action"] = "missing_business_profile"
+            state["assistant_message"] = (
+                "No business profile is linked to this approval workflow."
+            )
+            return state
+
+        condition_values = _get_condition_values_for_profile(business_profile_id)
+        relevant_safety_points = ContentService().get_safety_points_by_conditions(
+            condition_values
+        )
+
+        state["condition_values"] = condition_values
+        state["safety_points_list"] = relevant_safety_points
+        state["relevant_safety_point_count"] = len(relevant_safety_points)
         state.setdefault("current_safety_point_index", 0)
         state.setdefault("approved_safety_point_ids", [])
         state.setdefault("current_q_and_a_messages", [])
         state.setdefault("additional_answers", {})
+
+        if not relevant_safety_points:
+            state["status"] = "completed"
+            state["next_action"] = "complete_approval"
+            state["assistant_message"] = (
+                "No relevant safety points were found for this Food Safety Profile."
+            )
+            return state
+
+        state["status"] = "in_progress"
+        state["next_action"] = "present_safety_point"
+        state["assistant_message"] = None
         return state
 
     def present_safety_point(
@@ -176,6 +297,20 @@ def create_safety_point_graph():
         state["next_action"] = "complete"
         return state
 
+    def route_after_screening_check(state: SafetyPointApprovalState) -> str:
+        if state.get("status") == "blocked":
+            return END
+
+        return "load_relevant_safety_points"
+
+    def route_after_relevant_safety_points_loaded(
+        state: SafetyPointApprovalState,
+    ) -> str:
+        if state.get("status") == "completed":
+            return "complete_approval"
+
+        return "present_safety_point"
+
     def route_after_present(state: SafetyPointApprovalState) -> str:
         if state.get("status") == "completed":
             return "complete_approval"
@@ -214,8 +349,23 @@ def create_safety_point_graph():
 
     graph.set_entry_point("check_screening_complete")
 
-    graph.add_edge("check_screening_complete", "load_relevant_safety_points")
-    graph.add_edge("load_relevant_safety_points", "present_safety_point")
+    graph.add_conditional_edges(
+        "check_screening_complete",
+        route_after_screening_check,
+        {
+            "load_relevant_safety_points": "load_relevant_safety_points",
+            END: END,
+        },
+    )
+
+    graph.add_conditional_edges(
+        "load_relevant_safety_points",
+        route_after_relevant_safety_points_loaded,
+        {
+            "present_safety_point": "present_safety_point",
+            "complete_approval": "complete_approval",
+        },
+    )
 
     graph.add_conditional_edges(
         "present_safety_point",
