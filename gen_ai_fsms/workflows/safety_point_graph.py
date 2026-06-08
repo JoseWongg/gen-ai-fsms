@@ -9,12 +9,15 @@ questions, but it must not approve safety points or assess alternative methods.
 
 from typing import Any, Dict, List, Optional, TypedDict
 from langgraph.graph import END, StateGraph
+
 from gen_ai_fsms.ai.adapter import get_llm_adapter
 from gen_ai_fsms.db.session import SessionLocal
+
 from gen_ai_fsms.services.safety_point_approval_service import (
     get_condition_values_for_profile,
     get_relevant_safety_points_for_profile,
     get_screening_completion_status,
+    record_approved_safety_point,
 )
 
 
@@ -46,6 +49,7 @@ class SafetyPointApprovalState(TypedDict, total=False):
     active_condition_count: int
     completed_active_condition_count: int
     relevant_safety_point_count: int
+    last_approved_safety_point_record: Dict[str, Any]
 
 
 def _get_current_safety_point(
@@ -506,12 +510,87 @@ def create_safety_point_graph():
         _set_current_safety_point_context(state)
 
         return state
+    
 
+    
     def record_approval(
         state: SafetyPointApprovalState,
     ) -> SafetyPointApprovalState:
-        """Placeholder node for recording standard-method approval."""
+        """Record approval of the displayed standard SFBB safety point."""
+        business_profile_id = state.get("business_profile_id")
+        user_id = state.get("user_id")
+        current_safety_point = state.get("current_safety_point")
+
+        if state.get("different_method_declared_message"):
+            state["assistant_message"] = (
+                "Approval cannot be recorded because the business has stated "
+                "that it uses a different method. Alternative-method assessment "
+                "is not available in this version."
+            )
+            state["next_action"] = "awaiting_user_message"
+            state["current_response_intent"] = None
+            return state
+
+        if current_safety_point is None:
+            state["assistant_message"] = (
+                "There is no current safety point to approve."
+            )
+            state["next_action"] = "awaiting_user_message"
+            state["current_response_intent"] = None
+            return state
+
+        if business_profile_id is None or user_id is None:
+            state["assistant_message"] = (
+                "Approval cannot be recorded because the business profile or "
+                "user context is missing."
+            )
+            state["next_action"] = "awaiting_user_message"
+            state["current_response_intent"] = None
+            return state
+
+        _set_current_safety_point_context(state)
+
+        pending_questions = state.get("pending_additional_questions", [])
+
+        if pending_questions:
+            current_question = state.get("current_additional_question") or pending_questions[0]
+            state["assistant_message"] = current_question.get(
+                "question_text",
+                "Please answer the required additional question before approval.",
+            )
+            state["next_action"] = "awaiting_user_message"
+            state["current_response_intent"] = None
+            return state
+
+        db = SessionLocal()
+
+        try:
+            approval_record = record_approved_safety_point(
+                db=db,
+                business_profile_id=business_profile_id,
+                user_id=user_id,
+                safety_point=current_safety_point,
+                additional_answers=state.get("additional_answers", {}),
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+        approved_ids = state.setdefault("approved_safety_point_ids", [])
+        safety_point_id = current_safety_point.get("safety_point_id")
+
+        if safety_point_id and safety_point_id not in approved_ids:
+            approved_ids.append(safety_point_id)
+
+        state["last_approved_safety_point_record"] = approval_record
+        state["assistant_message"] = "Safety point approval recorded."
+        state["last_user_message"] = None
+        state["current_response_intent"] = None
         state["next_action"] = "move_to_next_safety_point"
+
         return state
 
     def move_to_next_safety_point(
@@ -520,6 +599,7 @@ def create_safety_point_graph():
         """Placeholder node for advancing after approval."""
         state["next_action"] = "present_safety_point"
         return state
+
 
     def complete_approval(
         state: SafetyPointApprovalState,
@@ -568,6 +648,14 @@ def create_safety_point_graph():
             return END
 
         return END
+
+
+    def route_after_record_approval(state: SafetyPointApprovalState) -> str:
+        if state.get("next_action") == "move_to_next_safety_point":
+            return "move_to_next_safety_point"
+
+        return END
+
 
     graph.add_node("check_screening_complete", check_screening_complete)
     graph.add_node("load_relevant_safety_points", load_relevant_safety_points)
@@ -622,7 +710,16 @@ def create_safety_point_graph():
 
     graph.add_edge("answer_clarification", END)
     graph.add_edge("collect_additional_answers", END)
-    graph.add_edge("record_approval", "move_to_next_safety_point")
+
+    graph.add_conditional_edges(
+        "record_approval",
+        route_after_record_approval,
+        {
+            "move_to_next_safety_point": "move_to_next_safety_point",
+            END: END,
+        },
+    )
+
     graph.add_edge("move_to_next_safety_point", END)
     graph.add_edge("complete_approval", END)
 

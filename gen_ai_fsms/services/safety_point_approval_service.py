@@ -13,8 +13,15 @@ from typing import Any, Dict, List
 
 from sqlalchemy.orm import Session
 
+from gen_ai_fsms.db.models.approved_safety_point import ApprovedSafetyPoint
+from gen_ai_fsms.db.models.approved_safety_point_response import (
+    ApprovedSafetyPointResponse,
+)
 from gen_ai_fsms.db.models.condition import Condition
 from gen_ai_fsms.db.models.condition_value import ConditionValue
+
+
+
 from gen_ai_fsms.services.content_service import ContentService
 from gen_ai_fsms.services.screening_questions import screening_questions
 
@@ -82,3 +89,61 @@ def get_relevant_safety_points_for_profile(
     condition_values = get_condition_values_for_profile(db, business_profile_id)
 
     return ContentService().get_safety_points_by_conditions(condition_values)
+
+
+def record_approved_safety_point(
+    db: Session,
+    business_profile_id: int,
+    user_id: int,
+    safety_point: Dict[str, Any],
+    additional_answers: Dict[str, str],
+) -> Dict[str, Any]:
+    safety_point_text = (
+        safety_point.get("text")
+        or safety_point.get("safety_point_text")
+        or ""
+    )
+
+    approved_safety_point = ApprovedSafetyPoint(
+        business_profile_id=business_profile_id,
+        safety_point_id=safety_point.get("safety_point_id"),
+        safe_method_id=safety_point.get("safe_method_id"),
+        safe_method_name=safety_point.get("safe_method_name"),
+        safety_point_text=safety_point_text,
+        approved_by_user_id=user_id,
+    )
+
+    db.add(approved_safety_point)
+    db.flush()
+
+    questions_by_key = {
+        question.get("question_key"): question
+        for question in safety_point.get("additional_questions", [])
+        if question.get("question_key")
+    }
+
+    response_records = []
+
+    for question_key, response_text in additional_answers.items():
+        question = questions_by_key.get(question_key)
+
+        if question is None:
+            continue
+
+        response_record = ApprovedSafetyPointResponse(
+            approved_safety_point_id=approved_safety_point.id,
+            question_key=question_key,
+            question_text=question.get("question_text", ""),
+            response_text=response_text,
+        )
+
+        db.add(response_record)
+        response_records.append(response_record)
+
+    db.flush()
+
+    return {
+        "approved_safety_point_id": approved_safety_point.id,
+        "safety_point_id": approved_safety_point.safety_point_id,
+        "additional_response_count": len(response_records),
+    }
