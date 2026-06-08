@@ -122,6 +122,162 @@ class LLMAdapter:
             logger.error("LLM error in answer_screening_clarification: %s", e)
             return "Sorry, I couldn't process your request at this time."
     
+
+
+    def interpret_safety_point_response(
+        self,
+        safety_point_text: str,
+        user_message: str,
+        pending_additional_question: Optional[Dict[str, Any]] = None,
+        conversation_history: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Classify an admin's free-text response to a safety point.
+
+        This method only decides the workflow route. It must not approve safety
+        points or assess whether an alternative method is safe or compliant.
+        """
+        if not self.client:
+            return {
+                "action": "unclear",
+                "reason": "LLM not configured",
+                "assistant_message": (
+                    "I could not classify your response. Please clarify whether you "
+                    "are approving the displayed safety point, asking a question, "
+                    "answering the required additional question, or stating that "
+                    "your business follows a different method."
+                ),
+            }
+
+        pending_question_text = None
+        pending_question_key = None
+
+        if pending_additional_question:
+            pending_question_text = pending_additional_question.get("question_text")
+            pending_question_key = pending_additional_question.get("question_key")
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You classify an admin user's free-text response in a food safety "
+                    "safety-point approval workflow.\n"
+                    "You must return a JSON object with exactly these fields:\n"
+                    "{\n"
+                    '  "action": "approval" | "clarification_request" | '
+                    '"different_method_declared" | "additional_answer" | "unclear",\n'
+                    '  "reason": string,\n'
+                    '  "assistant_message": string or null\n'
+                    "}\n"
+                    "Rules:\n"
+                    "- Use action 'approval' only when the user clearly confirms that "
+                    "the business follows, accepts, or will use the displayed SFBB "
+                    "safety point.\n"
+                    "- Use action 'clarification_request' when the user asks a question "
+                    "or shows they need an explanation about the safety point.\n"
+                    "- Use action 'different_method_declared' when the user says or "
+                    "implies that the business does something differently from the "
+                    "displayed safety point.\n"
+                    "- Use action 'additional_answer' when there is a pending additional "
+                    "question and the user appears to be answering that question.\n"
+                    "- Use action 'unclear' when the user's intention is not clear.\n"
+                    "- Do not assess whether an alternative method is safe, compliant, "
+                    "or equivalent.\n"
+                    "- Do not approve any safety point.\n"
+                    "- For 'different_method_declared', assistant_message should explain "
+                    "that alternative-method assessment is not available in this version "
+                    "and that approval can only be recorded if the business follows the "
+                    "displayed SFBB safety point.\n"
+                    "- For 'unclear', assistant_message should ask the user to clarify "
+                    "whether they are approving the safety point, asking a question, "
+                    "answering a required additional question, or stating that the "
+                    "business uses a different method.\n"
+                    "- For other actions, assistant_message should be null.\n"
+                    "Return only valid JSON."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Safety point:\n{safety_point_text}\n\n"
+                    f"Pending additional question key: {pending_question_key}\n"
+                    f"Pending additional question text: {pending_question_text}\n\n"
+                    f"Admin message:\n{user_message}"
+                ),
+            },
+        ]
+
+        if conversation_history:
+            messages.extend(conversation_history)
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.2,
+                response_format={"type": "json_object"},
+            )
+
+            content = response.choices[0].message.content
+
+            if content is None:
+                return {
+                    "action": "unclear",
+                    "reason": "Empty response from LLM",
+                    "assistant_message": (
+                        "I could not classify your response. Please clarify whether you "
+                        "are approving the displayed safety point, asking a question, "
+                        "answering the required additional question, or stating that "
+                        "your business follows a different method."
+                    ),
+                }
+
+            result = json.loads(content)
+            action = result.get("action")
+
+            if action not in (
+                "approval",
+                "clarification_request",
+                "different_method_declared",
+                "additional_answer",
+                "unclear",
+            ):
+                return {
+                    "action": "unclear",
+                    "reason": "LLM returned an unsupported action",
+                    "assistant_message": (
+                        "I could not classify your response. Please clarify whether you "
+                        "are approving the displayed safety point, asking a question, "
+                        "answering the required additional question, or stating that "
+                        "your business follows a different method."
+                    ),
+                }
+
+            return {
+                "action": action,
+                "reason": result.get("reason", ""),
+                "assistant_message": result.get("assistant_message"),
+            }
+
+        except Exception as e:
+            logger.error("LLM error in interpret_safety_point_response: %s", e)
+            return {
+                "action": "unclear",
+                "reason": f"API error: {e}",
+                "assistant_message": (
+                    "I could not classify your response. Please clarify whether you "
+                    "are approving the displayed safety point, asking a question, "
+                    "answering the required additional question, or stating that "
+                    "your business follows a different method."
+                ),
+            }
+
+
+
+
+
+
+
     def answer_safety_point_question(
         self,
         safety_point_text: str,
