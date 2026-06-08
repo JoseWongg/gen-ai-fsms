@@ -593,11 +593,47 @@ def create_safety_point_graph():
 
         return state
 
+
     def move_to_next_safety_point(
         state: SafetyPointApprovalState,
     ) -> SafetyPointApprovalState:
-        """Placeholder node for advancing after approval."""
-        state["next_action"] = "present_safety_point"
+        """Advance to the next safety point after approval."""
+        safety_points = state.get("safety_points_list", [])
+        current_index = state.get("current_safety_point_index", 0)
+        next_index = current_index + 1
+
+        state["last_user_message"] = None
+        state["current_response_intent"] = None
+        state["current_q_and_a_messages"] = []
+        state["additional_answers"] = {}
+        state["pending_additional_questions"] = []
+        state["current_additional_question_index"] = None
+        state["current_additional_question"] = None
+        state["different_method_declared_message"] = None
+
+        if next_index >= len(safety_points):
+            state["current_safety_point_index"] = next_index
+            state["current_safety_point"] = None
+            state["current_safety_point_view"] = _build_current_safety_point_view(
+                state
+            )
+            state["status"] = "completed"
+            state["next_action"] = "complete_approval"
+            state["assistant_message"] = (
+                "All relevant safety points have been approved."
+            )
+            return state
+
+        state["current_safety_point_index"] = next_index
+        _set_current_safety_point_context(state)
+
+        state["status"] = "in_progress"
+        state["next_action"] = "awaiting_user_message"
+        state["assistant_message"] = (
+            "Safety point approval recorded. Review the next safety point."
+        )
+
+    
         return state
 
 
@@ -719,8 +755,14 @@ def create_safety_point_graph():
             END: END,
         },
     )
-
-    graph.add_edge("move_to_next_safety_point", END)
+    graph.add_conditional_edges(
+        "move_to_next_safety_point",
+        route_after_relevant_safety_points_loaded,
+        {
+            "present_safety_point": "present_safety_point",
+            "complete_approval": "complete_approval",
+        },
+    )
     graph.add_edge("complete_approval", END)
 
     return graph.compile()
