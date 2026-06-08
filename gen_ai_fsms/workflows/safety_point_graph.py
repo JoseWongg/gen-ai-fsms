@@ -157,15 +157,22 @@ def _set_current_safety_point_context(
         if question.get("required") is True
     ]
 
-    state["pending_additional_questions"] = required_questions
+    additional_answers = state.get("additional_answers", {})
 
-    if required_questions:
+    unanswered_required_questions = [
+        question for question in required_questions
+        if question.get("question_key") not in additional_answers
+    ]
+
+    state["pending_additional_questions"] = unanswered_required_questions
+
+    if unanswered_required_questions:
         current_question_index = state.get("current_additional_question_index")
 
         if (
             current_question_index is None
             or current_question_index < 0
-            or current_question_index >= len(required_questions)
+            or current_question_index >= len(unanswered_required_questions)
         ):
             state["current_additional_question_index"] = 0
     else:
@@ -420,8 +427,84 @@ def create_safety_point_graph():
     def collect_additional_answers(
         state: SafetyPointApprovalState,
     ) -> SafetyPointApprovalState:
-        """Placeholder node for required additional answer collection."""
+        """Collect an admin's answer to a required additional question."""
+        user_message = state.get("last_user_message")
+        current_question = state.get("current_additional_question")
+        pending_questions = state.get("pending_additional_questions", [])
+
+        if not pending_questions:
+            state["assistant_message"] = (
+                "There are no required additional questions for this safety point."
+            )
+            state["last_user_message"] = None
+            state["next_action"] = "awaiting_user_message"
+            state["current_response_intent"] = None
+            return state
+
+        if current_question is None:
+            state["assistant_message"] = (
+                "There is no current additional question to answer."
+            )
+            state["last_user_message"] = None
+            state["next_action"] = "awaiting_user_message"
+            state["current_response_intent"] = None
+            return state
+
+        if not user_message:
+            state["assistant_message"] = current_question.get(
+                "question_text",
+                "Please answer the required additional question.",
+            )
+            state["next_action"] = "awaiting_user_message"
+            return state
+
+        question_key = current_question.get("question_key")
+
+        if not question_key:
+            state["assistant_message"] = (
+                "The current additional question is missing a question key."
+            )
+            state["last_user_message"] = None
+            state["next_action"] = "awaiting_user_message"
+            state["current_response_intent"] = None
+            return state
+
+        additional_answers = state.setdefault("additional_answers", {})
+        additional_answers[question_key] = user_message
+
+        current_index = state.get("current_additional_question_index")
+
+        if current_index is None:
+            current_index = 0
+
+        next_index = current_index + 1
+
+        remaining_questions = [
+            question for question in pending_questions
+            if question.get("question_key") not in additional_answers
+        ]
+
+        if remaining_questions:
+            state["current_additional_question_index"] = 0
+            state["current_additional_question"] = remaining_questions[0]
+            state["assistant_message"] = remaining_questions[0].get(
+                "question_text",
+                "Please answer the next required additional question.",
+            )
+        else:
+            state["current_additional_question_index"] = None
+            state["current_additional_question"] = None
+            state["assistant_message"] = (
+                "Additional information recorded. You can now approve this "
+                "safety point if the business follows the displayed SFBB method."
+            )
+
+        state["last_user_message"] = None
         state["next_action"] = "awaiting_user_message"
+        state["current_response_intent"] = None
+
+        _set_current_safety_point_context(state)
+
         return state
 
     def record_approval(
