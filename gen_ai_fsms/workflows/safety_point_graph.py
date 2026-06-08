@@ -8,9 +8,8 @@ questions, but it must not approve safety points or assess alternative methods.
 """
 
 from typing import Any, Dict, List, Optional, TypedDict
-
 from langgraph.graph import END, StateGraph
-
+from gen_ai_fsms.ai.adapter import get_llm_adapter
 from gen_ai_fsms.db.session import SessionLocal
 from gen_ai_fsms.services.safety_point_approval_service import (
     get_condition_values_for_profile,
@@ -294,13 +293,67 @@ def create_safety_point_graph():
     def interpret_safety_point_response(
         state: SafetyPointApprovalState,
     ) -> SafetyPointApprovalState:
-        """
-        Placeholder node for free-text response classification.
+        """Classify the admin's free-text response for workflow routing."""
+        user_message = state.get("last_user_message")
+        current_safety_point = state.get("current_safety_point")
+        current_additional_question = state.get("current_additional_question")
 
-        The LLMAdapter classification call will be added in a later increment.
-        """
-        state["current_response_intent"] = state.get("current_response_intent")
-        state["next_action"] = state.get("current_response_intent") or "unclear"
+        if not user_message:
+            state["current_response_intent"] = "unclear"
+            state["next_action"] = "unclear"
+            state["assistant_message"] = (
+                "Please clarify whether you are approving the displayed safety "
+                "point, asking a question, answering a required additional "
+                "question, or stating that the business uses a different method."
+            )
+            return state
+
+        if current_safety_point is None:
+            state["current_response_intent"] = "unclear"
+            state["next_action"] = "unclear"
+            state["assistant_message"] = (
+                "There is no current safety point to process."
+            )
+            return state
+
+        safety_point_text = (
+            current_safety_point.get("text")
+            or current_safety_point.get("safety_point_text")
+            or ""
+        )
+
+        adapter = get_llm_adapter()
+        result = adapter.interpret_safety_point_response(
+            safety_point_text=safety_point_text,
+            user_message=user_message,
+            pending_additional_question=current_additional_question,
+            conversation_history=state.get("current_q_and_a_messages", []),
+        )
+
+        intent = result.get("action", "unclear")
+
+        state["current_response_intent"] = intent
+        state["next_action"] = intent
+        state["assistant_message"] = result.get("assistant_message")
+
+        if intent == "different_method_declared":
+            state["different_method_declared_message"] = user_message
+            state["assistant_message"] = (
+                result.get("assistant_message")
+                or (
+                    "Alternative-method assessment is not available in this "
+                    "version. Approval can only be recorded if the business "
+                    "follows the displayed SFBB safety point."
+                )
+            )
+
+        if intent == "unclear" and not state.get("assistant_message"):
+            state["assistant_message"] = (
+                "Please clarify whether you are approving the displayed safety "
+                "point, asking a question, answering a required additional "
+                "question, or stating that the business uses a different method."
+            )
+
         return state
 
     def answer_clarification(
