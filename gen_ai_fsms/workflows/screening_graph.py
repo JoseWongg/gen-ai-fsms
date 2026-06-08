@@ -1,12 +1,16 @@
 """
-LangGraph workflow for screening questions.
-Handles:
-- Presenting the current question
-- Interpreting free‑text answers with LLM
-- Clarification loop (max 3 attempts)
-- Storing condition values in the database
-- Determining the next question (deterministic)
-- Persisting state in onboarding_sessions
+Legacy experimental LangGraph implementation for the Food Safety Profile
+screening workflow.
+
+This file is not used by the current application. The active deterministic
+screening workflow is implemented in:
+
+    gen_ai_fsms.api.routes.onboarding_screening
+
+Do not use this file as the basis for the safety point approval workflow.
+The approval workflow should be implemented separately in:
+
+    gen_ai_fsms.workflows.safety_point_graph
 """
 
 import json
