@@ -356,12 +356,66 @@ def create_safety_point_graph():
 
         return state
 
+
     def answer_clarification(
         state: SafetyPointApprovalState,
     ) -> SafetyPointApprovalState:
-        """Placeholder node for clarification answer handling."""
+        """Answer an admin's clarification question about the current safety point."""
+        user_message = state.get("last_user_message")
+        current_safety_point = state.get("current_safety_point")
+
+        if not user_message:
+            state["assistant_message"] = (
+                "Please ask a question about the current safety point."
+            )
+            state["next_action"] = "awaiting_user_message"
+            return state
+
+        if current_safety_point is None:
+            state["assistant_message"] = (
+                "There is no current safety point to explain."
+            )
+            state["next_action"] = "awaiting_user_message"
+            return state
+
+        safety_point_text = (
+            current_safety_point.get("text")
+            or current_safety_point.get("safety_point_text")
+            or ""
+        )
+
+        adapter = get_llm_adapter()
+        answer = adapter.answer_safety_point_question(
+            safety_point_text=safety_point_text,
+            safe_method_name=current_safety_point.get("safe_method_name", ""),
+            section_name=current_safety_point.get("section_name", ""),
+            condition_values=state.get("condition_values", {}),
+            user_question=user_message,
+        )
+
+        messages = state.setdefault("current_q_and_a_messages", [])
+        messages.append(
+            {
+                "role": "user",
+                "content": user_message,
+            }
+        )
+        messages.append(
+            {
+                "role": "assistant",
+                "content": answer,
+            }
+        )
+
+        state["assistant_message"] = answer
+        state["last_user_message"] = None
         state["next_action"] = "awaiting_user_message"
-        return state
+        state["current_response_intent"] = None
+
+        _set_current_safety_point_context(state)
+
+        return state    
+
 
     def collect_additional_answers(
         state: SafetyPointApprovalState,
