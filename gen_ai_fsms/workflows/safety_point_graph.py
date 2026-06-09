@@ -21,6 +21,9 @@ from gen_ai_fsms.services.safety_point_approval_service import (
 )
 
 
+MAX_CLARIFICATION_TURNS_PER_SAFETY_POINT = 3
+
+
 class SafetyPointApprovalState(TypedDict, total=False):
     """
     State schema for the safety point approval workflow.
@@ -33,6 +36,7 @@ class SafetyPointApprovalState(TypedDict, total=False):
     current_safety_point: Optional[Dict[str, Any]]
     current_q_and_a_messages: List[Dict[str, Any]]
     approval_chat_history: List[Dict[str, Any]]
+    clarification_turn_counts: Dict[str, int]
     last_user_message: Optional[str]
     current_response_intent: Optional[str]
     pending_additional_questions: List[Dict[str, Any]]
@@ -329,6 +333,7 @@ def create_safety_point_graph():
         state.setdefault("approved_safety_point_ids", [])
         state.setdefault("current_q_and_a_messages", [])
         state.setdefault("approval_chat_history", [])
+        state.setdefault("clarification_turn_counts", {})
         state.setdefault("additional_answers", {})
 
         if not relevant_safety_points:
@@ -439,8 +444,8 @@ def create_safety_point_graph():
                 result.get("assistant_message")
                 or (
                     "Alternative-method assessment is not available in this "
-                    "version. Approval can only be recorded if the business "
-                    "follows the displayed SFBB safety point."
+                    "version. This safety point will remain unapproved and "
+                    "will be shown again later."
                 )
             )
             _append_approval_chat_message(
@@ -489,6 +494,34 @@ def create_safety_point_graph():
             state["next_action"] = "awaiting_user_message"
             return state
 
+        safety_point_id = current_safety_point.get("safety_point_id")
+        clarification_turn_counts = state.setdefault(
+            "clarification_turn_counts",
+            {},
+        )
+
+        current_clarification_count = clarification_turn_counts.get(
+            safety_point_id,
+            0,
+        )
+
+        if current_clarification_count >= MAX_CLARIFICATION_TURNS_PER_SAFETY_POINT:
+            state["assistant_message"] = (
+                "This safety point still needs approval, but the clarification "
+                "limit for this pass has been reached. It will remain "
+                "unapproved and will be shown again later."
+            )
+            _append_approval_chat_message(
+                state=state,
+                role="assistant",
+                content=state.get("assistant_message"),
+                message_type="clarification_limit_reached",
+            )
+            state["last_user_message"] = None
+            state["next_action"] = "move_to_next_safety_point"
+            state["current_response_intent"] = "clarification_limit_reached"
+            return state
+
         safety_point_text = (
             current_safety_point.get("text")
             or current_safety_point.get("safety_point_text")
@@ -516,6 +549,10 @@ def create_safety_point_graph():
                 "role": "assistant",
                 "content": answer,
             }
+        )
+
+        clarification_turn_counts[safety_point_id] = (
+            current_clarification_count + 1
         )
 
         state["assistant_message"] = answer
@@ -733,10 +770,10 @@ def create_safety_point_graph():
     def move_to_next_safety_point(
         state: SafetyPointApprovalState,
     ) -> SafetyPointApprovalState:
-        """Advance to the next safety point after approval."""
+        """Advance to the next unapproved safety point."""
         safety_points = state.get("safety_points_list", [])
         current_index = state.get("current_safety_point_index", 0)
-        next_index = current_index + 1
+        approved_ids = state.get("approved_safety_point_ids", [])
 
         state["last_user_message"] = None
         state["current_response_intent"] = None
@@ -747,8 +784,25 @@ def create_safety_point_graph():
         state["current_additional_question"] = None
         state["different_method_declared_message"] = None
 
-        if next_index >= len(safety_points):
-            state["current_safety_point_index"] = next_index
+        next_unapproved_index = None
+
+        for index in range(current_index + 1, len(safety_points)):
+            safety_point_id = safety_points[index].get("safety_point_id")
+
+            if safety_point_id not in approved_ids:
+                next_unapproved_index = index
+                break
+
+        if next_unapproved_index is None:
+            for index, safety_point in enumerate(safety_points):
+                safety_point_id = safety_point.get("safety_point_id")
+
+                if safety_point_id not in approved_ids:
+                    next_unapproved_index = index
+                    break
+
+        if next_unapproved_index is None:
+            state["current_safety_point_index"] = len(safety_points)
             state["current_safety_point"] = None
             state["current_safety_point_view"] = _build_current_safety_point_view(
                 state
@@ -760,16 +814,27 @@ def create_safety_point_graph():
             )
             return state
 
-        state["current_safety_point_index"] = next_index
+        if next_unapproved_index <= current_index:
+            clarification_turn_counts = state.setdefault(
+                "clarification_turn_counts",
+                {},
+            )
+
+            for safety_point in safety_points:
+                safety_point_id = safety_point.get("safety_point_id")
+
+                if safety_point_id not in approved_ids:
+                    clarification_turn_counts[safety_point_id] = 0
+
+        state["current_safety_point_index"] = next_unapproved_index
         _set_current_safety_point_context(state)
 
         state["status"] = "in_progress"
         state["next_action"] = "awaiting_user_message"
         state["assistant_message"] = (
-            "Safety point approval recorded. Review the next safety point."
+            "Review the current safety point."
         )
 
-    
         return state
 
 
@@ -828,7 +893,14 @@ def create_safety_point_graph():
             return "record_approval"
 
         if intent == "different_method_declared":
-            return END
+            return "move_to_next_safety_point"
+
+        return END
+
+
+    def route_after_answer_clarification(state: SafetyPointApprovalState) -> str:
+        if state.get("next_action") == "move_to_next_safety_point":
+            return "move_to_next_safety_point"
 
         return END
 
@@ -887,11 +959,19 @@ def create_safety_point_graph():
             "answer_clarification": "answer_clarification",
             "collect_additional_answers": "collect_additional_answers",
             "record_approval": "record_approval",
+            "move_to_next_safety_point": "move_to_next_safety_point",
             END: END,
         },
     )
 
-    graph.add_edge("answer_clarification", END)
+    graph.add_conditional_edges(
+        "answer_clarification",
+        route_after_answer_clarification,
+        {
+            "move_to_next_safety_point": "move_to_next_safety_point",
+            END: END,
+        },
+    )
     graph.add_edge("collect_additional_answers", END)
 
     graph.add_conditional_edges(
