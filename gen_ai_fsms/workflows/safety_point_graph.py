@@ -229,6 +229,7 @@ def _append_approval_chat_message(
     content: Optional[str],
     message_type: str,
     safety_point_id: Optional[str] = None,
+    safety_point_view: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Append a display message to the persistent approval chat history."""
     if not content:
@@ -246,6 +247,9 @@ def _append_approval_chat_message(
         "message_type": message_type,
         "safety_point_id": safety_point_id,
     }
+
+    if safety_point_view is not None:
+        entry["safety_point_view"] = safety_point_view
 
     if history and history[-1] == entry:
         state["approval_chat_history"] = history
@@ -375,12 +379,21 @@ def create_safety_point_graph():
         )
 
         if not state.get("last_user_message"):
+            safety_point_prompt = (
+                "Please confirm that the business will follow this safety point, "
+                "ask a clarification question, provide an answer to a required "
+                "additional question, or state that the business follows a different method."
+            )
+
+            state["assistant_message"] = safety_point_prompt
+
             _append_approval_chat_message(
                 state=state,
                 role="assistant",
-                content=safety_point_text,
+                content=safety_point_prompt,
                 message_type="safety_point_presented",
                 safety_point_id=safety_point_id,
+                safety_point_view=state.get("current_safety_point_view"),
             )
 
         return state

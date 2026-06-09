@@ -1,6 +1,8 @@
 import html
+from textwrap import dedent
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from shared import api_request
 
@@ -88,7 +90,7 @@ def show():
         )
         responses_html = format_additional_responses(safety_point)
 
-        return f"""
+        return dedent(f"""
         <details class="approved-safety-point">
             <summary>{html.escape(str(safety_point_id))}</summary>
             <div class="safety-point-body">
@@ -109,7 +111,7 @@ def show():
                 </details>
             </div>
         </details>
-        """
+        """).strip()
 
     def format_approved_methods_html(approved_methods):
         sections = approved_methods.get("sections", [])
@@ -131,34 +133,45 @@ def show():
                 )
 
                 safe_method_html.append(
-                    f"""
+                    dedent(f"""
                     <details class="approved-safe-method">
                         <summary>{html.escape(str(safe_method_name))}</summary>
                         {safety_point_html}
                     </details>
-                    """
+                    """).strip()
                 )
 
             section_html.append(
-                f"""
+                dedent(f"""
                 <details class="approved-section" open>
                     <summary>{html.escape(str(section_name))}</summary>
                     {''.join(safe_method_html)}
                 </details>
-                """
+                """).strip()
             )
 
-        return f"""
+        return dedent(f"""
         <style>
+        :root {{
+            color-scheme: light dark;
+        }}
+
+        body {{
+            color: inherit;
+            background-color: transparent;
+            font-family: "Source Sans Pro", Arial, sans-serif;
+        }}
+
         details.approved-section,
         details.approved-safe-method,
         details.approved-safety-point,
         details.additional-responses {{
-            border: 1px solid rgba(49, 51, 63, 0.2);
+            color: inherit;
+            border: 1px solid rgba(128, 128, 128, 0.45);
             border-radius: 0.5rem;
             margin: 0.6rem 0;
             padding: 0.6rem 0.8rem;
-            background-color: rgba(49, 51, 63, 0.03);
+            background-color: rgba(128, 128, 128, 0.08);
         }}
 
         details.approved-safe-method {{
@@ -167,12 +180,21 @@ def show():
 
         details.approved-safety-point {{
             margin-left: 1rem;
-            background-color: rgba(49, 51, 63, 0.02);
+            background-color: rgba(128, 128, 128, 0.05);
         }}
 
         summary {{
             cursor: pointer;
             font-weight: 600;
+            color: inherit;
+        }}
+
+        p,
+        li,
+        div,
+        strong,
+        em {{
+            color: inherit;
         }}
 
         .safety-point-body {{
@@ -183,11 +205,12 @@ def show():
             max-height: 220px;
             overflow-y: auto;
             padding: 0.8rem;
-            border: 1px solid rgba(49, 51, 63, 0.18);
+            border: 1px solid rgba(128, 128, 128, 0.4);
             border-radius: 0.4rem;
-            background-color: rgba(255, 255, 255, 0.35);
+            background-color: rgba(128, 128, 128, 0.08);
             white-space: pre-wrap;
             line-height: 1.5;
+            color: inherit;
         }}
 
         .metadata-grid {{
@@ -198,13 +221,29 @@ def show():
         }}
 
         .additional-response {{
-            border-top: 1px solid rgba(49, 51, 63, 0.15);
+            border-top: 1px solid rgba(128, 128, 128, 0.35);
             padding-top: 0.5rem;
             margin-top: 0.5rem;
         }}
+
+        @media (prefers-color-scheme: dark) {{
+            body {{
+                color: #fafafa;
+            }}
+
+            details.approved-section,
+            details.approved-safe-method,
+            details.approved-safety-point,
+            details.additional-responses,
+            .safety-point-text {{
+                color: #fafafa;
+                background-color: rgba(255, 255, 255, 0.08);
+                border-color: rgba(255, 255, 255, 0.35);
+            }}
+        }}
         </style>
         {''.join(section_html)}
-        """
+        """).strip()
 
     approved_methods = load_approved_methods()
 
@@ -227,7 +266,8 @@ def show():
 
     st.caption(f"{approved_count} approved safety point(s)")
 
-    st.markdown(
+    components.html(
         format_approved_methods_html(approved_methods),
-        unsafe_allow_html=True,
+        height=900,
+        scrolling=True,
     )

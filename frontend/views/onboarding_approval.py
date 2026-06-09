@@ -1,5 +1,3 @@
-import html
-
 import streamlit as st
 
 from shared import api_request
@@ -7,6 +5,13 @@ from shared import api_request
 
 def show():
     st.title("Food Safety Management System Builder")
+    st.info(
+        "This process reviews the SFBB safety points that are relevant to the completed "
+        "Food Safety Profile. The purpose is to confirm which standard SFBB safety points "
+        "the business will follow. You can ask clarification questions before approving. "
+        "If you state that the business follows a different method, the system will leave "
+        "that safety point unapproved and show it again later."
+    )
 
     user = st.session_state.get("user")
     if not user or user.get("role") != "admin":
@@ -89,25 +94,16 @@ def show():
 
         total_count = progress.get("total_count", 0) or 0
         approved_count = progress.get("approved_count", 0) or 0
-        current_number = progress.get("current_number", 0) or 0
 
         if total_count <= 0:
             return
 
         if approval_session.get("workflow_status") == "completed":
-            progress_value = 1.0
-            st.progress(progress_value)
-            st.caption(f"Safety point approval complete: {approved_count} of {total_count} approved.")
+            st.progress(1.0)
             return
 
-        safe_current_number = min(max(current_number, 1), total_count)
         progress_value = min(max(approved_count / total_count, 0), 1)
-
         st.progress(progress_value)
-        st.caption(
-            f"Safety point {safe_current_number} of {total_count}. "
-            f"{approved_count} approved, {max(total_count - approved_count, 0)} remaining."
-        )
 
     def render_reference_list(title, references):
         if not references:
@@ -117,58 +113,37 @@ def show():
         for reference in references:
             st.markdown(f"- {reference}")
 
-    def render_safety_point_box(current_safety_point):
+    def render_safety_point_card(safety_point_view, expanded, key_suffix):
+        current_safety_point = safety_point_view or {}
+        safety_point_id = current_safety_point.get("safety_point_id") or "Unknown"
         safety_point_text = (
             current_safety_point.get("safety_point_text")
             or current_safety_point.get("text")
             or ""
         )
 
-        escaped_text = html.escape(safety_point_text)
-
-        st.markdown("**Current safety point**")
-        st.markdown(
-            f"""
-            <div style="
-                max-height: 260px;
-                overflow-y: auto;
-                padding: 0.9rem;
-                border: 1px solid rgba(49, 51, 63, 0.2);
-                border-radius: 0.5rem;
-                background-color: rgba(49, 51, 63, 0.03);
-                line-height: 1.5;
-                white-space: pre-wrap;
-            ">{escaped_text}</div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    def render_current_safety_point(approval_session):
-        current_safety_point = approval_session.get("current_safety_point") or {}
-
-        if not current_safety_point.get("safety_point_id"):
-            return
-
-        render_safety_point_box(current_safety_point)
-
-        col1, col2 = st.columns(2)
-
-        with col1:
+        with st.expander(f"Safety Point: {safety_point_id}", expanded=expanded):
             st.markdown(f"**Section:** {current_safety_point.get('section_name') or 'Not available'}")
             st.markdown(f"**Safe method:** {current_safety_point.get('safe_method_name') or 'Not available'}")
 
-        with col2:
-            st.markdown(f"**Safety point ID:** {current_safety_point.get('safety_point_id') or 'Not available'}")
+            st.text_area(
+                label="Safety point text",
+                value=safety_point_text,
+                height=180,
+                disabled=True,
+                label_visibility="collapsed",
+                key=f"approval_safety_point_text_{safety_point_id}_{key_suffix}",
+            )
 
-        provenance_references = current_safety_point.get("provenance_references", [])
-        source_references = current_safety_point.get("source_references", [])
-        additional_source_references = current_safety_point.get("additional_source_references", [])
+            provenance_references = current_safety_point.get("provenance_references", [])
+            source_references = current_safety_point.get("source_references", [])
+            additional_source_references = current_safety_point.get("additional_source_references", [])
+            references_to_show = provenance_references or source_references
 
-        render_reference_list("Provenance", provenance_references)
-
-        with st.expander("Detailed source fields", expanded=False):
-            render_reference_list("Source references", source_references)
-            render_reference_list("Additional source references", additional_source_references)
+            if references_to_show or additional_source_references:
+                with st.expander("Provenance", expanded=False):
+                    render_reference_list("Source references", references_to_show)
+                    render_reference_list("Additional source references", additional_source_references)
 
     def render_required_additional_question(approval_session):
         current_question = approval_session.get("current_additional_question")
@@ -188,20 +163,28 @@ def show():
         st.markdown(f"**Required additional question:** {question_text}")
 
     def render_context_panel():
-        st.info(
-            "This process reviews the SFBB safety points that are relevant to the completed "
-            "Food Safety Profile. The purpose is to confirm which standard SFBB safety points "
-            "the business will follow. You can ask clarification questions before approving. "
-            "If you state that the business follows a different method, version 1 will leave "
-            "that safety point unapproved and show it again later."
-        )
+        return
 
     def render_messages():
         messages = st.session_state.get("approval_messages", [])
+        approval_session = st.session_state.get("approval_session") or {}
+        current_safety_point = approval_session.get("current_safety_point") or {}
+        current_safety_point_id = current_safety_point.get("safety_point_id")
 
         for index, message in enumerate(messages):
             role = message.get("role", "assistant")
             content = message.get("content", "")
+            message_type = message.get("message_type")
+            safety_point_id = message.get("safety_point_id")
+
+            if message_type == "safety_point_presented":
+                safety_point_view = message.get("safety_point_view")
+                if safety_point_view:
+                    render_safety_point_card(
+                        safety_point_view=safety_point_view,
+                        expanded=safety_point_id == current_safety_point_id,
+                        key_suffix=index,
+                    )
 
             if role == "user":
                 st.chat_message("user").write(content)
@@ -349,7 +332,6 @@ def show():
         return
 
     render_context_panel()
-    render_progress_indicator(approval_session)
 
     if approval_session.get("workflow_status") == "completed":
         st.success("All relevant safety points have been approved.")
@@ -359,12 +341,11 @@ def show():
 
         return
 
-    render_current_safety_point(approval_session)
     render_required_additional_question(approval_session)
 
     st.markdown("---")
-    st.subheader("Approval conversation")
     render_messages()
+    render_progress_indicator(approval_session)
 
     if st.session_state.get("approval_just_completed"):
         st.session_state.approval_just_completed = False
