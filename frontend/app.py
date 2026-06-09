@@ -9,6 +9,7 @@ from views.forgot import show as forgot_page
 from views.reset_password import show as reset_page
 from views.onboarding_screening import show as screening_page
 from views.onboarding_approval import show as approval_page
+from views.approved_methods import show as approved_methods_page
 
 
 # If a reset token is present in the URL, show the reset page immediately.
@@ -221,7 +222,7 @@ ROUTES = {
     },
     "compliance_food_safety_approved_methods": {
         "title": "Approved Food Safety Methods",
-        "message": None,
+        "view": approved_methods_page,
         "admin_only": True,
     },
     "compliance_food_safety_review": {

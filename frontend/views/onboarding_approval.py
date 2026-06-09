@@ -1,3 +1,5 @@
+import html
+
 import streamlit as st
 
 from shared import api_request
@@ -13,47 +15,372 @@ def show():
 
     token = st.session_state.get("token")
 
-    response = api_request(
-        "GET",
-        "/onboarding/safety-points/readiness",
-        token=token,
+    def load_readiness():
+        response = api_request(
+            "GET",
+            "/onboarding/safety-points/readiness",
+            token=token,
+        )
+
+        if response is None:
+            st.error("Could not check whether the Food Safety Profile screening is complete.")
+            return None
+
+        if response.status_code != 200:
+            st.error(f"Failed to check screening status (HTTP {response.status_code}).")
+            return None
+
+        return response.json()
+
+    def load_current_approval_session():
+        response = api_request(
+            "GET",
+            "/onboarding/safety-points/current",
+            token=token,
+        )
+
+        if response is None:
+            return None
+
+        if response.status_code == 200:
+            return response.json()
+
+        if response.status_code == 404:
+            return None
+
+        st.error(f"Failed to load approval session (HTTP {response.status_code}).")
+        return None
+
+    def start_or_resume_approval():
+        response = api_request(
+            "POST",
+            "/onboarding/safety-points/start",
+            token=token,
+        )
+
+        if response and response.status_code == 200:
+            return response.json()
+
+        st.error("Could not start or resume the safety point approval workflow.")
+        return None
+
+    def reset_approval():
+        response = api_request(
+            "POST",
+            "/onboarding/safety-points/reset",
+            token=token,
+        )
+
+        if not response or response.status_code != 200:
+            st.error("Failed to reset the safety point approval workflow.")
+            return
+
+        st.session_state.approval_session = None
+        st.session_state.approval_messages = []
+        st.session_state.approval_processing = False
+        st.session_state.pending_approval_message = None
+        st.session_state.approval_ephemeral_status = None
+        st.session_state.approval_ephemeral_after_index = None
+        st.session_state.approval_just_completed = False
+        st.rerun()
+
+    def render_progress_indicator(approval_session):
+        progress = approval_session.get("progress") or {}
+
+        total_count = progress.get("total_count", 0) or 0
+        approved_count = progress.get("approved_count", 0) or 0
+        current_number = progress.get("current_number", 0) or 0
+
+        if total_count <= 0:
+            return
+
+        if approval_session.get("workflow_status") == "completed":
+            progress_value = 1.0
+            st.progress(progress_value)
+            st.caption(f"Safety point approval complete: {approved_count} of {total_count} approved.")
+            return
+
+        safe_current_number = min(max(current_number, 1), total_count)
+        progress_value = min(max(approved_count / total_count, 0), 1)
+
+        st.progress(progress_value)
+        st.caption(
+            f"Safety point {safe_current_number} of {total_count}. "
+            f"{approved_count} approved, {max(total_count - approved_count, 0)} remaining."
+        )
+
+    def render_reference_list(title, references):
+        if not references:
+            return
+
+        st.markdown(f"**{title}**")
+        for reference in references:
+            st.markdown(f"- {reference}")
+
+    def render_safety_point_box(current_safety_point):
+        safety_point_text = (
+            current_safety_point.get("safety_point_text")
+            or current_safety_point.get("text")
+            or ""
+        )
+
+        escaped_text = html.escape(safety_point_text)
+
+        st.markdown("**Current safety point**")
+        st.markdown(
+            f"""
+            <div style="
+                max-height: 260px;
+                overflow-y: auto;
+                padding: 0.9rem;
+                border: 1px solid rgba(49, 51, 63, 0.2);
+                border-radius: 0.5rem;
+                background-color: rgba(49, 51, 63, 0.03);
+                line-height: 1.5;
+                white-space: pre-wrap;
+            ">{escaped_text}</div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    def render_current_safety_point(approval_session):
+        current_safety_point = approval_session.get("current_safety_point") or {}
+
+        if not current_safety_point.get("safety_point_id"):
+            return
+
+        render_safety_point_box(current_safety_point)
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown(f"**Section:** {current_safety_point.get('section_name') or 'Not available'}")
+            st.markdown(f"**Safe method:** {current_safety_point.get('safe_method_name') or 'Not available'}")
+
+        with col2:
+            st.markdown(f"**Safety point ID:** {current_safety_point.get('safety_point_id') or 'Not available'}")
+
+        provenance_references = current_safety_point.get("provenance_references", [])
+        source_references = current_safety_point.get("source_references", [])
+        additional_source_references = current_safety_point.get("additional_source_references", [])
+
+        render_reference_list("Provenance", provenance_references)
+
+        with st.expander("Detailed source fields", expanded=False):
+            render_reference_list("Source references", source_references)
+            render_reference_list("Additional source references", additional_source_references)
+
+    def render_required_additional_question(approval_session):
+        current_question = approval_session.get("current_additional_question")
+
+        if not current_question:
+            return
+
+        st.warning(
+            "This safety point requires additional information before approval can be recorded."
+        )
+
+        question_text = current_question.get(
+            "question_text",
+            "Please answer the required additional question.",
+        )
+
+        st.markdown(f"**Required additional question:** {question_text}")
+
+    def render_context_panel():
+        st.info(
+            "This process reviews the SFBB safety points that are relevant to the completed "
+            "Food Safety Profile. The purpose is to confirm which standard SFBB safety points "
+            "the business will follow. You can ask clarification questions before approving. "
+            "If you state that the business follows a different method, version 1 will leave "
+            "that safety point unapproved and show it again later."
+        )
+
+    def render_messages():
+        messages = st.session_state.get("approval_messages", [])
+
+        for index, message in enumerate(messages):
+            role = message.get("role", "assistant")
+            content = message.get("content", "")
+
+            if role == "user":
+                st.chat_message("user").write(content)
+            else:
+                st.chat_message("assistant").write(content)
+
+            if (
+                st.session_state.get("approval_ephemeral_status")
+                and st.session_state.get("approval_ephemeral_after_index") == index
+            ):
+                st.info(st.session_state.approval_ephemeral_status)
+
+        if st.session_state.get("approval_processing", False):
+            st.info("Processing your message...")
+
+    def submit_approval_message():
+        if (
+            st.session_state.get("approval_processing", False)
+            or st.session_state.get("pending_approval_message") is not None
+        ):
+            return
+
+        submitted_message = st.session_state.get("approval_chat_input")
+
+        if not submitted_message:
+            return
+
+        st.session_state.pending_approval_message = submitted_message
+        st.session_state.approval_processing = True
+
+        current_messages = list(st.session_state.get("approval_messages", []))
+        current_messages.append({
+            "role": "user",
+            "content": submitted_message,
+            "message_type": "user_message",
+        })
+        st.session_state.approval_messages = current_messages
+
+    def process_pending_message():
+        if (
+            not st.session_state.get("approval_processing", False)
+            or not st.session_state.get("pending_approval_message")
+        ):
+            return
+
+        pending_message = st.session_state.pending_approval_message
+        latest_user_message_index = len(st.session_state.approval_messages) - 1
+
+        response = api_request(
+            "POST",
+            "/onboarding/safety-points/message",
+            json={"message": pending_message},
+            token=token,
+        )
+
+        st.session_state.pending_approval_message = None
+        st.session_state.approval_processing = False
+
+        if response and response.status_code == 200:
+            approval_session = response.json()
+            st.session_state.approval_session = approval_session
+            st.session_state.approval_messages = approval_session.get(
+                "approval_chat_history",
+                [],
+            )
+
+            if approval_session.get("workflow_status") == "completed":
+                st.session_state.approval_just_completed = True
+        else:
+            st.session_state.approval_ephemeral_status = (
+                "Failed to process message. Check backend logs."
+            )
+            st.session_state.approval_ephemeral_after_index = latest_user_message_index
+
+        st.rerun()
+
+    if "approval_session" not in st.session_state:
+        st.session_state.approval_session = None
+
+    if "approval_messages" not in st.session_state:
+        st.session_state.approval_messages = []
+
+    if "approval_processing" not in st.session_state:
+        st.session_state.approval_processing = False
+
+    if "pending_approval_message" not in st.session_state:
+        st.session_state.pending_approval_message = None
+
+    if "approval_ephemeral_status" not in st.session_state:
+        st.session_state.approval_ephemeral_status = None
+
+    if "approval_ephemeral_after_index" not in st.session_state:
+        st.session_state.approval_ephemeral_after_index = None
+
+    if "approval_just_completed" not in st.session_state:
+        st.session_state.approval_just_completed = False
+
+    readiness = load_readiness()
+
+    if not readiness:
+        return
+
+    if not readiness.get("is_ready"):
+        st.warning(
+            "Complete the Food Safety Profile screening before starting the "
+            "Food Safety Management System Builder."
+        )
+
+        if st.button("Open Food Safety Profile"):
+            st.session_state.pending_navigation_route = "compliance_food_safety_profile"
+            st.session_state.pending_navigation_label = "Profile"
+            st.rerun()
+
+        return
+
+    current_session = load_current_approval_session()
+
+    if current_session:
+        st.session_state.approval_session = current_session
+        st.session_state.approval_messages = current_session.get(
+            "approval_chat_history",
+            [],
+        )
+
+    approval_session = st.session_state.get("approval_session")
+
+    if approval_session is None:
+        render_context_panel()
+
+        if st.button("Start or resume approval"):
+            new_session = start_or_resume_approval()
+
+            if new_session:
+                st.session_state.approval_session = new_session
+                st.session_state.approval_messages = new_session.get(
+                    "approval_chat_history",
+                    [],
+                )
+                st.session_state.approval_processing = False
+                st.session_state.pending_approval_message = None
+                st.session_state.approval_ephemeral_status = None
+                st.session_state.approval_ephemeral_after_index = None
+                st.rerun()
+
+        return
+
+    render_context_panel()
+    render_progress_indicator(approval_session)
+
+    if approval_session.get("workflow_status") == "completed":
+        st.success("All relevant safety points have been approved.")
+
+        if st.button("Reset and start over"):
+            reset_approval()
+
+        return
+
+    render_current_safety_point(approval_session)
+    render_required_additional_question(approval_session)
+
+    st.markdown("---")
+    st.subheader("Approval conversation")
+    render_messages()
+
+    if st.session_state.get("approval_just_completed"):
+        st.session_state.approval_just_completed = False
+
+    if st.session_state.get("approval_ephemeral_status"):
+        st.session_state.approval_ephemeral_status = None
+        st.session_state.approval_ephemeral_after_index = None
+
+    st.chat_input(
+        "Type your message here...",
+        key="approval_chat_input",
+        disabled=st.session_state.get("approval_processing", False),
+        on_submit=submit_approval_message,
     )
 
-    if response is None:
-        st.error("Could not check whether the Food Safety Profile screening is complete.")
-        return
+    process_pending_message()
 
-    if response.status_code == 404:
-        st.warning(
-            "Complete the Food Safety Profile screening before starting the "
-            "Food Safety Management System Builder. Use the button below to open the screening page."
-        )
-
-        if st.button("Open Food Safety Profile"):
-            st.session_state.pending_navigation_route = "compliance_food_safety_profile"
-            st.session_state.pending_navigation_label = "Profile"
-            st.rerun()
-
-        return
-
-    if response.status_code != 200:
-        st.error(f"Failed to check screening status (HTTP {response.status_code}).")
-        return
-
-    screening_status = response.json()
-
-    if not screening_status.get("is_ready"):
-        st.warning(
-            "Complete the Food Safety Profile screening before starting the "
-            "Food Safety Management System Builder. Use the button below to open the screening page."
-        )
-
-        if st.button("Open Food Safety Profile"):
-            st.session_state.pending_navigation_route = "compliance_food_safety_profile"
-            st.session_state.pending_navigation_label = "Profile"
-            st.rerun()
-
-        return
-
-    st.success("Your Food Safety Profile screening is complete.")
-    st.info("Relevant safety points will be shown here for review and approval.")
+    if st.button("Reset and start over"):
+        reset_approval()
