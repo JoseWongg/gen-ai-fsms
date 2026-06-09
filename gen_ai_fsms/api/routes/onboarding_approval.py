@@ -14,6 +14,7 @@ from gen_ai_fsms.services.safety_point_approval_service import (
     get_condition_values_for_profile,
     get_relevant_safety_points_for_profile,
     get_screening_completion_status,
+    reset_approved_methods_for_profile,
 )
 from gen_ai_fsms.workflows.safety_point_graph import safety_point_graph
 
@@ -334,10 +335,18 @@ def reset_safety_point_approval(
     for session in sessions:
         db.delete(session)
 
+    deleted_approved_safety_point_count = reset_approved_methods_for_profile(
+        db=db,
+        business_profile_id=profile.id,
+    )
+
     db.commit()
 
     return {
         "business_profile_id": profile.id,
         "deleted_session_count": deleted_count,
-        "message": "Safety point approval session reset.",
+        "deleted_approved_safety_point_count": (
+            deleted_approved_safety_point_count
+        ),
+        "message": "Safety point approval session and approved methods reset.",
     }

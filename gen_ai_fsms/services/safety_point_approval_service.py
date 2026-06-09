@@ -278,6 +278,25 @@ def get_approved_methods_for_profile(
     }
 
 
+
+def reset_approved_methods_for_profile(
+    db: Session,
+    business_profile_id: int,
+) -> int:
+    approved_safety_points = (
+        db.query(ApprovedSafetyPoint)
+        .filter(ApprovedSafetyPoint.business_profile_id == business_profile_id)
+        .all()
+    )
+
+    deleted_count = len(approved_safety_points)
+
+    for approved_safety_point in approved_safety_points:
+        db.delete(approved_safety_point)
+
+    return deleted_count
+
+
 def record_approved_safety_point(
     db: Session,
     business_profile_id: int,
