@@ -82,6 +82,31 @@ def _get_current_additional_question(
     return pending_questions[current_index]
 
 
+
+def _build_provenance_references(
+    safety_point: Optional[Dict[str, Any]],
+) -> List[str]:
+    """Build ordered provenance references for a safety point."""
+    if safety_point is None:
+        return []
+
+    provenance_references: List[str] = []
+
+    section_name = safety_point.get("section_name")
+    safe_method_name = safety_point.get("safe_method_name")
+
+    if section_name and safe_method_name:
+        provenance_references.append(
+            f"SFBB Pack > {section_name} > {safe_method_name}"
+        )
+
+    for reference in safety_point.get("source_references", []):
+        if reference and reference not in provenance_references:
+            provenance_references.append(reference)
+
+    return provenance_references
+
+
 def _build_current_safety_point_view(
     state: SafetyPointApprovalState,
 ) -> Dict[str, Any]:
@@ -112,6 +137,7 @@ def _build_current_safety_point_view(
             "safe_method_name": None,
             "source_references": [],
             "additional_source_references": [],
+            "provenance_references": [],
             "pending_additional_questions": [],
             "current_additional_question": None,
             "progress": progress,
@@ -134,6 +160,9 @@ def _build_current_safety_point_view(
         "additional_source_references": current_safety_point.get(
             "additional_source_references",
             [],
+        ),
+        "provenance_references": _build_provenance_references(
+            current_safety_point
         ),
         "pending_additional_questions": state.get(
             "pending_additional_questions",
