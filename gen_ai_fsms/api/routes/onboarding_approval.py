@@ -110,6 +110,7 @@ def build_approval_response(
         ),
         "current_additional_question": state.get("current_additional_question"),
         "current_q_and_a_messages": state.get("current_q_and_a_messages", []),
+        "approval_chat_history": state.get("approval_chat_history", []),
         "approved_safety_point_ids": state.get("approved_safety_point_ids", []),
         "last_approved_safety_point_record": state.get(
             "last_approved_safety_point_record"

@@ -32,6 +32,7 @@ class SafetyPointApprovalState(TypedDict, total=False):
     safety_points_list: List[Dict[str, Any]]
     current_safety_point: Optional[Dict[str, Any]]
     current_q_and_a_messages: List[Dict[str, Any]]
+    approval_chat_history: List[Dict[str, Any]]
     last_user_message: Optional[str]
     current_response_intent: Optional[str]
     pending_additional_questions: List[Dict[str, Any]]
@@ -188,6 +189,38 @@ def _set_current_safety_point_context(
     return state
 
 
+
+def _append_approval_chat_message(
+    state: SafetyPointApprovalState,
+    role: str,
+    content: Optional[str],
+    message_type: str,
+    safety_point_id: Optional[str] = None,
+) -> None:
+    """Append a display message to the persistent approval chat history."""
+    if not content:
+        return
+
+    if safety_point_id is None:
+        current_safety_point = state.get("current_safety_point") or {}
+        safety_point_id = current_safety_point.get("safety_point_id")
+
+    history = list(state.get("approval_chat_history", []))
+
+    entry = {
+        "role": role,
+        "content": content,
+        "message_type": message_type,
+        "safety_point_id": safety_point_id,
+    }
+
+    if history and history[-1] == entry:
+        state["approval_chat_history"] = history
+        return
+
+    history.append(entry)
+    state["approval_chat_history"] = history
+
 def create_safety_point_graph():
     """Build and return the compiled safety point approval graph."""
     graph = StateGraph(SafetyPointApprovalState)
@@ -266,6 +299,7 @@ def create_safety_point_graph():
         state.setdefault("current_safety_point_index", 0)
         state.setdefault("approved_safety_point_ids", [])
         state.setdefault("current_q_and_a_messages", [])
+        state.setdefault("approval_chat_history", [])
         state.setdefault("additional_answers", {})
 
         if not relevant_safety_points:
@@ -299,6 +333,22 @@ def create_safety_point_graph():
         state["status"] = "in_progress"
         state["next_action"] = "awaiting_user_message"
         state["assistant_message"] = "Review the current safety point."
+
+        safety_point_id = current_safety_point.get("safety_point_id")
+        safety_point_text = (
+            current_safety_point.get("text")
+            or current_safety_point.get("safety_point_text")
+        )
+
+        if not state.get("last_user_message"):
+            _append_approval_chat_message(
+                state=state,
+                role="assistant",
+                content=safety_point_text,
+                message_type="safety_point_presented",
+                safety_point_id=safety_point_id,
+            )
+
         return state
 
     def interpret_safety_point_response(
@@ -308,6 +358,13 @@ def create_safety_point_graph():
         user_message = state.get("last_user_message")
         current_safety_point = state.get("current_safety_point")
         current_additional_question = state.get("current_additional_question")
+
+        _append_approval_chat_message(
+            state=state,
+            role="user",
+            content=user_message,
+            message_type="user_message",
+        )
 
         if not user_message:
             state["current_response_intent"] = "unclear"
@@ -357,12 +414,26 @@ def create_safety_point_graph():
                     "follows the displayed SFBB safety point."
                 )
             )
+            _append_approval_chat_message(
+                state=state,
+                role="assistant",
+                content=state.get("assistant_message"),
+                message_type="different_method_declared",
+            )
 
         if intent == "unclear" and not state.get("assistant_message"):
             state["assistant_message"] = (
                 "Please clarify whether you are approving the displayed safety "
                 "point, asking a question, answering a required additional "
                 "question, or stating that the business uses a different method."
+            )
+
+        if intent == "unclear":
+            _append_approval_chat_message(
+                state=state,
+                role="assistant",
+                content=state.get("assistant_message"),
+                message_type="unclear_response",
             )
 
         return state
@@ -419,6 +490,12 @@ def create_safety_point_graph():
         )
 
         state["assistant_message"] = answer
+        _append_approval_chat_message(
+            state=state,
+            role="assistant",
+            content=answer,
+            message_type="clarification_answer",
+        )
         state["last_user_message"] = None
         state["next_action"] = "awaiting_user_message"
         state["current_response_intent"] = None
@@ -459,6 +536,12 @@ def create_safety_point_graph():
                 "question_text",
                 "Please answer the required additional question.",
             )
+            _append_approval_chat_message(
+                state=state,
+                role="assistant",
+                content=state.get("assistant_message"),
+                message_type="additional_question",
+            )
             state["next_action"] = "awaiting_user_message"
             return state
 
@@ -495,12 +578,24 @@ def create_safety_point_graph():
                 "question_text",
                 "Please answer the next required additional question.",
             )
+            _append_approval_chat_message(
+                state=state,
+                role="assistant",
+                content=state.get("assistant_message"),
+                message_type="additional_question",
+            )
         else:
             state["current_additional_question_index"] = None
             state["current_additional_question"] = None
             state["assistant_message"] = (
                 "Additional information recorded. You can now approve this "
                 "safety point if the business follows the displayed SFBB method."
+            )
+            _append_approval_chat_message(
+                state=state,
+                role="assistant",
+                content=state.get("assistant_message"),
+                message_type="additional_answer_recorded",
             )
 
         state["last_user_message"] = None
@@ -558,6 +653,12 @@ def create_safety_point_graph():
                 "question_text",
                 "Please answer the required additional question before approval.",
             )
+            _append_approval_chat_message(
+                state=state,
+                role="assistant",
+                content=state.get("assistant_message"),
+                message_type="additional_question",
+            )
             state["next_action"] = "awaiting_user_message"
             state["current_response_intent"] = None
             return state
@@ -587,6 +688,12 @@ def create_safety_point_graph():
 
         state["last_approved_safety_point_record"] = approval_record
         state["assistant_message"] = "Safety point approval recorded."
+        _append_approval_chat_message(
+            state=state,
+            role="assistant",
+            content=state.get("assistant_message"),
+            message_type="approval_recorded",
+        )
         state["last_user_message"] = None
         state["current_response_intent"] = None
         state["next_action"] = "move_to_next_safety_point"
@@ -643,6 +750,17 @@ def create_safety_point_graph():
         """Mark the workflow state as completed."""
         state["status"] = "completed"
         state["next_action"] = "complete"
+        if not state.get("assistant_message"):
+            state["assistant_message"] = (
+                "All relevant safety points have been approved."
+            )
+        _append_approval_chat_message(
+            state=state,
+            role="assistant",
+            content=state.get("assistant_message"),
+            message_type="workflow_completed",
+            safety_point_id=None,
+        )
         return state
 
     def route_after_screening_check(state: SafetyPointApprovalState) -> str:
