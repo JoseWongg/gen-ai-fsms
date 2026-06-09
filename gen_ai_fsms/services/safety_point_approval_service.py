@@ -17,6 +17,7 @@ from gen_ai_fsms.db.models.approved_safety_point import ApprovedSafetyPoint
 from gen_ai_fsms.db.models.approved_safety_point_response import (
     ApprovedSafetyPointResponse,
 )
+from gen_ai_fsms.db.models.auth.user import User
 from gen_ai_fsms.db.models.condition import Condition
 from gen_ai_fsms.db.models.condition_value import ConditionValue
 
@@ -89,6 +90,192 @@ def get_relevant_safety_points_for_profile(
     condition_values = get_condition_values_for_profile(db, business_profile_id)
 
     return ContentService().get_safety_points_by_conditions(condition_values)
+
+
+
+def _build_user_display_name(user: User | None) -> str | None:
+    if user is None:
+        return None
+
+    name_parts = [
+        user.first_name,
+        user.last_name,
+    ]
+
+    display_name = " ".join(
+        part
+        for part in name_parts
+        if part
+    ).strip()
+
+    if display_name:
+        return display_name
+
+    return user.email
+
+
+def _build_provenance_references_for_approved_safety_point(
+    approved_safety_point: ApprovedSafetyPoint,
+    content_safety_point: Dict[str, Any] | None,
+) -> List[str]:
+    provenance_references: List[str] = []
+
+    if content_safety_point is not None:
+        section_name = content_safety_point.get("section_name")
+        safe_method_name = content_safety_point.get("safe_method_name")
+
+        if section_name and safe_method_name:
+            provenance_references.append(
+                f"SFBB Pack > {section_name} > {safe_method_name}"
+            )
+
+        for reference in content_safety_point.get("source_references", []):
+            if reference and reference not in provenance_references:
+                provenance_references.append(reference)
+
+    return provenance_references
+
+
+def get_approved_methods_for_profile(
+    db: Session,
+    business_profile_id: int,
+) -> Dict[str, Any]:
+    approved_rows = (
+        db.query(ApprovedSafetyPoint, User)
+        .outerjoin(
+            User,
+            ApprovedSafetyPoint.approved_by_user_id == User.id,
+        )
+        .filter(ApprovedSafetyPoint.business_profile_id == business_profile_id)
+        .order_by(
+            ApprovedSafetyPoint.safe_method_name,
+            ApprovedSafetyPoint.safety_point_id,
+            ApprovedSafetyPoint.id,
+        )
+        .all()
+    )
+
+    content_service = ContentService()
+    sections_by_id: Dict[str, Dict[str, Any]] = {}
+    flat_approved_safety_points: List[Dict[str, Any]] = []
+
+    for approved_safety_point, approving_user in approved_rows:
+        content_safety_point = content_service.get_safety_point_by_id(
+            approved_safety_point.safety_point_id
+        ) or {}
+
+        section_id = (
+            content_safety_point.get("section_id")
+            or "unknown_section"
+        )
+        section_name = (
+            content_safety_point.get("section_name")
+            or "Unknown section"
+        )
+        safe_method_id = (
+            content_safety_point.get("safe_method_id")
+            or approved_safety_point.safe_method_id
+        )
+        safe_method_name = (
+            content_safety_point.get("safe_method_name")
+            or approved_safety_point.safe_method_name
+        )
+
+        responses = [
+            {
+                "id": response.id,
+                "question_key": response.question_key,
+                "question_text": response.question_text,
+                "response_text": response.response_text,
+                "created_at": (
+                    response.created_at.isoformat()
+                    if response.created_at
+                    else None
+                ),
+                "updated_at": (
+                    response.updated_at.isoformat()
+                    if response.updated_at
+                    else None
+                ),
+            }
+            for response in sorted(
+                approved_safety_point.responses,
+                key=lambda response: response.id,
+            )
+        ]
+
+        approved_safety_point_view = {
+            "approved_safety_point_id": approved_safety_point.id,
+            "safety_point_id": approved_safety_point.safety_point_id,
+            "safety_point_text": approved_safety_point.safety_point_text,
+            "section_id": section_id,
+            "section_name": section_name,
+            "safe_method_id": safe_method_id,
+            "safe_method_name": safe_method_name,
+            "approved_at": (
+                approved_safety_point.approved_at.isoformat()
+                if approved_safety_point.approved_at
+                else None
+            ),
+            "approved_by_user_id": approved_safety_point.approved_by_user_id,
+            "approved_by_user": {
+                "id": approving_user.id,
+                "email": approving_user.email,
+                "first_name": approving_user.first_name,
+                "last_name": approving_user.last_name,
+                "display_name": _build_user_display_name(approving_user),
+            }
+            if approving_user
+            else None,
+            "provenance_references": (
+                _build_provenance_references_for_approved_safety_point(
+                    approved_safety_point=approved_safety_point,
+                    content_safety_point=content_safety_point,
+                )
+            ),
+            "additional_responses": responses,
+            "additional_response_count": len(responses),
+        }
+
+        flat_approved_safety_points.append(approved_safety_point_view)
+
+        section_view = sections_by_id.setdefault(
+            section_id,
+            {
+                "section_id": section_id,
+                "section_name": section_name,
+                "safe_methods": {},
+            },
+        )
+
+        safe_method_view = section_view["safe_methods"].setdefault(
+            safe_method_id,
+            {
+                "safe_method_id": safe_method_id,
+                "safe_method_name": safe_method_name,
+                "safety_points": [],
+            },
+        )
+
+        safe_method_view["safety_points"].append(approved_safety_point_view)
+
+    sections = []
+
+    for section_view in sections_by_id.values():
+        sections.append(
+            {
+                "section_id": section_view["section_id"],
+                "section_name": section_view["section_name"],
+                "safe_methods": list(section_view["safe_methods"].values()),
+            }
+        )
+
+    return {
+        "business_profile_id": business_profile_id,
+        "approved_safety_point_count": len(flat_approved_safety_points),
+        "sections": sections,
+        "approved_safety_points": flat_approved_safety_points,
+    }
 
 
 def record_approved_safety_point(

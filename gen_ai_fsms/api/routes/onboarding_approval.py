@@ -10,6 +10,7 @@ from gen_ai_fsms.api.routes.onboarding_screening import get_current_user_profile
 from gen_ai_fsms.db.models import User
 from gen_ai_fsms.db.models.onboarding_session import OnboardingSession
 from gen_ai_fsms.services.safety_point_approval_service import (
+    get_approved_methods_for_profile,
     get_condition_values_for_profile,
     get_relevant_safety_points_for_profile,
     get_screening_completion_status,
@@ -296,6 +297,20 @@ def resume_safety_point_approval(
     state = load_session_state(session)
 
     return build_approval_response(session, state)
+
+
+
+@router.get("/approved")
+def get_approved_safety_points(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    profile = get_current_user_profile(db, current_user)
+
+    return get_approved_methods_for_profile(
+        db=db,
+        business_profile_id=profile.id,
+    )
 
 
 @router.post("/reset")
