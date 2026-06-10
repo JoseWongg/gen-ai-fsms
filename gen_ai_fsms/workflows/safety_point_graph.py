@@ -50,6 +50,7 @@ class SafetyPointApprovalState(TypedDict, total=False):
     current_safety_point_view: Dict[str, Any]
     approval_progress: Dict[str, int]
     current_additional_question: Optional[Dict[str, Any]]
+    awaiting_additional_answers: bool
     condition_values: Dict[str, str]
     active_condition_count: int
     completed_active_condition_count: int
@@ -147,7 +148,11 @@ def _build_current_safety_point_view(
             "progress": progress,
         }
 
-    current_additional_question = _get_current_additional_question(state)
+    current_additional_question = (
+        _get_current_additional_question(state)
+        if state.get("awaiting_additional_answers")
+        else None
+    )
     state["current_additional_question"] = current_additional_question
 
     return {
@@ -216,7 +221,11 @@ def _set_current_safety_point_context(
     else:
         state["current_additional_question_index"] = None
 
-    state["current_additional_question"] = _get_current_additional_question(state)
+    state["current_additional_question"] = (
+        _get_current_additional_question(state)
+        if state.get("awaiting_additional_answers")
+        else None
+    )
     state["current_safety_point_view"] = _build_current_safety_point_view(state)
 
     return state
@@ -339,6 +348,7 @@ def create_safety_point_graph():
         state.setdefault("approval_chat_history", [])
         state.setdefault("clarification_turn_counts", {})
         state.setdefault("additional_answers", {})
+        state.setdefault("awaiting_additional_answers", False)
 
         if not relevant_safety_points:
             state["status"] = "completed"
@@ -404,7 +414,11 @@ def create_safety_point_graph():
         """Classify the admin's free-text response for workflow routing."""
         user_message = state.get("last_user_message")
         current_safety_point = state.get("current_safety_point")
-        current_additional_question = state.get("current_additional_question")
+        current_additional_question = (
+            state.get("current_additional_question")
+            if state.get("awaiting_additional_answers")
+            else None
+        )
 
         _append_approval_chat_message(
             state=state,
@@ -489,13 +503,16 @@ def create_safety_point_graph():
     def answer_clarification(
         state: SafetyPointApprovalState,
     ) -> SafetyPointApprovalState:
-        """Answer an admin's clarification question about the current safety point."""
+        """Answer an admin's clarification question in the current workflow context."""
         user_message = state.get("last_user_message")
         current_safety_point = state.get("current_safety_point")
+        awaiting_additional_answers = state.get("awaiting_additional_answers", False)
+        current_additional_question = state.get("current_additional_question")
 
         if not user_message:
             state["assistant_message"] = (
-                "Please ask a question about the current safety point."
+                "Please ask a question about the current safety point or required "
+                "additional question."
             )
             state["next_action"] = "awaiting_user_message"
             return state
@@ -513,17 +530,31 @@ def create_safety_point_graph():
             {},
         )
 
+        clarification_key = safety_point_id
+        if awaiting_additional_answers and current_additional_question:
+            question_key = current_additional_question.get("question_key")
+            if question_key:
+                clarification_key = f"{safety_point_id}:{question_key}"
+
         current_clarification_count = clarification_turn_counts.get(
-            safety_point_id,
+            clarification_key,
             0,
         )
 
         if current_clarification_count >= MAX_CLARIFICATION_TURNS_PER_SAFETY_POINT:
-            state["assistant_message"] = (
-                "This safety point still needs approval, but the clarification "
-                "limit for this pass has been reached. It will remain "
-                "unapproved and will be shown again later."
-            )
+            if awaiting_additional_answers:
+                state["assistant_message"] = (
+                    "This required additional question still needs an answer, but "
+                    "the clarification limit for this pass has been reached. The "
+                    "safety point will remain unapproved and will be shown again later."
+                )
+            else:
+                state["assistant_message"] = (
+                    "This safety point still needs approval, but the clarification "
+                    "limit for this pass has been reached. It will remain "
+                    "unapproved and will be shown again later."
+                )
+
             _append_approval_chat_message(
                 state=state,
                 role="assistant",
@@ -542,13 +573,28 @@ def create_safety_point_graph():
         )
 
         adapter = get_llm_adapter()
-        answer = adapter.answer_safety_point_question(
-            safety_point_text=safety_point_text,
-            safe_method_name=current_safety_point.get("safe_method_name", ""),
-            section_name=current_safety_point.get("section_name", ""),
-            condition_values=state.get("condition_values", {}),
-            user_question=user_message,
-        )
+
+        if awaiting_additional_answers and current_additional_question:
+            additional_question_text = current_additional_question.get(
+                "question_text",
+                "Please answer the required additional question.",
+            )
+            answer = adapter.answer_additional_question_clarification(
+                safety_point_text=safety_point_text,
+                safe_method_name=current_safety_point.get("safe_method_name", ""),
+                section_name=current_safety_point.get("section_name", ""),
+                condition_values=state.get("condition_values", {}),
+                additional_question_text=additional_question_text,
+                user_question=user_message,
+            )
+        else:
+            answer = adapter.answer_safety_point_question(
+                safety_point_text=safety_point_text,
+                safe_method_name=current_safety_point.get("safe_method_name", ""),
+                section_name=current_safety_point.get("section_name", ""),
+                condition_values=state.get("condition_values", {}),
+                user_question=user_message,
+            )
 
         messages = state.setdefault("current_q_and_a_messages", [])
         messages.append(
@@ -564,7 +610,7 @@ def create_safety_point_graph():
             }
         )
 
-        clarification_turn_counts[safety_point_id] = (
+        clarification_turn_counts[clarification_key] = (
             current_clarification_count + 1
         )
 
@@ -583,7 +629,6 @@ def create_safety_point_graph():
 
         return state    
 
-
     def collect_additional_answers(
         state: SafetyPointApprovalState,
     ) -> SafetyPointApprovalState:
@@ -592,28 +637,37 @@ def create_safety_point_graph():
         current_question = state.get("current_additional_question")
         pending_questions = state.get("pending_additional_questions", [])
 
-        if not pending_questions:
+        if not state.get("awaiting_additional_answers"):
             state["assistant_message"] = (
-                "There are no required additional questions for this safety point."
+                "There is no required additional question awaiting an answer."
             )
             state["last_user_message"] = None
             state["next_action"] = "awaiting_user_message"
+            state["current_response_intent"] = None
+            return state
+
+        if not pending_questions:
+            state["awaiting_additional_answers"] = False
+            state["current_additional_question_index"] = None
+            state["current_additional_question"] = None
+            state["last_user_message"] = None
+            state["next_action"] = "record_approval"
             state["current_response_intent"] = None
             return state
 
         if current_question is None:
-            state["assistant_message"] = (
-                "There is no current additional question to answer."
-            )
-            state["last_user_message"] = None
-            state["next_action"] = "awaiting_user_message"
-            state["current_response_intent"] = None
-            return state
+            state["current_additional_question_index"] = 0
+            state["current_additional_question"] = pending_questions[0]
+            current_question = state["current_additional_question"]
 
         if not user_message:
-            state["assistant_message"] = current_question.get(
+            question_text = current_question.get(
                 "question_text",
                 "Please answer the required additional question.",
+            )
+            state["assistant_message"] = (
+                "Before approval can be recorded, please answer this required "
+                f"additional question: {question_text}"
             )
             _append_approval_chat_message(
                 state=state,
@@ -638,24 +692,22 @@ def create_safety_point_graph():
         additional_answers = state.setdefault("additional_answers", {})
         additional_answers[question_key] = user_message
 
-        current_index = state.get("current_additional_question_index")
+        _set_current_safety_point_context(state)
 
-        if current_index is None:
-            current_index = 0
-
-        next_index = current_index + 1
-
-        remaining_questions = [
-            question for question in pending_questions
-            if question.get("question_key") not in additional_answers
-        ]
+        remaining_questions = state.get("pending_additional_questions", [])
 
         if remaining_questions:
+            state["awaiting_additional_answers"] = True
             state["current_additional_question_index"] = 0
             state["current_additional_question"] = remaining_questions[0]
-            state["assistant_message"] = remaining_questions[0].get(
+
+            question_text = remaining_questions[0].get(
                 "question_text",
                 "Please answer the next required additional question.",
+            )
+            state["assistant_message"] = (
+                "Additional information recorded. Please answer this next "
+                f"required additional question: {question_text}"
             )
             _append_approval_chat_message(
                 state=state,
@@ -663,30 +715,24 @@ def create_safety_point_graph():
                 content=state.get("assistant_message"),
                 message_type="additional_question",
             )
+            state["next_action"] = "awaiting_user_message"
         else:
+            state["awaiting_additional_answers"] = False
             state["current_additional_question_index"] = None
             state["current_additional_question"] = None
-            state["assistant_message"] = (
-                "Additional information recorded. You can now approve this "
-                "safety point if the business follows the displayed SFBB method."
-            )
+            state["assistant_message"] = "Additional information recorded."
             _append_approval_chat_message(
                 state=state,
                 role="assistant",
                 content=state.get("assistant_message"),
                 message_type="additional_answer_recorded",
             )
+            state["next_action"] = "record_approval"
 
         state["last_user_message"] = None
-        state["next_action"] = "awaiting_user_message"
         state["current_response_intent"] = None
-
-        _set_current_safety_point_context(state)
-
         return state
-    
 
-    
     def record_approval(
         state: SafetyPointApprovalState,
     ) -> SafetyPointApprovalState:
@@ -723,14 +769,21 @@ def create_safety_point_graph():
             return state
 
         _set_current_safety_point_context(state)
-
         pending_questions = state.get("pending_additional_questions", [])
 
         if pending_questions:
-            current_question = state.get("current_additional_question") or pending_questions[0]
-            state["assistant_message"] = current_question.get(
+            state["awaiting_additional_answers"] = True
+            state["current_additional_question_index"] = 0
+            state["current_additional_question"] = pending_questions[0]
+            state["current_safety_point_view"] = _build_current_safety_point_view(state)
+
+            question_text = pending_questions[0].get(
                 "question_text",
                 "Please answer the required additional question before approval.",
+            )
+            state["assistant_message"] = (
+                "Before approval can be recorded, please answer this required "
+                f"additional question: {question_text}"
             )
             _append_approval_chat_message(
                 state=state,
@@ -738,6 +791,7 @@ def create_safety_point_graph():
                 content=state.get("assistant_message"),
                 message_type="additional_question",
             )
+            state["last_user_message"] = None
             state["next_action"] = "awaiting_user_message"
             state["current_response_intent"] = None
             return state
@@ -773,12 +827,12 @@ def create_safety_point_graph():
             content=state.get("assistant_message"),
             message_type="approval_recorded",
         )
+
+        state["awaiting_additional_answers"] = False
         state["last_user_message"] = None
         state["current_response_intent"] = None
         state["next_action"] = "move_to_next_safety_point"
-
         return state
-
 
     def move_to_next_safety_point(
         state: SafetyPointApprovalState,
@@ -795,6 +849,7 @@ def create_safety_point_graph():
         state["pending_additional_questions"] = []
         state["current_additional_question_index"] = None
         state["current_additional_question"] = None
+        state["awaiting_additional_answers"] = False
         state["different_method_declared_message"] = None
 
         next_unapproved_index = None
@@ -918,6 +973,14 @@ def create_safety_point_graph():
         return END
 
 
+    def route_after_collect_additional_answers(
+        state: SafetyPointApprovalState,
+    ) -> str:
+        if state.get("next_action") == "record_approval":
+            return "record_approval"
+
+        return END
+
     def route_after_record_approval(state: SafetyPointApprovalState) -> str:
         if state.get("next_action") == "move_to_next_safety_point":
             return "move_to_next_safety_point"
@@ -985,7 +1048,14 @@ def create_safety_point_graph():
             END: END,
         },
     )
-    graph.add_edge("collect_additional_answers", END)
+    graph.add_conditional_edges(
+        "collect_additional_answers",
+        route_after_collect_additional_answers,
+        {
+            "record_approval": "record_approval",
+            END: END,
+        },
+    )
 
     graph.add_conditional_edges(
         "record_approval",

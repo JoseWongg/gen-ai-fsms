@@ -160,8 +160,11 @@ class LLMAdapter:
             {
                 "role": "system",
                 "content": (
-                    "You classify an admin user's free-text response in a food safety "
-                    "safety-point approval workflow.\n"
+                    "You classify the latest admin user's free-text response in a "
+                    "food safety safety-point approval workflow.\n"
+                    "Use the current safety point, pending additional question, and "
+                    "conversation history as context, but classify only the latest "
+                    "admin message.\n"
                     "You must return a JSON object with exactly these fields:\n"
                     "{\n"
                     '  "action": "approval" | "clarification_request" | '
@@ -170,24 +173,44 @@ class LLMAdapter:
                     '  "assistant_message": string or null\n'
                     "}\n"
                     "Rules:\n"
-                    "- Use action 'approval' only when the user clearly confirms that "
-                    "the business follows, accepts, or will use the displayed SFBB "
-                    "safety point.\n"
-                    "- Use action 'clarification_request' when the user asks a question "
-                    "or shows they need an explanation about the safety point.\n"
-                    "- Use action 'different_method_declared' when the user says or "
-                    "implies that the business does something differently from the "
-                    "displayed safety point.\n"
+                    "- Use action 'approval' when the user clearly confirms, accepts, "
+                    "agrees to follow, or directly asks the system to approve, confirm, "
+                    "record approval for, or proceed with the displayed SFBB safety point. "
+                    "The user does not need to repeat the full safety point wording if "
+                    "their approval intention is clear from the conversation. The workflow "
+                    "will separately decide whether required additional questions must be "
+                    "answered before approval can be recorded.\n"
                     "- Use action 'additional_answer' when there is a pending additional "
                     "question and the user appears to be answering that question.\n"
-                    "- Use action 'unclear' when the user's intention is not clear.\n"
+                    "- If there is a pending additional question and the latest message "
+                    "does not answer it, but instead gives a short confirmation such as "
+                    "'yes', 'yes please', or approval-like wording, use action 'unclear'. "
+                    "The assistant_message should explain that approval cannot be recorded "
+                    "until the required additional question is answered.\n"
+                    "- Use action 'clarification_request' when the user asks a question, "
+                    "asks for explanation, asks for advice, or makes a relevant operational "
+                    "or implementation statement that needs guidance before approval can "
+                    "be confirmed. Examples include statements about training employees, "
+                    "changing procedures, checking labels, correcting current practice, "
+                    "or asking what evidence would be acceptable.\n"
+                    "- Treat implementation comments such as 'we need to train employees "
+                    "to follow this rule' as 'clarification_request', not as approval and "
+                    "not as different_method_declared.\n"
+                    "- Use action 'different_method_declared' only when the user clearly "
+                    "states that the business will not follow the displayed SFBB safety "
+                    "point and will instead use a different method. Do not use it for "
+                    "comments about actions needed to comply with the displayed safety "
+                    "point.\n"
+                    "- Use action 'unclear' only when the user's intention is too vague "
+                    "or not relevant enough to route safely.\n"
                     "- Do not assess whether an alternative method is safe, compliant, "
                     "or equivalent.\n"
                     "- Do not approve any safety point.\n"
                     "- For 'different_method_declared', assistant_message should explain "
-                    "that alternative-method assessment is not available in this version "
-                    "and that approval can only be recorded if the business follows the "
-                    "displayed SFBB safety point.\n"
+                    "that this workflow can record approval only if the business follows "
+                    "the displayed SFBB safety point, and that the safety point will remain "
+                    "unapproved until the business confirms it will follow a compliant "
+                    "approach.\n"
                     "- For 'unclear', assistant_message should ask the user to clarify "
                     "whether they are approving the safety point, asking a question, "
                     "answering a required additional question, or stating that the "
@@ -199,16 +222,26 @@ class LLMAdapter:
             {
                 "role": "user",
                 "content": (
+                    "Current workflow context:\n"
                     f"Safety point:\n{safety_point_text}\n\n"
                     f"Pending additional question key: {pending_question_key}\n"
                     f"Pending additional question text: {pending_question_text}\n\n"
-                    f"Admin message:\n{user_message}"
+                    "The conversation history, if provided, follows this context. "
+                    "The latest admin message to classify will be provided after "
+                    "the history."
                 ),
             },
         ]
 
         if conversation_history:
             messages.extend(conversation_history)
+
+        messages.append(
+            {
+                "role": "user",
+                "content": f"Latest admin message to classify:\n{user_message}",
+            }
+        )
 
         try:
             response = self.client.chat.completions.create(
@@ -298,8 +331,17 @@ class LLMAdapter:
         )
         prompt = (
             f"{context}\n\n"
-            f"User question: {user_question}\n\n"
-            "Answer concisely and accurately based on the guidance above."
+            f"User message: {user_question}\n\n"
+            "Respond as a food safety adviser for this safety point. "
+            "Answer concisely and accurately based on the guidance above. "
+            "If the user makes a relevant operational or implementation statement "
+            "rather than asking a direct question, explain the practical implication "
+            "of that statement. "
+            "If the statement suggests an action needed to follow the safety point, "
+            "state that action clearly and ask whether the user wants to approve the "
+            "safety point on the basis that the business will follow it. "
+            "Do not record approval yourself. "
+            "Do not formally assess alternative methods as safe, compliant, or equivalent."
         )
         try:
             response = self.client.chat.completions.create(
@@ -314,6 +356,58 @@ class LLMAdapter:
         except Exception as e:
             logger.error("LLM error in answer_safety_point_question: %s", e)
             return "Sorry, I couldn't answer your question at this time."
+
+    def answer_additional_question_clarification(
+        self,
+        safety_point_text: str,
+        safe_method_name: str,
+        section_name: str,
+        condition_values: Dict[str, str],
+        additional_question_text: str,
+        user_question: str,
+    ) -> str:
+        """Answer a clarification question about a required additional question."""
+        if not self.client:
+            return "LLM not configured. Please check OPENAI_API_KEY."
+
+        true_conditions = [k for k, v in condition_values.items() if v == "true"]
+        context = (
+            f"Section: {section_name}\n"
+            f"Safe Method: {safe_method_name}\n"
+            f"Safety Point: {safety_point_text}\n\n"
+            f"Required additional question: {additional_question_text}\n\n"
+            f"Restaurant context (true conditions): {', '.join(true_conditions)}"
+        )
+
+        prompt = (
+            f"{context}\n\n"
+            f"User message: {user_question}\n\n"
+            "Respond as a food safety adviser, but focus only on helping the user "
+            "answer the required additional question. "
+            "If the user asks to repeat options, repeat the options stated in the "
+            "required additional question and only add safety-point context if it is "
+            "directly necessary. "
+            "Do not ask whether the user wants to approve the safety point, because "
+            "approval has already been attempted and is waiting for this required "
+            "additional answer. "
+            "End by asking the user to answer the required additional question by "
+            "stating what the business does."
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3
+            )
+            content = response.choices[0].message.content
+            if content is None:
+                return "Sorry, I could not answer your question at this time."
+            return content.strip()
+        except Exception as e:
+            logger.error("LLM error in answer_additional_question_clarification: %s", e)
+            return "Sorry, I couldn't answer your question at this time."
+
 
 
 _adapter = None

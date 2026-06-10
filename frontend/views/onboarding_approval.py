@@ -341,8 +341,6 @@ def show():
 
         return
 
-    render_required_additional_question(approval_session)
-
     st.markdown("---")
     render_messages()
     render_progress_indicator(approval_session)
