@@ -353,6 +353,8 @@ class LLMAdapter:
             "If the statement suggests an action needed to follow the safety point, "
             "state that action clearly and ask whether the user wants to approve the "
             "safety point on the basis that the business will follow it. "
+            "When you ask this approval question, put it in a separate final paragraph "
+            "after a blank line. "
             "Do not record approval yourself. "
             "Do not formally assess alternative methods as safe, compliant, or equivalent."
         )

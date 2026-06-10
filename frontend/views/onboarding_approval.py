@@ -353,6 +353,10 @@ def show():
             "viewed in the Food Safety section as Approved Methods."
         )
 
+        st.markdown("---")
+        render_messages()
+        render_progress_indicator(approval_session)
+
         if st.button("Reset and start over"):
             reset_approval()
 
