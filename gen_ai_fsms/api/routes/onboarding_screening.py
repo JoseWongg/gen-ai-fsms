@@ -29,7 +29,9 @@ from gen_ai_fsms.db.models import User
 from gen_ai_fsms.db.models.business_profile import BusinessProfile
 from gen_ai_fsms.db.models.condition import Condition
 from gen_ai_fsms.db.models.condition_value import ConditionValue
+from gen_ai_fsms.db.models.onboarding_session import OnboardingSession
 from gen_ai_fsms.services.screening_questions import get_next_question
+from gen_ai_fsms.services.safety_point_approval_service import reset_approved_methods_for_profile
 from gen_ai_fsms.services.session_service import (
     create_session,
     load_session,
@@ -588,16 +590,56 @@ def reset_screening(
 ):
     profile = get_current_user_profile(db, current_user)
 
-    session_obj = load_session(db, profile.id, "screening")
+    screening_sessions = (
+        db.query(OnboardingSession)
+        .filter(
+            OnboardingSession.business_profile_id == profile.id,
+            OnboardingSession.phase == "screening",
+        )
+        .all()
+    )
+    deleted_screening_session_count = len(screening_sessions)
 
-    if session_obj:
-        db.delete(session_obj)
-        db.commit()
+    for session in screening_sessions:
+        db.delete(session)
 
-    db.query(ConditionValue).filter_by(business_profile_id=profile.id).delete()
+    approval_sessions = (
+        db.query(OnboardingSession)
+        .filter(
+            OnboardingSession.business_profile_id == profile.id,
+            OnboardingSession.phase == "safety_point_approval",
+        )
+        .all()
+    )
+    deleted_approval_session_count = len(approval_sessions)
+
+    for session in approval_sessions:
+        db.delete(session)
+
+    deleted_condition_value_count = (
+        db.query(ConditionValue)
+        .filter_by(business_profile_id=profile.id)
+        .delete()
+    )
+
+    deleted_approved_safety_point_count = reset_approved_methods_for_profile(
+        db=db,
+        business_profile_id=profile.id,
+    )
+
     db.commit()
 
-    return {"message": "Screening reset successfully"}
+    return {
+        "business_profile_id": profile.id,
+        "deleted_screening_session_count": deleted_screening_session_count,
+        "deleted_approval_session_count": deleted_approval_session_count,
+        "deleted_condition_value_count": deleted_condition_value_count,
+        "deleted_approved_safety_point_count": deleted_approved_safety_point_count,
+        "message": (
+            "Food Safety Profile screening, FSMS Builder workflow, and "
+            "Approved Methods reset successfully."
+        ),
+    }
 
 
 @router.post("/resume")

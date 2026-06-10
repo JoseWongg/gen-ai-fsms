@@ -311,7 +311,7 @@ MENU_LABEL_TO_ROUTE = {
     "Recalls Log": "procurement_recalls_log",
     "Maintenance": "procurement_maintenance",
 
-    "Profile": "compliance_food_safety_profile",
+    "Profile Builder": "compliance_food_safety_profile",
     "FSMS Builder": "compliance_food_safety_fsms_builder",
     "Approved Methods": "compliance_food_safety_approved_methods",
     "FSMS Review": "compliance_food_safety_review",
@@ -382,7 +382,7 @@ def get_navigation_items():
         menu_items.append(
             sac.MenuItem("Compliance", icon="check-circle", children=[
                 sac.MenuItem("Food Safety", children=[
-                    sac.MenuItem("Profile"),
+                    sac.MenuItem("Profile Builder"),
                     sac.MenuItem("FSMS Builder"),
                         sac.MenuItem("FSMS Review"),
                 ]),
@@ -412,8 +412,7 @@ def get_navigation_items():
 
 
 def render_sidebar():
-    st.sidebar.title("Navigation")
-
+    
     user = st.session_state.user or {}
     display_name = user.get("first_name") or user.get("email", "User")
 

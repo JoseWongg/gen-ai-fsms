@@ -59,7 +59,6 @@ def show():
 
     def reset_screening():
         resp = api_request("POST", "/onboarding/screening/reset", token=token)
-
         if not resp or resp.status_code != 200:
             st.error("Failed to reset screening. Check backend logs.")
             return
@@ -72,7 +71,42 @@ def show():
         st.session_state.pending_screening_answer = None
         st.session_state.screening_ephemeral_status = None
         st.session_state.screening_ephemeral_after_index = None
+        st.session_state.screening_reset_confirmation_requested = False
+
+        st.session_state.approval_session = None
+        st.session_state.approval_messages = []
+        st.session_state.approval_processing = False
+        st.session_state.pending_approval_message = None
+        st.session_state.approval_ephemeral_status = None
+        st.session_state.approval_ephemeral_after_index = None
+        st.session_state.approval_just_completed = False
+
         st.rerun()
+
+    def render_reset_screening_controls():
+        if not st.session_state.screening_reset_confirmation_requested:
+            if st.button("Reset and start over"):
+                st.session_state.screening_reset_confirmation_requested = True
+                st.rerun()
+            return
+
+        st.warning(
+            "Resetting the Food Safety Profile will also reset the FSMS Builder "
+            "workflow and remove the currently approved food safety methods for "
+            "this business profile. This is because the approved methods depend "
+            "on the screening answers."
+        )
+
+        col_confirm, col_cancel = st.columns(2)
+
+        with col_confirm:
+            if st.button("Confirm reset"):
+                reset_screening()
+
+        with col_cancel:
+            if st.button("Cancel"):
+                st.session_state.screening_reset_confirmation_requested = False
+                st.rerun()
 
     def render_condition_values_table(condition_values):
         table = pd.DataFrame(condition_values)
@@ -149,6 +183,8 @@ def show():
 
     if "screening_ephemeral_after_index" not in st.session_state:
         st.session_state.screening_ephemeral_after_index = None
+    if "screening_reset_confirmation_requested" not in st.session_state:
+        st.session_state.screening_reset_confirmation_requested = False
 
     current = load_current_session()
     condition_values_response = load_condition_values()
@@ -185,13 +221,18 @@ def show():
                 else:
                     st.info("No condition values were found.")
 
-                if st.button("Reset and start over"):
-                    reset_screening()
-
+                render_reset_screening_controls()
                 return
 
         else:
-            if st.button("Start onboarding"):
+            st.info(
+                "This process gathers business-specific information to determine the "
+                "Food Safety Profile.\n\n"
+                "The answers are used to identify the conditions that later control "
+                "which relevant SFBB safety points are presented for assessment and approval."
+            )
+
+            if st.button("Start"):
                 new_session = start_session()
 
                 if new_session:
@@ -208,7 +249,6 @@ def show():
                     })
                     st.rerun()
 
-            st.info("Click 'Start onboarding' to begin the screening process.")
             return
 
     # Display conversation and any one-time status message in the correct position.
@@ -320,19 +360,17 @@ def show():
                 })
 
             elif action == "complete":
-                completion_message = data.get(
-                    "message",
-                    "Screening completed. Your responses have been recorded."
-                )
-
-                builder_message = (
-                    "You can now continue to the Food Safety Management System Builder, "
-                    "where the relevant safety points for your business will be reviewed and approved."
+                completion_message = (
+                    "Screening completed.\n\n"
+                    "Your responses have been recorded.\n\n"
+                    "You will be able to view the recorded condition values when you visit this page again.\n\n"
+                    "You can now continue to the Food Safety Management System Builder, where the relevant "
+                    "safety points for your business will be reviewed and approved."
                 )
 
                 st.session_state.screening_messages.append({
                     "role": "assistant",
-                    "content": f"{completion_message} {builder_message}"
+                    "content": completion_message
                 })
 
                 st.session_state.screening_complete = True
@@ -349,5 +387,4 @@ def show():
 
         st.rerun()
 
-    if st.button("Reset and start over"):
-        reset_screening()
+    render_reset_screening_controls()
