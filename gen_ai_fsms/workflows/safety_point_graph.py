@@ -304,7 +304,9 @@ def _set_current_safety_point_context(
         ):
             state["current_additional_question_index"] = 0
     else:
+        state["awaiting_additional_answers"] = False
         state["current_additional_question_index"] = None
+        state["current_additional_question"] = None
 
     state["current_additional_question"] = (
         _get_current_additional_question(state)
