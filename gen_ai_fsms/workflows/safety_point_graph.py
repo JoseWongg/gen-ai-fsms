@@ -7,6 +7,7 @@ workflow: the LLM may classify free-text responses and answer clarification
 questions, but it must not approve safety points or assess alternative methods.
 """
 
+import random
 from typing import Any, Dict, List, Optional, TypedDict
 from langgraph.graph import END, StateGraph
 
@@ -22,6 +23,89 @@ from gen_ai_fsms.services.safety_point_approval_service import (
 
 
 MAX_CLARIFICATION_TURNS_PER_SAFETY_POINT = 3
+
+
+SAFETY_POINT_PROMPT_INTROS = [
+    "Please now confirm if",
+    "State now whether",
+    "Let me know now if",
+    "I now need to know if",
+    "Now, indicate if",
+    "To continue, please respond whether",
+    "I now need you to tell me if",
+    "Now please confirm whether",
+    "Next, I need you to indicate whether",
+    "What I need next from you is to state if",
+]
+
+SAFETY_POINT_COMPLIANCE_VERBS = [
+    "follows",
+    "adheres to",
+    "observes",
+    "abides by",
+]
+
+
+def _select_non_repeating_index(
+    options: List[str],
+    previous_index: Optional[int],
+) -> int:
+    available_indexes = [
+        index
+        for index in range(len(options))
+        if index != previous_index
+    ]
+
+    return random.choice(
+        available_indexes or list(range(len(options)))
+    )
+
+
+def _build_safety_point_prompt(
+    state: "SafetyPointApprovalState",
+) -> str:
+    previous_intro_index = state.get("last_safety_point_prompt_intro_index")
+    selected_intro_index = _select_non_repeating_index(
+        SAFETY_POINT_PROMPT_INTROS,
+        previous_intro_index,
+    )
+    state["last_safety_point_prompt_intro_index"] = selected_intro_index
+
+    previous_verb_index = state.get("last_safety_point_prompt_verb_index")
+    selected_verb_index = _select_non_repeating_index(
+        SAFETY_POINT_COMPLIANCE_VERBS,
+        previous_verb_index,
+    )
+    state["last_safety_point_prompt_verb_index"] = selected_verb_index
+
+    intro = SAFETY_POINT_PROMPT_INTROS[selected_intro_index]
+    verb = SAFETY_POINT_COMPLIANCE_VERBS[selected_verb_index]
+
+    return (
+        f"{intro} the business {verb} the safety point above. "
+        "Alternatively, you can ask clarification questions."
+    )
+
+
+def _build_additional_question_prompt(
+    question_text: str,
+    is_next_question: bool = False,
+) -> str:
+    prefix = (
+        "Additional information recorded. Please answer this next required "
+        "additional question:"
+        if is_next_question
+        else "Before approval can be recorded, please answer this required "
+        "additional question:"
+    )
+
+    return (
+        f"{prefix}\n\n"
+        f"{question_text}\n\n"
+        "You can respond to the question or ask clarification questions."
+    )
+
+
 
 
 class SafetyPointApprovalState(TypedDict, total=False):
@@ -56,6 +140,7 @@ class SafetyPointApprovalState(TypedDict, total=False):
     completed_active_condition_count: int
     relevant_safety_point_count: int
     last_approved_safety_point_record: Dict[str, Any]
+    last_safety_point_prompt_intro_index: Optional[int]
 
 
 def _get_current_safety_point(
@@ -349,6 +434,8 @@ def create_safety_point_graph():
         state.setdefault("clarification_turn_counts", {})
         state.setdefault("additional_answers", {})
         state.setdefault("awaiting_additional_answers", False)
+        state.setdefault("last_safety_point_prompt_intro_index", None)
+        state.setdefault("last_safety_point_prompt_verb_index", None)
 
         if not relevant_safety_points:
             state["status"] = "completed"
@@ -389,11 +476,7 @@ def create_safety_point_graph():
         )
 
         if not state.get("last_user_message"):
-            safety_point_prompt = (
-                "Please confirm that the business will follow this safety point, "
-                "ask a clarification question, provide an answer to a required "
-                "additional question, or state that the business follows a different method."
-            )
+            safety_point_prompt = _build_safety_point_prompt(state)
 
             state["assistant_message"] = safety_point_prompt
 
@@ -665,9 +748,8 @@ def create_safety_point_graph():
                 "question_text",
                 "Please answer the required additional question.",
             )
-            state["assistant_message"] = (
-                "Before approval can be recorded, please answer this required "
-                f"additional question: {question_text}"
+            state["assistant_message"] = _build_additional_question_prompt(
+                question_text=question_text,
             )
             _append_approval_chat_message(
                 state=state,
@@ -705,9 +787,9 @@ def create_safety_point_graph():
                 "question_text",
                 "Please answer the next required additional question.",
             )
-            state["assistant_message"] = (
-                "Additional information recorded. Please answer this next "
-                f"required additional question: {question_text}"
+            state["assistant_message"] = _build_additional_question_prompt(
+                question_text=question_text,
+                is_next_question=True,
             )
             _append_approval_chat_message(
                 state=state,
@@ -781,9 +863,8 @@ def create_safety_point_graph():
                 "question_text",
                 "Please answer the required additional question before approval.",
             )
-            state["assistant_message"] = (
-                "Before approval can be recorded, please answer this required "
-                f"additional question: {question_text}"
+            state["assistant_message"] = _build_additional_question_prompt(
+                question_text=question_text,
             )
             _append_approval_chat_message(
                 state=state,
