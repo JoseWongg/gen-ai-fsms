@@ -49,16 +49,16 @@ def show():
         additional_responses = safety_point.get("additional_responses", [])
 
         if not additional_responses:
-            return "<p><em>No additional responses recorded.</em></p>"
+            return ""
 
         response_html = []
-
         for response in additional_responses:
             question = (
                 response.get("question_text")
                 or response.get("question_key")
                 or "Additional question"
             )
+
             answer = response.get("response_text") or "No response recorded."
 
             response_html.append(
@@ -90,27 +90,32 @@ def show():
         )
         responses_html = format_additional_responses(safety_point)
 
-        return dedent(f"""
-        <details class="approved-safety-point">
-            <summary>{html.escape(str(safety_point_id))}</summary>
-            <div class="safety-point-body">
-                <p><strong>Approved safety point</strong></p>
-                <div class="safety-point-text">{html.escape(str(safety_point_text))}</div>
-
-                <div class="metadata-grid">
-                    <div><strong>Approved by:</strong> {html.escape(str(approved_by_display))}</div>
-                    <div><strong>Approved at:</strong> {html.escape(str(approved_at))}</div>
-                </div>
-
-                <p><strong>Provenance</strong></p>
-                {provenance_html}
-
-                <details class="additional-responses">
+        additional_responses_section = ""
+        if responses_html:
+            additional_responses_section = dedent(f"""
+                <details class="approved-subsection">
                     <summary>Additional responses</summary>
                     {responses_html}
                 </details>
-            </div>
-        </details>
+            """).strip()
+
+        return dedent(f"""
+            <details class="approved-safety-point">
+                <summary>{html.escape(str(safety_point_id))}</summary>
+
+                <div class="approved-label">Approved safety point</div>
+                <div class="approved-text">{html.escape(str(safety_point_text))}</div>
+
+                <p><strong>Approved by:</strong> {html.escape(str(approved_by_display))}</p>
+                <p><strong>Approved at:</strong> {html.escape(str(approved_at))}</p>
+
+                <details class="approved-subsection">
+                    <summary>Provenance</summary>
+                    {provenance_html}
+                </details>
+
+                {additional_responses_section}
+            </details>
         """).strip()
 
     def format_approved_methods_html(approved_methods):
