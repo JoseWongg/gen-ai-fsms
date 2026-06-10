@@ -11,8 +11,8 @@ def show():
     st.title("Approved Food Safety Methods")
 
     user = st.session_state.get("user")
-    if not user or user.get("role") != "admin":
-        st.error("You must be an admin to access Approved Food Safety Methods.")
+    if not user:
+        st.error("You must be logged in to access Approved Food Safety Methods.")
         return
 
     token = st.session_state.get("token")

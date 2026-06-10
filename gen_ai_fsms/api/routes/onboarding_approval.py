@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from gen_ai_fsms.api.deps import get_db, require_admin
+from gen_ai_fsms.api.deps import get_current_user, get_db, require_admin
 from gen_ai_fsms.api.routes.onboarding_screening import get_current_user_profile
 from gen_ai_fsms.db.models import User
 from gen_ai_fsms.db.models.onboarding_session import OnboardingSession
@@ -304,7 +304,7 @@ def resume_safety_point_approval(
 @router.get("/approved")
 def get_approved_safety_points(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ):
     profile = get_current_user_profile(db, current_user)
 

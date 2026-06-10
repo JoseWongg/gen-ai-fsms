@@ -223,7 +223,7 @@ ROUTES = {
     "compliance_food_safety_approved_methods": {
         "title": "Approved Food Safety Methods",
         "view": approved_methods_page,
-        "admin_only": True,
+        "admin_only": False,
     },
     "compliance_food_safety_review": {
         "title": "Food Safety Management System Review",
@@ -339,6 +339,7 @@ def get_navigation_items():
 
     food_safety_children = [
         sac.MenuItem("Q&A"),
+        sac.MenuItem("Approved Methods"),
         sac.MenuItem("Allergens", children=[
             sac.MenuItem("Allergens Matrix"),
         ]),
@@ -365,8 +366,8 @@ def get_navigation_items():
         training_children[0].children.append(sac.MenuItem("Create a Quiz"))
         training_children.append(sac.MenuItem("Staff Training Records"))
 
-        food_safety_children[1].children.append(sac.MenuItem("Edit Allergens Matrix"))
-        food_safety_children[2].children.append(sac.MenuItem("Cleaning Schedule Builder"))
+        food_safety_children[2].children.append(sac.MenuItem("Edit Allergens Matrix"))
+        food_safety_children[3].children.append(sac.MenuItem("Cleaning Schedule Builder"))
 
         procurement_children.insert(1, sac.MenuItem("Invoices"))
         procurement_children.insert(2, sac.MenuItem("Recalls Log"))
@@ -383,8 +384,7 @@ def get_navigation_items():
                 sac.MenuItem("Food Safety", children=[
                     sac.MenuItem("Profile"),
                     sac.MenuItem("FSMS Builder"),
-                    sac.MenuItem("Approved Methods"),
-                    sac.MenuItem("FSMS Review"),
+                        sac.MenuItem("FSMS Review"),
                 ]),
                 sac.MenuItem("Health & Safety"),
                 sac.MenuItem("Fire Safety"),
