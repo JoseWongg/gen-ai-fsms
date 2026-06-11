@@ -10,7 +10,7 @@ from views.reset_password import show as reset_page
 from views.onboarding_screening import show as screening_page
 from views.onboarding_approval import show as approval_page
 from views.approved_methods import show as approved_methods_page
-
+from views.checklist import show as checklist_page
 
 # If a reset token is present in the URL, show the reset page immediately.
 query_params = st.query_params
@@ -113,7 +113,8 @@ ROUTES = {
     # Shift Management
     "shift_checklist": {
         "title": "Shift Management Checklist",
-        "message": "Opening, closing, prove-it and cleaning completion checklist for current shift.",
+        #"message": "Opening, closing, prove-it and cleaning completion checklist for current shift.",
+        "view": checklist_page,
         "admin_only": False,
     },
     "shift_diary": {
