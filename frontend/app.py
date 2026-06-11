@@ -105,7 +105,7 @@ def show_placeholder(title, message=None):
 
 ROUTES = {
     "dashboard": {
-        "title": "Dashboard",
+        "title": "",
         "view": dashboard_page,
         "admin_only": False,
     },
