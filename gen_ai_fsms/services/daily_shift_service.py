@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 from typing import Optional
 
@@ -101,6 +101,7 @@ def start_daily_shift(
         shift_date=shift_date,
         status=ACTIVE_STATUS,
         started_by_user_id=user_id,
+        started_at=datetime.now(SHIFT_TIMEZONE),
     )
 
     db.add(shift)
@@ -138,7 +139,7 @@ def end_daily_shift(
 
     active_shift.status = ENDED_STATUS
     active_shift.ended_by_user_id = user_id
-    active_shift.ended_at = datetime.now(timezone.utc)
+    active_shift.ended_at = datetime.now(SHIFT_TIMEZONE)
     active_shift.end_notes = end_notes
 
     db.commit()
