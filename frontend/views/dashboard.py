@@ -467,6 +467,125 @@ def load_fsms_builder_progress(token):
     }
 
 
+def load_daily_shift_state(token):
+    if not token:
+        return {
+            "state": "unavailable",
+            "shift": None,
+            "error": "Not signed in.",
+        }
+
+    response = api_request(
+        "GET",
+        "/daily-shifts/current",
+        token=token,
+    )
+
+    if response is None:
+        return {
+            "state": "unavailable",
+            "shift": None,
+            "error": "Daily shift status is unavailable.",
+        }
+
+    if response.status_code != 200:
+        return {
+            "state": "unavailable",
+            "shift": None,
+            "error": f"Daily shift status unavailable. HTTP {response.status_code}",
+        }
+
+    return response.json()
+
+
+def render_daily_shift_action(token):
+    shift_state = load_daily_shift_state(token)
+    state = shift_state.get("state")
+
+    if state == "active":
+        if st.button("End Shift", use_container_width=True):
+            st.session_state.show_end_shift_confirmation = True
+            st.rerun()
+
+        return
+
+    if state == "ended":
+        st.button(
+            "Start Shift",
+            use_container_width=True,
+            disabled=True,
+            help="A shift with today's date has already ended.",
+        )
+        return
+
+    if state == "no_shift_today":
+        if st.button("Start Shift", use_container_width=True):
+            response = api_request(
+                "POST",
+                "/daily-shifts/start",
+                token=token,
+            )
+
+            if response and response.status_code == 200:
+                st.success("Shift started.")
+                st.rerun()
+
+            if response is None:
+                st.error("Unable to start shift. The backend did not respond.")
+            elif response.status_code != 200:
+                detail = response.json().get("detail", "Unable to start shift.")
+                st.info(detail)
+
+        return
+
+    st.error(shift_state.get("error", "Unable to load daily shift status."))
+
+
+def render_end_shift_confirmation(token):
+    if not st.session_state.get("show_end_shift_confirmation"):
+        return
+
+    st.warning(
+        "Ending the shift will close the current operational shift. "
+        "Once ended, it cannot be restarted. A new shift can only be started "
+        "on a different start date."
+    )
+
+    end_notes = st.text_area(
+        "End-of-shift notes (optional)",
+        key="daily_shift_end_notes",
+    )
+
+    confirm_col, cancel_col = st.columns(2)
+
+    with confirm_col:
+        if st.button("Confirm End Shift", use_container_width=True):
+            response = api_request(
+                "POST",
+                "/daily-shifts/end",
+                json={"end_notes": end_notes or None},
+                token=token,
+            )
+
+            if response and response.status_code == 200:
+                st.session_state.show_end_shift_confirmation = False
+                st.session_state.pop("daily_shift_end_notes", None)
+                st.success("Shift ended.")
+                st.rerun()
+
+            if response is None:
+                st.error("Unable to end shift. The backend did not respond.")
+            elif response.status_code != 200:
+                detail = response.json().get("detail", "Unable to end shift.")
+                st.error(detail)
+
+    with cancel_col:
+        if st.button("Cancel", use_container_width=True):
+            st.session_state.show_end_shift_confirmation = False
+            st.session_state.pop("daily_shift_end_notes", None)
+            st.rerun()
+
+
 def workflow_card_html(workflow_data):
     progress_percentage = int(max(0, min(workflow_data["progress_percentage"], 100)))
     progress_degrees = round(progress_percentage * 3.6)
@@ -589,6 +708,9 @@ def show():
     if "show_recent_activity_log" not in st.session_state:
         st.session_state.show_recent_activity_log = False
 
+    if "show_end_shift_confirmation" not in st.session_state:
+        st.session_state.show_end_shift_confirmation = False
+
     token = st.session_state.get("token")
 
     st.markdown('<div class="top-spacer"></div>', unsafe_allow_html=True)
@@ -629,7 +751,7 @@ def show():
         <div class="status-grid">
             {workflow_card_html(profile_progress)}
             {workflow_card_html(fsms_progress)}
-            {dummy_status_card_html("DAY", "Diary Completion", "75%", "Today's entries")}
+            {dummy_status_card_html("DAY", "Diary Completion", "75%", "today's entries")}
             {dummy_status_card_html("TRN", "Staff Trained", "4", "Trained today", "green")}
             {dummy_status_card_html("INC", "Unresolved Incidents", "2", "Pending review")}
             {dummy_status_card_html("TMP", "Temp Alerts", "1", "Above safe limits", "red")}
@@ -651,13 +773,15 @@ def show():
             )
 
     with button_cols[1]:
-        st.button("End of Day", use_container_width=True, disabled=True)
+        render_daily_shift_action(token)
 
     with button_cols[2]:
         st.button("Generate Report", use_container_width=True, disabled=True)
 
     with button_cols[3]:
         st.button("EHO Inspection Documentation", use_container_width=True, disabled=True)
+
+    render_end_shift_confirmation(token)    
 
     if st.session_state.show_recent_activity_log:
         render_recent_activity_log()

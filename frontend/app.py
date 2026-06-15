@@ -1,6 +1,8 @@
 import streamlit as st
 import streamlit_antd_components as sac
 
+from shared import api_request
+
 from views.login import show as login_page
 from views.register import show as register_page
 from views.dashboard import show as dashboard_page
@@ -412,8 +414,62 @@ def get_navigation_items():
     return menu_items
 
 
+def load_sidebar_daily_shift_state():
+    token = st.session_state.get("token")
+
+    if not token:
+        return None
+
+    response = api_request(
+        "GET",
+        "/daily-shifts/current",
+        token=token,
+    )
+
+    if response is None or response.status_code != 200:
+        return None
+
+    return response.json()
+
+
+def format_shift_date(value):
+    if not value:
+        return "unknown date"
+
+    try:
+        year, month, day = value.split("-")
+        return f"{day}-{month}-{year}"
+    except ValueError:
+        return value
+
+
+def render_sidebar_shift_status():
+    shift_state = load_sidebar_daily_shift_state()
+
+    if not shift_state:
+        return
+
+    state = shift_state.get("state")
+    shift = shift_state.get("shift") or {}
+
+    if state == "active":
+        st.sidebar.info(
+            f"Active shift: {format_shift_date(shift.get('shift_date'))}\n\n"
+            f"Started by: {shift.get('started_by_name') or 'Unknown user'}"
+        )
+        return
+
+    if state == "ended":
+        st.sidebar.info(
+            f"Last ended shift: {format_shift_date(shift.get('shift_date'))}\n\n"
+            f"Ended by: {shift.get('ended_by_name') or 'Unknown user'}"
+        )
+
+
 def render_sidebar():
-    
+
+    render_sidebar_shift_status()
+
     user = st.session_state.user or {}
     display_name = user.get("first_name") or user.get("email", "User")
 

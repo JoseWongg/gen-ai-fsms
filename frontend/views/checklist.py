@@ -1,5 +1,7 @@
 import streamlit as st
 
+from shared import api_request
+
 
 OPENING_PROCEDURES = [
     {"Opening procedures": "Turn on all lights", "sign": ""},
@@ -247,9 +249,61 @@ def render_data_editor(data, key, height=None):
     )
 
 
+def load_daily_shift_state(token):
+    if not token:
+        return {
+            "state": "unavailable",
+            "shift": None,
+            "error": "Not signed in.",
+        }
+
+    response = api_request(
+        "GET",
+        "/daily-shifts/current",
+        token=token,
+    )
+
+    if response is None:
+        return {
+            "state": "unavailable",
+            "shift": None,
+            "error": "Daily shift status is unavailable.",
+        }
+
+    if response.status_code != 200:
+        return {
+            "state": "unavailable",
+            "shift": None,
+            "error": f"Daily shift status unavailable. HTTP {response.status_code}",
+        }
+
+    return response.json()
+
+
+def render_shift_state_guard(shift_state):
+    state = shift_state.get("state")
+    shift = shift_state.get("shift") or {}
+
+    if state == "active":
+        return True
+
+    if state in ("no_shift_today", "ended"):
+        st.info("No active shift. Start a shift from the dashboard before completing the checklist.")
+        return False
+
+    st.error(shift_state.get("error", "Unable to load daily shift status."))
+    return False
+
+
 def show():
     inject_checklist_styles()
     render_header()
+
+    token = st.session_state.get("token")
+    shift_state = load_daily_shift_state(token)
+
+    if not render_shift_state_guard(shift_state):
+        return
 
     left_col, right_col = st.columns([1, 1.15], gap="large")
 
