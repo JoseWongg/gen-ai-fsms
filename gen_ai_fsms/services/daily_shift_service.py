@@ -49,6 +49,23 @@ def get_current_shift_state(
     business_profile_id: int,
     shift_date: date,
 ) -> dict:
+    # Always check for an active shift first.
+    # A restaurant shift may continue past midnight, so the current calendar date
+    # should not hide a shift that was started on the previous date and is still running.
+    active_shift = get_active_shift(
+        db=db,
+        business_profile_id=business_profile_id,
+    )
+
+    if active_shift is not None:
+        return {
+            "state": ACTIVE_STATUS,
+            "shift": active_shift,
+        }
+
+    # The shift_date represents the date the shift was started.
+    # It is used to prevent duplicate shift starts for the same business profile
+    # on the same start date. It is not recalculated when a shift crosses midnight.
     today_shift = get_today_shift(
         db=db,
         business_profile_id=business_profile_id,
@@ -73,6 +90,8 @@ def start_daily_shift(
     user_id: int,
     shift_date: date,
 ) -> DailyShift:
+    # A new shift cannot be started while another shift is still active.
+    # This protects shifts that continue past midnight.
     active_shift = get_active_shift(
         db=db,
         business_profile_id=business_profile_id,
@@ -83,7 +102,9 @@ def start_daily_shift(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="A daily shift is already active for this business profile.",
         )
-
+    # The shift_date is the date the new shift is started.
+    # A second shift cannot be created for the same business profile
+    # with the same start date, even if the previous shift has already ended.
     today_shift = get_today_shift(
         db=db,
         business_profile_id=business_profile_id,
@@ -93,7 +114,7 @@ def start_daily_shift(
     if today_shift is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A daily shift already exists for today.",
+            detail="A daily shift already exists for this start date.",
         )
 
     shift = DailyShift(
