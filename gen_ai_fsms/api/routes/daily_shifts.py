@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import date
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from gen_ai_fsms.api.deps import get_current_user, get_db, require_admin
@@ -12,6 +15,7 @@ from gen_ai_fsms.services.daily_shift_service import (
     end_daily_shift,
     get_current_shift_date,
     get_current_shift_state,
+    list_daily_shifts,
     start_daily_shift,
 )
 
@@ -43,6 +47,22 @@ def get_current_daily_shift(
         shift_date=shift_date,
     )
 
+
+
+
+@router.get("/archive", response_model=list[DailyShiftResponse])
+def get_daily_shift_archive(
+    shift_date: Optional[date] = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    business_profile_id = get_current_business_profile_id(current_user)
+
+    return list_daily_shifts(
+        db=db,
+        business_profile_id=business_profile_id,
+        shift_date=shift_date,
+    )
 
 @router.post("/start", response_model=DailyShiftResponse)
 def start_current_daily_shift(

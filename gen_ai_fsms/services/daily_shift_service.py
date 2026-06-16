@@ -167,3 +167,24 @@ def end_daily_shift(
     db.refresh(active_shift)
 
     return active_shift
+
+def list_daily_shifts(
+    db: Session,
+    business_profile_id: int,
+    shift_date: Optional[date] = None,
+) -> list[DailyShift]:
+    query = db.query(DailyShift).filter(
+        DailyShift.business_profile_id == business_profile_id,
+    )
+
+    if shift_date is not None:
+        query = query.filter(DailyShift.shift_date == shift_date)
+
+    return (
+        query
+        .order_by(
+            DailyShift.shift_date.desc(),
+            DailyShift.started_at.desc(),
+        )
+        .all()
+    )

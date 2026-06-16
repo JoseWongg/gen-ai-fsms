@@ -13,6 +13,7 @@ from views.onboarding_screening import show as screening_page
 from views.onboarding_approval import show as approval_page
 from views.approved_methods import show as approved_methods_page
 from views.checklist import show as checklist_page
+from views.shift_archive import show as shift_archive_page
 
 # If a reset token is present in the URL, show the reset page immediately.
 query_params = st.query_params
@@ -130,15 +131,11 @@ ROUTES = {
         "admin_only": False,
     },
     "shift_archive": {
-        "title": "Diary Archive",
-        "message": (
-            "Repository of daily checklists and diary pages. Includes filter functionality "
-            "and AI-assisted search across the records."
-        ),
+        "title": "Shift Session Archive",
+        "view": shift_archive_page,
         "admin_only": False,
     },
 
-    # Training
     "training_food_safety_take_quiz": {
         "title": "Take a Food Safety Quiz",
         "message": None,
