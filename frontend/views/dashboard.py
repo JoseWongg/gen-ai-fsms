@@ -747,7 +747,7 @@ def show():
     fsms_progress = load_fsms_builder_progress(token)
 
     status_cards_html = f"""
-        <div class="section-title">Status Overview</div>
+        <div class="section-title"></div>
         <div class="status-grid">
             {workflow_card_html(profile_progress)}
             {workflow_card_html(fsms_progress)}
