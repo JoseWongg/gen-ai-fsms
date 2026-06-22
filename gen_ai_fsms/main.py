@@ -4,6 +4,7 @@ from gen_ai_fsms.api.routes import test_records_router, auth_router, users_route
 from gen_ai_fsms.api.routes.onboarding_screening import router as screening_router
 from gen_ai_fsms.api.routes.onboarding_approval import router as approval_router
 from gen_ai_fsms.api.routes.daily_shifts import router as daily_shifts_router
+from gen_ai_fsms.api.routes.chilling_equipment import router as chilling_equipment_router
 import os
 from dotenv import load_dotenv
 
@@ -29,6 +30,7 @@ app.include_router(admin_router)
 app.include_router(screening_router)
 app.include_router(approval_router)
 app.include_router(daily_shifts_router)
+app.include_router(chilling_equipment_router)
 
 @app.get("/")
 def root():
