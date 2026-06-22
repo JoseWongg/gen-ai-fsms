@@ -424,6 +424,469 @@ class LLMAdapter:
             return "Sorry, I couldn't answer your question at this time."
 
 
+    def extract_chilling_equipment_names(
+        self,
+        user_message: str,
+    ) -> Dict[str, Any]:
+        """
+        Extract chilling equipment names from the user's response.
+
+        This method is used only for safety point 4.1.1.3.
+        It does not collect equipment details.
+        """
+        fallback_message = (
+            "I need the names of the chilling equipment items used by the "
+            "business, such as Fridge 1, Freezer 1, or Chilled Display Unit 1. "
+            "Please list the equipment names only."
+        )
+
+        if not self.client:
+            return {
+                "has_usable_equipment_names": False,
+                "no_chilling_equipment_declared": False,
+                "equipment_names": [],
+                "reason": "LLM not configured",
+                "assistant_message": fallback_message,
+            }
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You extract chilling equipment names for a food safety "
+                    "workflow.\n"
+                    "Return only a JSON object with exactly these fields:\n"
+                    "{\n"
+                    '  "has_usable_equipment_names": boolean,\n'
+                    '  "no_chilling_equipment_declared": boolean,\n'
+                    '  "equipment_names": array of strings,\n'
+                    '  "reason": string,\n'
+                    '  "assistant_message": string or null\n'
+                    "}\n"
+                    "Rules:\n"
+                    "- The expected input is a list of chilling equipment names.\n"
+                    "- Chilling equipment includes fridges, freezers, chilled "
+                    "display units, chilled cabinets, walk-in fridges, walk-in "
+                    "freezers, and similar cold-holding equipment.\n"
+                    "- Extract only names explicitly stated or clearly implied by "
+                    "the user, such as Fridge 1, Freezer 1, Chilled Display Unit 1.\n"
+                    "- Do not invent equipment names.\n"
+                    "- If the user clearly states that the business has no chilling "
+                    "equipment, set no_chilling_equipment_declared to true and "
+                    "equipment_names to an empty array.\n"
+                    "- If the response is unrelated, nonsensical, or does not contain "
+                    "usable equipment names, set has_usable_equipment_names to false, "
+                    "equipment_names to an empty array, and assistant_message to a "
+                    "short request for equipment names only.\n"
+                    "- If one or more usable equipment names are present, set "
+                    "has_usable_equipment_names to true and assistant_message to null.\n"
+                    "- Remove duplicates while preserving the user's wording."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"User response:\n{user_message}",
+            },
+        ]
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.1,
+                response_format={"type": "json_object"},
+            )
+            content = response.choices[0].message.content
+
+            if content is None:
+                return {
+                    "has_usable_equipment_names": False,
+                    "no_chilling_equipment_declared": False,
+                    "equipment_names": [],
+                    "reason": "Empty response from LLM",
+                    "assistant_message": fallback_message,
+                }
+
+            result = json.loads(content)
+            raw_names = result.get("equipment_names") or []
+            equipment_names = []
+            seen_names = set()
+
+            for name in raw_names:
+                if not isinstance(name, str):
+                    continue
+
+                cleaned_name = name.strip()
+
+                if not cleaned_name:
+                    continue
+
+                lookup_key = cleaned_name.lower()
+
+                if lookup_key not in seen_names:
+                    equipment_names.append(cleaned_name)
+                    seen_names.add(lookup_key)
+
+            no_chilling_equipment_declared = bool(
+                result.get("no_chilling_equipment_declared")
+            )
+            has_usable_equipment_names = (
+                bool(equipment_names)
+                and not no_chilling_equipment_declared
+            )
+
+            return {
+                "has_usable_equipment_names": has_usable_equipment_names,
+                "no_chilling_equipment_declared": no_chilling_equipment_declared,
+                "equipment_names": equipment_names,
+                "reason": result.get("reason", ""),
+                "assistant_message": (
+                    result.get("assistant_message")
+                    if not has_usable_equipment_names
+                    and not no_chilling_equipment_declared
+                    else None
+                ),
+            }
+
+        except Exception as e:
+            logger.error("LLM error in extract_chilling_equipment_names: %s", e)
+            return {
+                "has_usable_equipment_names": False,
+                "no_chilling_equipment_declared": False,
+                "equipment_names": [],
+                "reason": f"API error: {e}",
+                "assistant_message": fallback_message,
+            }
+
+    def interpret_chilling_equipment_name_confirmation(
+        self,
+        captured_equipment_names: List[str],
+        user_message: str,
+    ) -> Dict[str, Any]:
+        """
+        Interpret whether the user confirms the captured equipment-name list.
+
+        If the user says the list is wrong and provides a corrected full list,
+        this method extracts that corrected list.
+        """
+        fallback_message = (
+            "Please confirm whether the captured chilling equipment list is "
+            "correct. If it is not correct, provide the full corrected list."
+        )
+
+        if not self.client:
+            return {
+                "confirmed": False,
+                "corrected_equipment_names": [],
+                "reason": "LLM not configured",
+                "assistant_message": fallback_message,
+            }
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You interpret whether a user confirms a captured list of "
+                    "chilling equipment names.\n"
+                    "Return only a JSON object with exactly these fields:\n"
+                    "{\n"
+                    '  "confirmed": boolean,\n'
+                    '  "corrected_equipment_names": array of strings,\n'
+                    '  "reason": string,\n'
+                    '  "assistant_message": string or null\n'
+                    "}\n"
+                    "Rules:\n"
+                    "- If the user clearly confirms that the captured list is "
+                    "correct, set confirmed to true.\n"
+                    "- If the user says the list is wrong and provides a full "
+                    "corrected list, set confirmed to false and extract the corrected "
+                    "equipment names.\n"
+                    "- If the user says the list is wrong but does not provide a "
+                    "corrected list, set confirmed to false and return an empty "
+                    "corrected_equipment_names array.\n"
+                    "- Do not invent equipment names.\n"
+                    "- Remove duplicates while preserving the user's wording.\n"
+                    "- Use assistant_message only when the user has not confirmed "
+                    "and has not provided a usable corrected list."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Captured equipment names:\n"
+                    f"{json.dumps(captured_equipment_names)}\n\n"
+                    f"User response:\n{user_message}"
+                ),
+            },
+        ]
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.1,
+                response_format={"type": "json_object"},
+            )
+            content = response.choices[0].message.content
+
+            if content is None:
+                return {
+                    "confirmed": False,
+                    "corrected_equipment_names": [],
+                    "reason": "Empty response from LLM",
+                    "assistant_message": fallback_message,
+                }
+
+            result = json.loads(content)
+            raw_names = result.get("corrected_equipment_names") or []
+            corrected_names = []
+            seen_names = set()
+
+            for name in raw_names:
+                if not isinstance(name, str):
+                    continue
+
+                cleaned_name = name.strip()
+
+                if not cleaned_name:
+                    continue
+
+                lookup_key = cleaned_name.lower()
+
+                if lookup_key not in seen_names:
+                    corrected_names.append(cleaned_name)
+                    seen_names.add(lookup_key)
+
+            confirmed = bool(result.get("confirmed"))
+
+            return {
+                "confirmed": confirmed,
+                "corrected_equipment_names": corrected_names,
+                "reason": result.get("reason", ""),
+                "assistant_message": (
+                    result.get("assistant_message")
+                    if not confirmed and not corrected_names
+                    else None
+                ),
+            }
+
+        except Exception as e:
+            logger.error(
+                "LLM error in interpret_chilling_equipment_name_confirmation: %s",
+                e,
+            )
+            return {
+                "confirmed": False,
+                "corrected_equipment_names": [],
+                "reason": f"API error: {e}",
+                "assistant_message": fallback_message,
+            }
+
+    def interpret_chilling_equipment_details(
+        self,
+        equipment_name: str,
+        user_message: str,
+        existing_details: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Interpret the required details for one chilling equipment item.
+        """
+        fallback_message = (
+            f"For {equipment_name}, please indicate whether it is a fridge or "
+            "freezer, whether it is used for storage or display, and whether its "
+            "temperature is checked using a permanent digital/dial display or a "
+            "food probe thermometer between packs of chilled food."
+        )
+
+        if not self.client:
+            return {
+                "equipment_type": None,
+                "equipment_use": None,
+                "temperature_check_method": None,
+                "missing_fields": [
+                    "equipment_type",
+                    "equipment_use",
+                    "temperature_check_method",
+                ],
+                "invalid_fields": [],
+                "is_complete": False,
+                "reason": "LLM not configured",
+                "assistant_message": fallback_message,
+            }
+
+        details_context = existing_details or {}
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You extract required details for one chilling equipment item "
+                    "in a food safety workflow.\n"
+                    "Return only a JSON object with exactly these fields:\n"
+                    "{\n"
+                    '  "equipment_type": "fridge" | "freezer" | null,\n'
+                    '  "equipment_use": "storage" | "display" | null,\n'
+                    '  "temperature_check_method": '
+                    '"digital_or_dial_display" | "probe_between_packs" | null,\n'
+                    '  "missing_fields": array of strings,\n'
+                    '  "invalid_fields": array of strings,\n'
+                    '  "is_complete": boolean,\n'
+                    '  "reason": string,\n'
+                    '  "assistant_message": string or null\n'
+                    "}\n"
+                    "Rules:\n"
+                    "- Extract details only for the named equipment item.\n"
+                    "- Use existing details if already provided and not contradicted.\n"
+                    "- equipment_type must be fridge or freezer.\n"
+                    "- equipment_use must be storage or display.\n"
+                    "- The word display in digital display or dial display is not "
+                    "equipment_use. It is part of the temperature checking method.\n"
+                    "- Set equipment_use to display only when the user clearly says "
+                    "the equipment is used to display food, show food to customers, "
+                    "or is a chilled display cabinet/unit/counter.\n"
+                    "- If the user says the equipment is used for storage, "
+                    "equipment_use must be storage even if the temperature is checked "
+                    "with a digital display.\n"
+                    "- temperature_check_method must be one of exactly two values.\n"
+                    "- Map permanent digital display, dial display, fridge thermometer, "
+                    "freezer thermometer, or a thermometer/display kept inside the unit "
+                    "to digital_or_dial_display.\n"
+                    "- Map checking between packs of chilled food with a food probe "
+                    "thermometer to probe_between_packs.\n"
+                    "- Do not accept touching food, guessing, smelling, general daily "
+                    "checking, or unspecified visual checking as a valid temperature "
+                    "check method.\n"
+                    "- If a required field is missing, include it in missing_fields.\n"
+                    "- If a required field is invalid, include it in invalid_fields.\n"
+                    "- is_complete must be true only when all three required fields "
+                    "are valid.\n"
+                    "- assistant_message should ask only for missing or invalid fields."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Equipment name:\n{equipment_name}\n\n"
+                    "Existing details, if any:\n"
+                    f"{json.dumps(details_context)}\n\n"
+                    f"User response:\n{user_message}"
+                ),
+            },
+        ]
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.1,
+                response_format={"type": "json_object"},
+            )
+            content = response.choices[0].message.content
+
+            if content is None:
+                return {
+                    "equipment_type": details_context.get("equipment_type"),
+                    "equipment_use": details_context.get("equipment_use"),
+                    "temperature_check_method": details_context.get(
+                        "temperature_check_method"
+                    ),
+                    "missing_fields": [
+                        "equipment_type",
+                        "equipment_use",
+                        "temperature_check_method",
+                    ],
+                    "invalid_fields": [],
+                    "is_complete": False,
+                    "reason": "Empty response from LLM",
+                    "assistant_message": fallback_message,
+                }
+
+            result = json.loads(content)
+
+            valid_equipment_types = {"fridge", "freezer"}
+            valid_equipment_uses = {"storage", "display"}
+            valid_methods = {
+                "digital_or_dial_display",
+                "probe_between_packs",
+            }
+
+            equipment_type = result.get("equipment_type")
+            equipment_use = result.get("equipment_use")
+            temperature_check_method = result.get("temperature_check_method")
+
+            if equipment_type not in valid_equipment_types:
+                equipment_type = None
+
+            if equipment_use not in valid_equipment_uses:
+                equipment_use = None
+
+            if temperature_check_method not in valid_methods:
+                temperature_check_method = None
+
+            missing_fields = []
+
+            if equipment_type is None:
+                missing_fields.append("equipment_type")
+
+            if equipment_use is None:
+                missing_fields.append("equipment_use")
+
+            if temperature_check_method is None:
+                missing_fields.append("temperature_check_method")
+
+            raw_invalid_fields = result.get("invalid_fields") or []
+            invalid_fields = [
+                field
+                for field in raw_invalid_fields
+                if field in {
+                    "equipment_type",
+                    "equipment_use",
+                    "temperature_check_method",
+                }
+            ]
+
+            is_complete = (
+                equipment_type is not None
+                and equipment_use is not None
+                and temperature_check_method is not None
+                and not invalid_fields
+            )
+
+            return {
+                "equipment_type": equipment_type,
+                "equipment_use": equipment_use,
+                "temperature_check_method": temperature_check_method,
+                "missing_fields": missing_fields,
+                "invalid_fields": invalid_fields,
+                "is_complete": is_complete,
+                "reason": result.get("reason", ""),
+                "assistant_message": (
+                    result.get("assistant_message")
+                    if not is_complete
+                    else None
+                ),
+            }
+
+        except Exception as e:
+            logger.error("LLM error in interpret_chilling_equipment_details: %s", e)
+            return {
+                "equipment_type": details_context.get("equipment_type"),
+                "equipment_use": details_context.get("equipment_use"),
+                "temperature_check_method": details_context.get(
+                    "temperature_check_method"
+                ),
+                "missing_fields": [
+                    "equipment_type",
+                    "equipment_use",
+                    "temperature_check_method",
+                ],
+                "invalid_fields": [],
+                "is_complete": False,
+                "reason": f"API error: {e}",
+                "assistant_message": fallback_message,
+            }
+
+
 
 _adapter = None
 

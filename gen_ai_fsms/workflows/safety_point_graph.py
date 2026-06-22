@@ -19,10 +19,15 @@ from gen_ai_fsms.services.safety_point_approval_service import (
     get_relevant_safety_points_for_profile,
     get_screening_completion_status,
     record_approved_safety_point,
+    save_chilling_equipment_items_for_profile,
 )
 
 
 MAX_CLARIFICATION_TURNS_PER_SAFETY_POINT = 3
+CHILLING_EQUIPMENT_QUESTION_KEY = "chilling_equipment_temperature_checks"
+CHILLING_EQUIPMENT_SOURCE_SAFETY_POINT_ID = "4.1.1.3"
+MAX_CHILLING_EQUIPMENT_NAME_ATTEMPTS = 3
+MAX_CHILLING_EQUIPMENT_DETAIL_ATTEMPTS = 3
 
 
 SAFETY_POINT_PROMPT_INTROS = [
@@ -141,6 +146,7 @@ class SafetyPointApprovalState(TypedDict, total=False):
     relevant_safety_point_count: int
     last_approved_safety_point_record: Dict[str, Any]
     last_safety_point_prompt_intro_index: Optional[int]
+    chilling_equipment_flow: Dict[str, Any]
 
 
 def _get_current_safety_point(
@@ -354,6 +360,304 @@ def _append_approval_chat_message(
     history.append(entry)
     state["approval_chat_history"] = history
 
+def _is_chilling_equipment_question(
+    question: Optional[Dict[str, Any]],
+) -> bool:
+    if not question:
+        return False
+
+    return question.get("question_key") == CHILLING_EQUIPMENT_QUESTION_KEY
+
+
+def _build_chilling_equipment_name_prompt() -> str:
+    return (
+        "Please list all chilling equipment currently used by the business, "
+        "such as Fridge 1, Freezer 1, or Chilled Display Unit 1. At this "
+        "stage, provide only the equipment names."
+    )
+
+
+def _build_chilling_equipment_confirmation_message(
+    equipment_names: List[str],
+) -> str:
+    numbered_names = "\n".join(
+        f"{index}. {equipment_name}"
+        for index, equipment_name in enumerate(equipment_names, start=1)
+    )
+
+    return (
+        "I have captured these chilling equipment units:\n\n"
+        f"{numbered_names}\n\n"
+        "If this is correct, I will proceed to request the required "
+        "information for each of them."
+    )
+
+
+def _build_chilling_equipment_corrected_list_prompt() -> str:
+    return (
+        "Please provide the full corrected list of chilling equipment names. "
+        "Include all units that should be considered, such as Fridge 1, "
+        "Freezer 1, or Chilled Display Unit 1."
+    )
+
+
+def _build_chilling_equipment_no_names_message() -> str:
+    return (
+        "No pieces of chilling equipment have been captured at this time. "
+        "We need to move on, so no chilling equipment items will be recorded "
+        "from this safety point at this stage."
+    )
+
+
+def _build_chilling_equipment_detail_prompt(
+    equipment_name: str,
+) -> str:
+    return (
+        f"For {equipment_name}, please indicate:\n"
+        "1. whether it is a fridge or freezer\n"
+        "2. whether it is used for storage or display\n"
+        "3. whether its temperature is checked using a permanent digital/dial "
+        "display or using a food probe thermometer between packs of chilled food"
+    )
+
+
+def _build_chilling_equipment_missing_detail_prompt(
+    equipment_name: str,
+    assistant_message: Optional[str] = None,
+) -> str:
+    if assistant_message:
+        return assistant_message
+
+    return (
+        f"For {equipment_name}, I still need the missing required information. "
+        "Please state whether it is a fridge or freezer, whether it is used "
+        "for storage or display, and whether its temperature is checked using "
+        "a permanent digital/dial display or a food probe thermometer between "
+        "packs of chilled food."
+    )
+
+
+def _build_chilling_equipment_item_skipped_message(
+    equipment_name: str,
+) -> str:
+    return (
+        f"We need to move on. The information for {equipment_name} is still "
+        "incomplete, so this item will not be recorded in the chilling "
+        "equipment setup at this stage."
+    )
+
+
+def _build_chilling_equipment_items(
+    equipment_names: List[str],
+) -> List[Dict[str, Any]]:
+    return [
+        {
+            "equipment_name": equipment_name,
+            "equipment_type": None,
+            "equipment_use": None,
+            "temperature_check_method": None,
+            "attempt_count": 0,
+            "is_complete": False,
+        }
+        for equipment_name in equipment_names
+    ]
+
+
+def _get_or_create_chilling_equipment_flow(
+    state: SafetyPointApprovalState,
+) -> Dict[str, Any]:
+    flow = state.setdefault(
+        "chilling_equipment_flow",
+        {
+            "question_key": CHILLING_EQUIPMENT_QUESTION_KEY,
+            "source_safety_point_id": CHILLING_EQUIPMENT_SOURCE_SAFETY_POINT_ID,
+            "phase": "collect_names",
+            "name_attempt_count": 0,
+            "captured_equipment_names": [],
+            "confirmed_equipment_names": [],
+            "items": [],
+            "current_item_index": 0,
+            "saved_result": None,
+        },
+    )
+
+    flow.setdefault("question_key", CHILLING_EQUIPMENT_QUESTION_KEY)
+    flow.setdefault(
+        "source_safety_point_id",
+        CHILLING_EQUIPMENT_SOURCE_SAFETY_POINT_ID,
+    )
+    flow.setdefault("phase", "collect_names")
+    flow.setdefault("name_attempt_count", 0)
+    flow.setdefault("captured_equipment_names", [])
+    flow.setdefault("confirmed_equipment_names", [])
+    flow.setdefault("items", [])
+    flow.setdefault("current_item_index", 0)
+    flow.setdefault("saved_result", None)
+
+    return flow
+
+
+def _get_incomplete_chilling_equipment_items(
+    flow: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    return [
+        item
+        for item in flow.get("items", [])
+        if not item.get("is_complete")
+    ]
+
+
+def _get_complete_chilling_equipment_items(
+    flow: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    return [
+        item
+        for item in flow.get("items", [])
+        if item.get("is_complete")
+    ]
+
+
+def _find_next_incomplete_chilling_equipment_index(
+    flow: Dict[str, Any],
+) -> Optional[int]:
+    items = flow.get("items", [])
+    current_index = flow.get("current_item_index", 0)
+
+    for index in range(current_index, len(items)):
+        if (
+            not items[index].get("is_complete")
+            and not items[index].get("skipped_in_current_pass")
+        ):
+            return index
+
+    for index, item in enumerate(items):
+        if (
+            not item.get("is_complete")
+            and not item.get("skipped_in_current_pass")
+        ):
+            return index
+
+    return None
+
+def _build_chilling_equipment_summary(
+    complete_items: List[Dict[str, Any]],
+    incomplete_items: List[Dict[str, Any]],
+) -> str:
+    if complete_items:
+        recorded_lines = "\n".join(
+            f"{index}. {item.get('equipment_name')}"
+            for index, item in enumerate(complete_items, start=1)
+        )
+    else:
+        recorded_lines = "None"
+
+    if incomplete_items:
+        incomplete_lines = "\n".join(
+            f"{index}. {item.get('equipment_name')}"
+            for index, item in enumerate(incomplete_items, start=1)
+        )
+    else:
+        incomplete_lines = "None"
+
+    return (
+        "The following chilling equipment items will be recorded:\n"
+        f"{recorded_lines}\n\n"
+        "The following chilling equipment items will not be recorded because "
+        "required information is incomplete:\n"
+        f"{incomplete_lines}"
+    )
+
+
+def _build_chilling_equipment_additional_answer_summary(
+    complete_items: List[Dict[str, Any]],
+) -> str:
+    if not complete_items:
+        return "No chilling equipment items were recorded."
+
+    lines = []
+
+    for item in complete_items:
+        lines.append(
+            "- "
+            f"{item.get('equipment_name')}: "
+            f"{item.get('equipment_type')}, "
+            f"{item.get('equipment_use')}, "
+            f"{item.get('temperature_check_method')}"
+        )
+
+    return "Chilling equipment recorded:\n" + "\n".join(lines)
+
+
+def _reset_incomplete_chilling_equipment_attempts(
+    flow: Dict[str, Any],
+) -> None:
+    for item in flow.get("items", []):
+        if not item.get("is_complete"):
+            item["attempt_count"] = 0
+            item["skipped_in_current_pass"] = False
+
+
+def _finalize_chilling_equipment_flow(
+    state: SafetyPointApprovalState,
+    flow: Dict[str, Any],
+) -> SafetyPointApprovalState:
+    complete_items = _get_complete_chilling_equipment_items(flow)
+    incomplete_items = _get_incomplete_chilling_equipment_items(flow)
+
+    state["assistant_message"] = _build_chilling_equipment_summary(
+        complete_items=complete_items,
+        incomplete_items=incomplete_items,
+    )
+
+    db = SessionLocal()
+
+    try:
+        saved_result = save_chilling_equipment_items_for_profile(
+            db=db,
+            business_profile_id=state["business_profile_id"],
+            equipment_items=complete_items,
+            source_safety_point_id=(
+                CHILLING_EQUIPMENT_SOURCE_SAFETY_POINT_ID
+            ),
+        )
+        db.commit()
+        flow["saved_result"] = saved_result
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+    if incomplete_items:
+        _reset_incomplete_chilling_equipment_attempts(flow)
+        _append_approval_chat_message(
+            state=state,
+            role="assistant",
+            content=state.get("assistant_message"),
+            message_type="chilling_equipment_incomplete_summary",
+        )
+        state["last_user_message"] = None
+        state["current_response_intent"] = None
+        state["next_action"] = "move_to_next_safety_point"
+        return state
+
+    additional_answers = state.setdefault("additional_answers", {})
+    additional_answers[CHILLING_EQUIPMENT_QUESTION_KEY] = (
+        _build_chilling_equipment_additional_answer_summary(complete_items)
+    )
+
+    _append_approval_chat_message(
+        state=state,
+        role="assistant",
+        content=state.get("assistant_message"),
+        message_type="chilling_equipment_complete_summary",
+    )
+    state["last_user_message"] = None
+    state["current_response_intent"] = None
+    state["next_action"] = "record_approval"
+    return state
+
+
 def create_safety_point_graph():
     """Build and return the compiled safety point approval graph."""
     graph = StateGraph(SafetyPointApprovalState)
@@ -536,6 +840,11 @@ def create_safety_point_graph():
             or ""
         )
 
+        if _is_chilling_equipment_question(current_additional_question):
+            state["current_response_intent"] = "additional_answer"
+            state["next_action"] = "additional_answer"
+            return state
+
         adapter = get_llm_adapter()
         result = adapter.interpret_safety_point_response(
             safety_point_text=safety_point_text,
@@ -714,6 +1023,337 @@ def create_safety_point_graph():
 
         return state    
 
+    def collect_chilling_equipment(
+        state: SafetyPointApprovalState,
+    ) -> SafetyPointApprovalState:
+        """Collect chilling equipment details for safety point 4.1.1.3."""
+        user_message = state.get("last_user_message")
+        current_question = state.get("current_additional_question")
+
+        if not _is_chilling_equipment_question(current_question):
+            state["assistant_message"] = (
+                "The current additional question is not a chilling equipment "
+                "setup question."
+            )
+            state["last_user_message"] = None
+            state["next_action"] = "awaiting_user_message"
+            state["current_response_intent"] = None
+            return state
+
+        flow = _get_or_create_chilling_equipment_flow(state)
+        adapter = get_llm_adapter()
+
+        if not user_message:
+            if flow.get("confirmed_equipment_names"):
+                flow["phase"] = "collect_details"
+                next_index = _find_next_incomplete_chilling_equipment_index(flow)
+
+                if next_index is not None:
+                    flow["current_item_index"] = next_index
+                    current_item = flow["items"][next_index]
+                    state["assistant_message"] = _build_chilling_equipment_detail_prompt(
+                        current_item["equipment_name"]
+                    )
+                else:
+                    return _finalize_chilling_equipment_flow(
+                        state=state,
+                        flow=flow,
+                    )
+            else:
+                flow["phase"] = "collect_names"
+                state["assistant_message"] = _build_chilling_equipment_name_prompt()
+
+            _append_approval_chat_message(
+                state=state,
+                role="assistant",
+                content=state.get("assistant_message"),
+                message_type="chilling_equipment_question",
+            )
+            state["next_action"] = "awaiting_user_message"
+            state["current_response_intent"] = None
+            return state
+
+        phase = flow.get("phase", "collect_names")
+
+        if phase == "collect_names":
+            result = adapter.extract_chilling_equipment_names(user_message)
+
+            if result.get("no_chilling_equipment_declared"):
+                additional_answers = state.setdefault("additional_answers", {})
+                additional_answers[CHILLING_EQUIPMENT_QUESTION_KEY] = (
+                    "The business stated that it does not use chilling equipment."
+                )
+
+                state["awaiting_additional_answers"] = False
+                state["current_additional_question_index"] = None
+                state["current_additional_question"] = None
+                state["assistant_message"] = (
+                    "No chilling equipment items will be recorded because the "
+                    "business stated that it does not use chilling equipment."
+                )
+                _append_approval_chat_message(
+                    state=state,
+                    role="assistant",
+                    content=state.get("assistant_message"),
+                    message_type="chilling_equipment_no_equipment_declared",
+                )
+                state["last_user_message"] = None
+                state["current_response_intent"] = None
+                state["next_action"] = "record_approval"
+                return state
+
+            flow["name_attempt_count"] = flow.get("name_attempt_count", 0) + 1
+
+            if result.get("has_usable_equipment_names"):
+                captured_names = result.get("equipment_names", [])
+                flow["captured_equipment_names"] = captured_names
+                flow["phase"] = "confirm_names"
+
+                state["assistant_message"] = (
+                    _build_chilling_equipment_confirmation_message(captured_names)
+                )
+                _append_approval_chat_message(
+                    state=state,
+                    role="assistant",
+                    content=state.get("assistant_message"),
+                    message_type="chilling_equipment_names_captured",
+                )
+                state["last_user_message"] = None
+                state["current_response_intent"] = None
+                state["next_action"] = "awaiting_user_message"
+                return state
+
+            if flow["name_attempt_count"] >= MAX_CHILLING_EQUIPMENT_NAME_ATTEMPTS:
+                state["assistant_message"] = _build_chilling_equipment_no_names_message()
+                flow["phase"] = "collect_names"
+                flow["name_attempt_count"] = 0
+                flow["captured_equipment_names"] = []
+                flow["confirmed_equipment_names"] = []
+                flow["items"] = []
+
+                _append_approval_chat_message(
+                    state=state,
+                    role="assistant",
+                    content=state.get("assistant_message"),
+                    message_type="chilling_equipment_names_failed",
+                )
+                state["last_user_message"] = None
+                state["current_response_intent"] = None
+                state["next_action"] = "move_to_next_safety_point"
+                return state
+
+            state["assistant_message"] = (
+                result.get("assistant_message")
+                or _build_chilling_equipment_name_prompt()
+            )
+            _append_approval_chat_message(
+                state=state,
+                role="assistant",
+                content=state.get("assistant_message"),
+                message_type="chilling_equipment_names_retry",
+            )
+            state["last_user_message"] = None
+            state["current_response_intent"] = None
+            state["next_action"] = "awaiting_user_message"
+            return state
+
+        if phase == "confirm_names":
+            captured_names = flow.get("captured_equipment_names", [])
+            result = adapter.interpret_chilling_equipment_name_confirmation(
+                captured_equipment_names=captured_names,
+                user_message=user_message,
+            )
+
+            if result.get("confirmed") and captured_names:
+                flow["confirmed_equipment_names"] = captured_names
+                flow["items"] = _build_chilling_equipment_items(captured_names)
+                flow["current_item_index"] = 0
+                flow["phase"] = "collect_details"
+
+                current_item = flow["items"][0]
+                state["assistant_message"] = _build_chilling_equipment_detail_prompt(
+                    current_item["equipment_name"]
+                )
+                _append_approval_chat_message(
+                    state=state,
+                    role="assistant",
+                    content=state.get("assistant_message"),
+                    message_type="chilling_equipment_detail_question",
+                )
+                state["last_user_message"] = None
+                state["current_response_intent"] = None
+                state["next_action"] = "awaiting_user_message"
+                return state
+
+            flow["name_attempt_count"] = flow.get("name_attempt_count", 0) + 1
+
+            corrected_names = result.get("corrected_equipment_names", [])
+
+            if corrected_names and flow["name_attempt_count"] < MAX_CHILLING_EQUIPMENT_NAME_ATTEMPTS:
+                flow["captured_equipment_names"] = corrected_names
+                state["assistant_message"] = (
+                    _build_chilling_equipment_confirmation_message(corrected_names)
+                )
+                _append_approval_chat_message(
+                    state=state,
+                    role="assistant",
+                    content=state.get("assistant_message"),
+                    message_type="chilling_equipment_names_corrected",
+                )
+                state["last_user_message"] = None
+                state["current_response_intent"] = None
+                state["next_action"] = "awaiting_user_message"
+                return state
+
+            if flow["name_attempt_count"] >= MAX_CHILLING_EQUIPMENT_NAME_ATTEMPTS:
+                state["assistant_message"] = _build_chilling_equipment_no_names_message()
+                flow["phase"] = "collect_names"
+                flow["name_attempt_count"] = 0
+                flow["captured_equipment_names"] = []
+                flow["confirmed_equipment_names"] = []
+                flow["items"] = []
+
+                _append_approval_chat_message(
+                    state=state,
+                    role="assistant",
+                    content=state.get("assistant_message"),
+                    message_type="chilling_equipment_names_failed",
+                )
+                state["last_user_message"] = None
+                state["current_response_intent"] = None
+                state["next_action"] = "move_to_next_safety_point"
+                return state
+
+            state["assistant_message"] = (
+                result.get("assistant_message")
+                or _build_chilling_equipment_corrected_list_prompt()
+            )
+            _append_approval_chat_message(
+                state=state,
+                role="assistant",
+                content=state.get("assistant_message"),
+                message_type="chilling_equipment_names_confirmation_retry",
+            )
+            state["last_user_message"] = None
+            state["current_response_intent"] = None
+            state["next_action"] = "awaiting_user_message"
+            return state
+
+        if phase == "collect_details":
+            next_index = _find_next_incomplete_chilling_equipment_index(flow)
+
+            if next_index is None:
+                return _finalize_chilling_equipment_flow(
+                    state=state,
+                    flow=flow,
+                )
+
+            flow["current_item_index"] = next_index
+            current_item = flow["items"][next_index]
+            current_item["attempt_count"] = current_item.get("attempt_count", 0) + 1
+
+            result = adapter.interpret_chilling_equipment_details(
+                equipment_name=current_item["equipment_name"],
+                user_message=user_message,
+                existing_details=current_item,
+            )
+
+            for field_name in (
+                "equipment_type",
+                "equipment_use",
+                "temperature_check_method",
+            ):
+                if result.get(field_name):
+                    current_item[field_name] = result[field_name]
+
+            current_item["is_complete"] = bool(result.get("is_complete"))
+
+            if current_item["is_complete"]:
+                following_index = _find_next_incomplete_chilling_equipment_index(flow)
+
+                if following_index is not None:
+                    flow["current_item_index"] = following_index
+                    following_item = flow["items"][following_index]
+                    state["assistant_message"] = _build_chilling_equipment_detail_prompt(
+                        following_item["equipment_name"]
+                    )
+                    _append_approval_chat_message(
+                        state=state,
+                        role="assistant",
+                        content=state.get("assistant_message"),
+                        message_type="chilling_equipment_detail_question",
+                    )
+                    state["last_user_message"] = None
+                    state["current_response_intent"] = None
+                    state["next_action"] = "awaiting_user_message"
+                    return state
+
+                state["last_user_message"] = None
+                state["current_response_intent"] = None
+                state["next_action"] = "collect_chilling_equipment"
+                return state
+
+            if current_item["attempt_count"] >= MAX_CHILLING_EQUIPMENT_DETAIL_ATTEMPTS:
+                current_item["skipped_in_current_pass"] = True
+                following_index = _find_next_incomplete_chilling_equipment_index(flow)
+
+                skipped_message = _build_chilling_equipment_item_skipped_message(
+                    current_item["equipment_name"]
+                )
+
+                if following_index is not None:
+                    flow["current_item_index"] = following_index
+                    following_item = flow["items"][following_index]
+                    state["assistant_message"] = (
+                        f"{skipped_message}\n\n"
+                        f"{_build_chilling_equipment_detail_prompt(following_item['equipment_name'])}"
+                    )
+                    _append_approval_chat_message(
+                        state=state,
+                        role="assistant",
+                        content=state.get("assistant_message"),
+                        message_type="chilling_equipment_item_skipped",
+                    )
+                    state["last_user_message"] = None
+                    state["current_response_intent"] = None
+                    state["next_action"] = "awaiting_user_message"
+                    return state
+
+                state["assistant_message"] = skipped_message
+                _append_approval_chat_message(
+                    state=state,
+                    role="assistant",
+                    content=state.get("assistant_message"),
+                    message_type="chilling_equipment_item_skipped",
+                )
+                state["last_user_message"] = None
+                state["current_response_intent"] = None
+                state["next_action"] = "collect_chilling_equipment"
+                return state
+
+            state["assistant_message"] = _build_chilling_equipment_missing_detail_prompt(
+                equipment_name=current_item["equipment_name"],
+                assistant_message=result.get("assistant_message"),
+            )
+            _append_approval_chat_message(
+                state=state,
+                role="assistant",
+                content=state.get("assistant_message"),
+                message_type="chilling_equipment_detail_retry",
+            )
+            state["last_user_message"] = None
+            state["current_response_intent"] = None
+            state["next_action"] = "awaiting_user_message"
+            return state
+
+        state["assistant_message"] = _build_chilling_equipment_name_prompt()
+        flow["phase"] = "collect_names"
+        state["last_user_message"] = None
+        state["current_response_intent"] = None
+        state["next_action"] = "awaiting_user_message"
+        return state
+
+
     def collect_additional_answers(
         state: SafetyPointApprovalState,
     ) -> SafetyPointApprovalState:
@@ -861,7 +1501,61 @@ def create_safety_point_graph():
             state["current_additional_question"] = pending_questions[0]
             state["current_safety_point_view"] = _build_current_safety_point_view(state)
 
-            question_text = pending_questions[0].get(
+            current_question = pending_questions[0]
+
+            if _is_chilling_equipment_question(current_question):
+                flow = _get_or_create_chilling_equipment_flow(state)
+
+                if flow.get("confirmed_equipment_names"):
+                    flow["phase"] = "collect_details"
+                    next_index = _find_next_incomplete_chilling_equipment_index(
+                        flow
+                    )
+
+                    if next_index is not None:
+                        flow["current_item_index"] = next_index
+                        current_item = flow["items"][next_index]
+                        confirmed_lines = "\n".join(
+                            f"{index}. {equipment_name}"
+                            for index, equipment_name in enumerate(
+                                flow.get("confirmed_equipment_names", []),
+                                start=1,
+                            )
+                        )
+
+                        state["assistant_message"] = (
+                            "The following chilling equipment units were "
+                            "previously confirmed for this safety point:\n\n"
+                            f"{confirmed_lines}\n\n"
+                            "Some required information is still missing. I will "
+                            "ask only for the missing details for the remaining "
+                            "equipment items.\n\n"
+                            f"{_build_chilling_equipment_detail_prompt(current_item['equipment_name'])}"
+                        )
+                    else:
+                        state["assistant_message"] = (
+                            "All previously confirmed chilling equipment items "
+                            "appear to have complete details. Please send your "
+                            "approval again so the safety point can be recorded."
+                        )
+                else:
+                    flow["phase"] = "collect_names"
+                    state["assistant_message"] = (
+                        _build_chilling_equipment_name_prompt()
+                    )
+
+                _append_approval_chat_message(
+                    state=state,
+                    role="assistant",
+                    content=state.get("assistant_message"),
+                    message_type="chilling_equipment_question",
+                )
+                state["last_user_message"] = None
+                state["next_action"] = "awaiting_user_message"
+                state["current_response_intent"] = None
+                return state
+
+            question_text = current_question.get(
                 "question_text",
                 "Please answer the required additional question before approval.",
             )
@@ -1038,6 +1732,10 @@ def create_safety_point_graph():
             return "answer_clarification"
 
         if intent == "additional_answer":
+            current_question = state.get("current_additional_question")
+            if _is_chilling_equipment_question(current_question):
+                return "collect_chilling_equipment"
+
             return "collect_additional_answers"
 
         if intent == "approval":
@@ -1064,6 +1762,22 @@ def create_safety_point_graph():
 
         return END
 
+    def route_after_collect_chilling_equipment(
+        state: SafetyPointApprovalState,
+    ) -> str:
+        next_action = state.get("next_action")
+
+        if next_action == "record_approval":
+            return "record_approval"
+
+        if next_action == "move_to_next_safety_point":
+            return "move_to_next_safety_point"
+
+        if next_action == "collect_chilling_equipment":
+            return "collect_chilling_equipment"
+
+        return END
+
     def route_after_record_approval(state: SafetyPointApprovalState) -> str:
         if state.get("next_action") == "move_to_next_safety_point":
             return "move_to_next_safety_point"
@@ -1077,6 +1791,7 @@ def create_safety_point_graph():
     graph.add_node("interpret_safety_point_response", interpret_safety_point_response)
     graph.add_node("answer_clarification", answer_clarification)
     graph.add_node("collect_additional_answers", collect_additional_answers)
+    graph.add_node("collect_chilling_equipment", collect_chilling_equipment)
     graph.add_node("record_approval", record_approval)
     graph.add_node("move_to_next_safety_point", move_to_next_safety_point)
     graph.add_node("complete_approval", complete_approval)
@@ -1117,6 +1832,7 @@ def create_safety_point_graph():
         {
             "answer_clarification": "answer_clarification",
             "collect_additional_answers": "collect_additional_answers",
+            "collect_chilling_equipment": "collect_chilling_equipment",
             "record_approval": "record_approval",
             "move_to_next_safety_point": "move_to_next_safety_point",
             END: END,
@@ -1136,6 +1852,17 @@ def create_safety_point_graph():
         route_after_collect_additional_answers,
         {
             "record_approval": "record_approval",
+            END: END,
+        },
+    )
+
+    graph.add_conditional_edges(
+        "collect_chilling_equipment",
+        route_after_collect_chilling_equipment,
+        {
+            "record_approval": "record_approval",
+            "move_to_next_safety_point": "move_to_next_safety_point",
+            "collect_chilling_equipment": "collect_chilling_equipment",
             END: END,
         },
     )

@@ -20,6 +20,7 @@ from gen_ai_fsms.db.models.approved_safety_point_response import (
 from gen_ai_fsms.db.models.auth.user import User
 from gen_ai_fsms.db.models.condition import Condition
 from gen_ai_fsms.db.models.condition_value import ConditionValue
+from gen_ai_fsms.db.models.business_chilling_equipment import BusinessChillingEquipment
 
 
 
@@ -295,6 +296,106 @@ def reset_approved_methods_for_profile(
         db.delete(approved_safety_point)
 
     return deleted_count
+
+
+def save_chilling_equipment_items_for_profile(
+    db: Session,
+    business_profile_id: int,
+    equipment_items: List[Dict[str, Any]],
+    source_safety_point_id: str = "4.1.1.3",
+) -> Dict[str, Any]:
+    """
+    Save complete chilling equipment items for a business profile.
+
+    The workflow should call this only for equipment items that already have all
+    required details. Items with missing details are skipped by the workflow and
+    should not be passed here.
+    """
+    valid_equipment_uses = {"storage", "display"}
+    valid_equipment_types = {"fridge", "freezer"}
+    valid_temperature_methods = {
+        "digital_or_dial_display",
+        "probe_between_packs",
+    }
+
+    existing_records = (
+        db.query(BusinessChillingEquipment)
+        .filter(
+            BusinessChillingEquipment.business_profile_id == business_profile_id,
+            BusinessChillingEquipment.source_safety_point_id == source_safety_point_id,
+        )
+        .all()
+    )
+
+    existing_by_name = {
+        record.equipment_name.strip().lower(): record
+        for record in existing_records
+    }
+
+    saved_items = []
+    skipped_items = []
+
+    for item in equipment_items:
+        equipment_name = str(item.get("equipment_name") or "").strip()
+        equipment_use = item.get("equipment_use")
+        equipment_type = item.get("equipment_type")
+        temperature_check_method = item.get("temperature_check_method")
+
+        if (
+            not equipment_name
+            or equipment_use not in valid_equipment_uses
+            or equipment_type not in valid_equipment_types
+            or temperature_check_method not in valid_temperature_methods
+        ):
+            skipped_items.append(
+                {
+                    "equipment_name": equipment_name,
+                    "reason": "Missing or invalid required equipment details.",
+                }
+            )
+            continue
+
+        lookup_key = equipment_name.lower()
+        existing_record = existing_by_name.get(lookup_key)
+
+        if existing_record is None:
+            record = BusinessChillingEquipment(
+                business_profile_id=business_profile_id,
+                source_safety_point_id=source_safety_point_id,
+                equipment_name=equipment_name,
+                equipment_use=equipment_use,
+                equipment_type=equipment_type,
+                temperature_check_method=temperature_check_method,
+                is_active=True,
+            )
+            db.add(record)
+            db.flush()
+            existing_by_name[lookup_key] = record
+        else:
+            record = existing_record
+            record.equipment_name = equipment_name
+            record.equipment_use = equipment_use
+            record.equipment_type = equipment_type
+            record.temperature_check_method = temperature_check_method
+            record.is_active = True
+            db.flush()
+
+        saved_items.append(
+            {
+                "id": record.id,
+                "equipment_name": record.equipment_name,
+                "equipment_use": record.equipment_use,
+                "equipment_type": record.equipment_type,
+                "temperature_check_method": record.temperature_check_method,
+            }
+        )
+
+    return {
+        "saved_count": len(saved_items),
+        "skipped_count": len(skipped_items),
+        "saved_items": saved_items,
+        "skipped_items": skipped_items,
+    }
 
 
 def record_approved_safety_point(
