@@ -41,7 +41,7 @@
               "additional_questions": [
                 {
                   "question_key": "chilling_equipment_temperature_checks",
-                  "question_text": "How do you check the temperature of each item of chilling equipment, such as a fridge or chilled display unit? For example: digital display, dial thermometer, fridge thermometer, or checking between chilled food packs using a probe thermometer.",
+                  "question_text": "List all chilling equipment currently used by the business. At this stage, provide only the equipment names, for example: Fridge 1, Freezer 1, Chilled Display Unit 1. The system will then ask for the required details for the listed items before recording them.",
                   "required": true
                 }
               ]
