@@ -5,7 +5,9 @@ from typing import Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from gen_ai_fsms.db.models.business_chilling_equipment import BusinessChillingEquipment
 from gen_ai_fsms.db.models.daily_shift import DailyShift
+from gen_ai_fsms.db.models.daily_shift_chilling_temperature_check import DailyShiftChillingTemperatureCheck
 
 
 ACTIVE_STATUS = "active"
@@ -186,5 +188,71 @@ def list_daily_shifts(
             DailyShift.shift_date.desc(),
             DailyShift.started_at.desc(),
         )
+        .all()
+    )
+
+def get_or_create_chilling_temperature_checks_for_active_shift(
+    db: Session,
+    business_profile_id: int,
+) -> list[DailyShiftChillingTemperatureCheck]:
+    active_shift = get_active_shift(
+        db=db,
+        business_profile_id=business_profile_id,
+    )
+
+    if active_shift is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="There is no active daily shift.",
+        )
+
+    active_equipment_items = (
+        db.query(BusinessChillingEquipment)
+        .filter(
+            BusinessChillingEquipment.business_profile_id == business_profile_id,
+            BusinessChillingEquipment.is_active.is_(True),
+        )
+        .order_by(BusinessChillingEquipment.id.asc())
+        .all()
+    )
+
+    if not active_equipment_items:
+        return []
+
+    existing_checks = (
+        db.query(DailyShiftChillingTemperatureCheck)
+        .filter(
+            DailyShiftChillingTemperatureCheck.daily_shift_id == active_shift.id,
+        )
+        .all()
+    )
+
+    existing_by_equipment_id = {
+        check.chilling_equipment_id: check
+        for check in existing_checks
+    }
+
+    for equipment in active_equipment_items:
+        if equipment.id in existing_by_equipment_id:
+            continue
+
+        check = DailyShiftChillingTemperatureCheck(
+            daily_shift_id=active_shift.id,
+            chilling_equipment_id=equipment.id,
+            equipment_name_snapshot=equipment.equipment_name,
+            equipment_use_snapshot=equipment.equipment_use,
+            equipment_type_snapshot=equipment.equipment_type,
+            temperature_check_method_snapshot=equipment.temperature_check_method,
+        )
+        db.add(check)
+
+    db.commit()
+
+    return (
+        db.query(DailyShiftChillingTemperatureCheck)
+        .filter(
+            DailyShiftChillingTemperatureCheck.daily_shift_id == active_shift.id,
+        )
+        .order_by(DailyShiftChillingTemperatureCheck.id.asc())
         .all()
     )

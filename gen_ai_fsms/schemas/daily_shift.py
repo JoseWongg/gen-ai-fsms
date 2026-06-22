@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Optional
 
 from pydantic import BaseModel
@@ -28,3 +29,23 @@ class DailyShiftResponse(BaseModel):
 class DailyShiftCurrentResponse(BaseModel):
     state: str
     shift: Optional[DailyShiftResponse] = None
+
+class DailyShiftChillingTemperatureCheckResponse(BaseModel):
+    id: int
+    daily_shift_id: int
+    chilling_equipment_id: int
+    equipment_name_snapshot: str
+    equipment_use_snapshot: str
+    equipment_type_snapshot: str
+    temperature_check_method_snapshot: str
+    am_temperature: Optional[Decimal] = None
+    am_recorded_by_user_id: Optional[int] = None
+    am_recorded_at: Optional[datetime] = None
+    pm_temperature: Optional[Decimal] = None
+    pm_recorded_by_user_id: Optional[int] = None
+    pm_recorded_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

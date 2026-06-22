@@ -130,6 +130,44 @@ def load_daily_shift_state(token):
     return response.json()
 
 
+def load_fridge_temperature_checks(token):
+    if not token:
+        return {
+            "rows": [],
+            "error": "Not signed in.",
+        }
+
+    response = api_request(
+        "GET",
+        "/daily-shifts/current/fridge-temperature-checks",
+        token=token,
+    )
+
+    if response is None:
+        return {
+            "rows": [],
+            "error": "Fridge temperature checks are unavailable.",
+        }
+
+    if response.status_code != 200:
+        return {
+            "rows": [],
+            "error": f"Fridge temperature checks unavailable. HTTP {response.status_code}",
+        }
+
+    return {
+        "rows": response.json(),
+        "error": None,
+    }
+
+
+def format_temperature_value(value):
+    if value is None:
+        return ""
+
+    return f"{value} C"
+
+
 def render_shift_state_guard(shift_state):
     state = shift_state.get("state")
 
@@ -192,27 +230,43 @@ def render_sections(sections):
         render_section(section)
 
 
-def render_fridge_temperatures_tab():
+def render_fridge_temperatures_tab(token):
     section = FRIDGE_TEMPERATURES_SECTION
+    result = load_fridge_temperature_checks(token)
 
     st.markdown(
         f'<div class="checklist-section-title">{html.escape(section["title"])}</div>',
         unsafe_allow_html=True,
     )
 
+    if result["error"]:
+        st.error(result["error"])
+        return
+
+    fridge_temperature_rows = [
+        [
+            row.get("equipment_name_snapshot", ""),
+            row.get("equipment_type_snapshot", ""),
+            format_temperature_value(row.get("am_temperature")),
+            format_temperature_value(row.get("pm_temperature")),
+        ]
+        for row in result["rows"]
+    ]
+
     render_html_table(
         section.get("columns", []),
-        section.get("rows", []),
+        fridge_temperature_rows,
     )
 
-    st.markdown(
-        """
-        <div class="checklist-placeholder">
-            No chilling equipment has been configured yet.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    if not fridge_temperature_rows:
+        st.markdown(
+            """
+            <div class="checklist-placeholder">
+                No chilling equipment has been configured yet.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def show():
@@ -244,7 +298,7 @@ def show():
         render_sections(TEMPERATURE_MONITORING_EQUIPMENT_VALIDATION_SECTIONS)
 
     with tabs[2]:
-        render_fridge_temperatures_tab()
+        render_fridge_temperatures_tab(token)
 
     with tabs[3]:
         render_sections(FOOD_TEMPERATURES_SECTIONS)
