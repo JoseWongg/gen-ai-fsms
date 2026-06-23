@@ -9,6 +9,7 @@ from gen_ai_fsms.db.models import User
 from gen_ai_fsms.schemas.daily_shift import (
     DailyShiftCurrentResponse,
     DailyShiftChillingTemperatureCheckResponse,
+    DailyShiftChillingTemperatureCheckUpdateRequest,
     DailyShiftEndRequest,
     DailyShiftResponse,
 )
@@ -19,6 +20,7 @@ from gen_ai_fsms.services.daily_shift_service import (
     get_or_create_chilling_temperature_checks_for_active_shift,
     list_daily_shifts,
     start_daily_shift,
+    update_chilling_temperature_check_for_active_shift,
 )
 
 
@@ -65,6 +67,27 @@ def get_current_fridge_temperature_checks(
     return get_or_create_chilling_temperature_checks_for_active_shift(
         db=db,
         business_profile_id=business_profile_id,
+    )
+
+
+@router.patch(
+    "/current/fridge-temperature-checks/{check_id}",
+    response_model=DailyShiftChillingTemperatureCheckResponse,
+)
+def update_current_fridge_temperature_check(
+    check_id: int,
+    data: DailyShiftChillingTemperatureCheckUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    business_profile_id = get_current_business_profile_id(current_user)
+
+    return update_chilling_temperature_check_for_active_shift(
+        db=db,
+        business_profile_id=business_profile_id,
+        user_id=current_user.id,
+        check_id=check_id,
+        update_data=data.model_dump(exclude_unset=True),
     )
 
 

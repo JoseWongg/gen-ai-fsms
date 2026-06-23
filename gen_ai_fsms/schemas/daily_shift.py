@@ -30,6 +30,11 @@ class DailyShiftCurrentResponse(BaseModel):
     state: str
     shift: Optional[DailyShiftResponse] = None
 
+class DailyShiftChillingTemperatureCheckUpdateRequest(BaseModel):
+    am_temperature: Optional[Decimal] = None
+    pm_temperature: Optional[Decimal] = None
+
+
 class DailyShiftChillingTemperatureCheckResponse(BaseModel):
     id: int
     daily_shift_id: int

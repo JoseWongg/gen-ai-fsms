@@ -256,3 +256,75 @@ def get_or_create_chilling_temperature_checks_for_active_shift(
         .order_by(DailyShiftChillingTemperatureCheck.id.asc())
         .all()
     )
+
+def update_chilling_temperature_check_for_active_shift(
+    db: Session,
+    business_profile_id: int,
+    user_id: int,
+    check_id: int,
+    update_data: dict,
+) -> DailyShiftChillingTemperatureCheck:
+    active_shift = get_active_shift(
+        db=db,
+        business_profile_id=business_profile_id,
+    )
+
+    if active_shift is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="There is no active daily shift.",
+        )
+
+    allowed_fields = {"am_temperature", "pm_temperature"}
+    provided_fields = [
+        field_name
+        for field_name in allowed_fields
+        if field_name in update_data
+    ]
+
+    if not provided_fields:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide an AM temperature or PM temperature to update.",
+        )
+
+    check = (
+        db.query(DailyShiftChillingTemperatureCheck)
+        .filter(
+            DailyShiftChillingTemperatureCheck.id == check_id,
+            DailyShiftChillingTemperatureCheck.daily_shift_id == active_shift.id,
+        )
+        .first()
+    )
+
+    if check is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Fridge temperature check row was not found for the active shift.",
+        )
+
+    recorded_at = datetime.now(SHIFT_TIMEZONE)
+
+    for field_name in provided_fields:
+        temperature_value = update_data[field_name]
+
+        if temperature_value is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"{field_name} cannot be empty.",
+            )
+
+        if field_name == "am_temperature":
+            check.am_temperature = temperature_value
+            check.am_recorded_by_user_id = user_id
+            check.am_recorded_at = recorded_at
+
+        if field_name == "pm_temperature":
+            check.pm_temperature = temperature_value
+            check.pm_recorded_by_user_id = user_id
+            check.pm_recorded_at = recorded_at
+
+    db.commit()
+    db.refresh(check)
+
+    return check
