@@ -467,6 +467,85 @@ def load_fsms_builder_progress(token):
     }
 
 
+def format_dashboard_percentage(value):
+    try:
+        numeric_value = float(value)
+    except (TypeError, ValueError):
+        return "0%"
+
+    if numeric_value.is_integer():
+        return f"{int(numeric_value)}%"
+
+    return f"{numeric_value:.1f}%"
+
+
+def load_fridge_temperature_dashboard_progress(token):
+    if not token:
+        return {
+            "icon_label": "FRG",
+            "title": "Fridge Temps",
+            "value": "0%",
+            "caption": "Progress unavailable",
+            "colour_class": "",
+        }
+
+    response = api_request(
+        "GET",
+        "/daily-shifts/current/fridge-temperature-progress",
+        token=token,
+    )
+
+    if response is None:
+        return {
+            "icon_label": "FRG",
+            "title": "Fridge Temps",
+            "value": "0%",
+            "caption": "Progress unavailable",
+            "colour_class": "",
+        }
+
+    if response.status_code == 400:
+        return {
+            "icon_label": "FRG",
+            "title": "Fridge Temps",
+            "value": "0%",
+            "caption": "No active shift",
+            "colour_class": "",
+        }
+
+    if response.status_code != 200:
+        return {
+            "icon_label": "FRG",
+            "title": "Fridge Temps",
+            "value": "0%",
+            "caption": f"HTTP {response.status_code}",
+            "colour_class": "",
+        }
+
+    data = response.json()
+
+    progress_percentage = data.get("progress_percentage", 0)
+    completed_count = data.get("completed_temperature_count", 0) or 0
+    required_count = data.get("required_temperature_count", 0) or 0
+
+    if required_count == 0:
+        caption = "No temperature rows"
+    elif completed_count == 1:
+        caption = f"{completed_count}/{required_count} temperature"
+    else:
+        caption = f"{completed_count}/{required_count} temperatures"
+
+    colour_class = "green" if float(progress_percentage) >= 100 else ""
+
+    return {
+        "icon_label": "FRG",
+        "title": "Fridge Temps",
+        "value": format_dashboard_percentage(progress_percentage),
+        "caption": caption,
+        "colour_class": colour_class,
+    }
+
+
 def load_daily_shift_state(token):
     if not token:
         return {
@@ -745,13 +824,21 @@ def show():
 
     profile_progress = load_food_safety_profile_progress(token)
     fsms_progress = load_fsms_builder_progress(token)
+    fridge_temperature_progress = load_fridge_temperature_dashboard_progress(token)
+    fridge_temperature_card = dummy_status_card_html(
+        fridge_temperature_progress["icon_label"],
+        fridge_temperature_progress["title"],
+        fridge_temperature_progress["value"],
+        fridge_temperature_progress["caption"],
+        fridge_temperature_progress["colour_class"],
+    )
 
     status_cards_html = f"""
         <div class="section-title"></div>
         <div class="status-grid">
             {workflow_card_html(profile_progress)}
             {workflow_card_html(fsms_progress)}
-            {dummy_status_card_html("DAY", "Diary Completion", "75%", "today's entries")}
+            {fridge_temperature_card}
             {dummy_status_card_html("TRN", "Staff Trained", "4", "Trained today", "green")}
             {dummy_status_card_html("INC", "Unresolved Incidents", "2", "Pending review")}
             {dummy_status_card_html("TMP", "Temp Alerts", "1", "Above safe limits", "red")}
