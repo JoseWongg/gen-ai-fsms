@@ -512,8 +512,22 @@ def render_sidebar():
     if selected_route:
         st.session_state.page = selected_route
 
+def clear_dashboard_shift_messages():
+    dashboard_shift_state_keys = (
+        "show_end_shift_confirmation",
+        "end_shift_block_message",
+        "daily_shift_end_notes",
+    )
+
+    for key in dashboard_shift_state_keys:
+        st.session_state.pop(key, None)
+
+
 def render_current_page():
     current_page = st.session_state.page
+
+    if current_page != "dashboard":
+        clear_dashboard_shift_messages()
 
     if current_page not in ROUTES:
         st.session_state.page = "dashboard"

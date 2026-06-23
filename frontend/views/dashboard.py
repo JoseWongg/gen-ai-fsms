@@ -546,6 +546,33 @@ def load_fridge_temperature_dashboard_progress(token):
     }
 
 
+def get_end_shift_blocking_message(token):
+    response = api_request(
+        "GET",
+        "/daily-shifts/current/fridge-temperature-progress",
+        token=token,
+    )
+
+    if response is None:
+        return "Unable to check checklist progress before ending the shift."
+
+    if response.status_code != 200:
+        return "Unable to check checklist progress before ending the shift."
+
+    data = response.json()
+
+    required_temperature_count = data.get("required_temperature_count", 0) or 0
+    completed_temperature_count = data.get("completed_temperature_count", 0) or 0
+
+    if required_temperature_count == 0:
+        return None
+
+    if completed_temperature_count < required_temperature_count:
+        return "Unable to end shift due to incomplete checklist."
+
+    return None
+
+
 def load_daily_shift_state(token):
     if not token:
         return {
@@ -583,6 +610,14 @@ def render_daily_shift_action(token):
 
     if state == "active":
         if st.button("End Shift", use_container_width=True):
+            blocking_message = get_end_shift_blocking_message(token)
+
+            if blocking_message:
+                st.session_state.show_end_shift_confirmation = False
+                st.session_state.end_shift_block_message = blocking_message
+                st.rerun()
+
+            st.session_state.end_shift_block_message = None
             st.session_state.show_end_shift_confirmation = True
             st.rerun()
 
@@ -599,6 +634,7 @@ def render_daily_shift_action(token):
 
     if state == "no_shift_today":
         if st.button("Start Shift", use_container_width=True):
+            st.session_state.end_shift_block_message = None
             response = api_request(
                 "POST",
                 "/daily-shifts/start",
@@ -610,7 +646,10 @@ def render_daily_shift_action(token):
                 st.rerun()
 
             if response is None:
-                st.error("Unable to start shift. The backend did not respond.")
+                st.error(
+                    "Unable to start shift.\n"
+                    "The backend did not respond."
+                )
             elif response.status_code != 200:
                 detail = response.json().get("detail", "Unable to start shift.")
                 st.info(detail)
@@ -621,6 +660,12 @@ def render_daily_shift_action(token):
 
 
 def render_end_shift_confirmation(token):
+    block_message = st.session_state.get("end_shift_block_message")
+
+    if block_message:
+        st.error(block_message)
+        return
+
     if not st.session_state.get("show_end_shift_confirmation"):
         return
 
@@ -648,19 +693,30 @@ def render_end_shift_confirmation(token):
 
             if response and response.status_code == 200:
                 st.session_state.show_end_shift_confirmation = False
+                st.session_state.end_shift_block_message = None
                 st.session_state.pop("daily_shift_end_notes", None)
                 st.success("Shift ended.")
                 st.rerun()
 
             if response is None:
-                st.error("Unable to end shift. The backend did not respond.")
+                st.error(
+                    "Unable to end shift.\n"
+                    "The backend did not respond."
+                )
             elif response.status_code != 200:
-                detail = response.json().get("detail", "Unable to end shift.")
-                st.error(detail)
+                detail = response.json().get(
+                    "detail",
+                    "Unable to end shift.",
+                )
+                st.session_state.show_end_shift_confirmation = False
+                st.session_state.end_shift_block_message = detail
+                st.session_state.pop("daily_shift_end_notes", None)
+                st.rerun()
 
     with cancel_col:
         if st.button("Cancel", use_container_width=True):
             st.session_state.show_end_shift_confirmation = False
+            st.session_state.end_shift_block_message = None
             st.session_state.pop("daily_shift_end_notes", None)
             st.rerun()
 
@@ -789,6 +845,8 @@ def show():
 
     if "show_end_shift_confirmation" not in st.session_state:
         st.session_state.show_end_shift_confirmation = False
+    if "end_shift_block_message" not in st.session_state:
+        st.session_state.end_shift_block_message = None
 
     token = st.session_state.get("token")
 

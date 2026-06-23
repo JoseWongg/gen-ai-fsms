@@ -138,6 +138,23 @@ def validate_shift_can_be_ended(
     db: Session,
     shift: DailyShift,
 ) -> None:
+    progress = get_fridge_temperature_checklist_progress_for_active_shift(
+        db=db,
+        business_profile_id=shift.business_profile_id,
+    )
+
+    required_temperature_count = progress["required_temperature_count"]
+    completed_temperature_count = progress["completed_temperature_count"]
+
+    if required_temperature_count == 0:
+        return None
+
+    if completed_temperature_count < required_temperature_count:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to end shift due to incomplete checklist.",
+        )
+
     return None
 
 
