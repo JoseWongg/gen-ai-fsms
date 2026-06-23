@@ -328,3 +328,60 @@ def update_chilling_temperature_check_for_active_shift(
     db.refresh(check)
 
     return check
+
+def calculate_fridge_temperature_checklist_progress(
+    checks: list[DailyShiftChillingTemperatureCheck],
+) -> dict:
+    total_rows = len(checks)
+
+    if total_rows == 0:
+        return {
+            "progress_percentage": 100.0,
+            "completed_temperature_count": 0,
+            "required_temperature_count": 0,
+            "total_rows": 0,
+            "completed_rows": 0,
+        }
+
+    required_temperature_count = total_rows * 2
+
+    completed_temperature_count = 0
+    completed_rows = 0
+
+    for check in checks:
+        am_complete = check.am_temperature is not None
+        pm_complete = check.pm_temperature is not None
+
+        if am_complete:
+            completed_temperature_count += 1
+
+        if pm_complete:
+            completed_temperature_count += 1
+
+        if am_complete and pm_complete:
+            completed_rows += 1
+
+    progress_percentage = round(
+        (completed_temperature_count / required_temperature_count) * 100,
+        1,
+    )
+
+    return {
+        "progress_percentage": progress_percentage,
+        "completed_temperature_count": completed_temperature_count,
+        "required_temperature_count": required_temperature_count,
+        "total_rows": total_rows,
+        "completed_rows": completed_rows,
+    }
+
+
+def get_fridge_temperature_checklist_progress_for_active_shift(
+    db: Session,
+    business_profile_id: int,
+) -> dict:
+    checks = get_or_create_chilling_temperature_checks_for_active_shift(
+        db=db,
+        business_profile_id=business_profile_id,
+    )
+
+    return calculate_fridge_temperature_checklist_progress(checks)

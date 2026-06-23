@@ -30,6 +30,14 @@ class DailyShiftCurrentResponse(BaseModel):
     state: str
     shift: Optional[DailyShiftResponse] = None
 
+class FridgeTemperatureChecklistProgressResponse(BaseModel):
+    progress_percentage: float
+    completed_temperature_count: int
+    required_temperature_count: int
+    total_rows: int
+    completed_rows: int
+
+
 class DailyShiftChillingTemperatureCheckUpdateRequest(BaseModel):
     am_temperature: Optional[Decimal] = None
     pm_temperature: Optional[Decimal] = None

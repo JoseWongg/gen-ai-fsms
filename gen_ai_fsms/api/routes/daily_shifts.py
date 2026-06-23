@@ -12,12 +12,14 @@ from gen_ai_fsms.schemas.daily_shift import (
     DailyShiftChillingTemperatureCheckUpdateRequest,
     DailyShiftEndRequest,
     DailyShiftResponse,
+    FridgeTemperatureChecklistProgressResponse,
 )
 from gen_ai_fsms.services.daily_shift_service import (
     end_daily_shift,
     get_current_shift_date,
     get_current_shift_state,
     get_or_create_chilling_temperature_checks_for_active_shift,
+    get_fridge_temperature_checklist_progress_for_active_shift,
     list_daily_shifts,
     start_daily_shift,
     update_chilling_temperature_check_for_active_shift,
@@ -88,6 +90,22 @@ def update_current_fridge_temperature_check(
         user_id=current_user.id,
         check_id=check_id,
         update_data=data.model_dump(exclude_unset=True),
+    )
+
+
+@router.get(
+    "/current/fridge-temperature-progress",
+    response_model=FridgeTemperatureChecklistProgressResponse,
+)
+def get_current_fridge_temperature_progress(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    business_profile_id = get_current_business_profile_id(current_user)
+
+    return get_fridge_temperature_checklist_progress_for_active_shift(
+        db=db,
+        business_profile_id=business_profile_id,
     )
 
 
