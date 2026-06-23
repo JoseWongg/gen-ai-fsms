@@ -21,6 +21,10 @@ from gen_ai_fsms.db.models.approved_safety_point_response import (
 from gen_ai_fsms.db.models.auth.user import User
 from gen_ai_fsms.db.models.condition import Condition
 from gen_ai_fsms.db.models.condition_value import ConditionValue
+from gen_ai_fsms.db.models.daily_shift import DailyShift
+from gen_ai_fsms.db.models.daily_shift_chilling_temperature_check import (
+    DailyShiftChillingTemperatureCheck,
+)
 from gen_ai_fsms.db.models.business_chilling_equipment import BusinessChillingEquipment
 from gen_ai_fsms.services.chilling_equipment_service import (
     generate_chilling_equipment_asset_code,
@@ -298,6 +302,41 @@ def reset_approved_methods_for_profile(
 
     for approved_safety_point in approved_safety_points:
         db.delete(approved_safety_point)
+
+    active_shift_ids = [
+        shift.id
+        for shift in (
+            db.query(DailyShift)
+            .filter(
+                DailyShift.business_profile_id == business_profile_id,
+                DailyShift.status == "active",
+            )
+            .all()
+        )
+    ]
+
+    if active_shift_ids:
+        (
+            db.query(DailyShiftChillingTemperatureCheck)
+            .filter(
+                DailyShiftChillingTemperatureCheck.daily_shift_id.in_(
+                    active_shift_ids
+                )
+            )
+            .delete(synchronize_session=False)
+        )
+
+    active_chilling_equipment = (
+        db.query(BusinessChillingEquipment)
+        .filter(
+            BusinessChillingEquipment.business_profile_id == business_profile_id,
+            BusinessChillingEquipment.is_active.is_(True),
+        )
+        .all()
+    )
+
+    for equipment in active_chilling_equipment:
+        equipment.is_active = False
 
     return deleted_count
 
