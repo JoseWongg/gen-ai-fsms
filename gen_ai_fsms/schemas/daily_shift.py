@@ -46,6 +46,7 @@ class DailyShiftChillingTemperatureCheckUpdateRequest(BaseModel):
 class ArchiveFridgeTemperatureCheckResponse(BaseModel):
     id: int
     daily_shift_id: int
+    equipment_asset_code_snapshot: str
     equipment_name_snapshot: str
     equipment_use_snapshot: str
     equipment_type_snapshot: str
@@ -66,6 +67,7 @@ class DailyShiftChillingTemperatureCheckResponse(BaseModel):
     id: int
     daily_shift_id: int
     chilling_equipment_id: int
+    equipment_asset_code_snapshot: str
     equipment_name_snapshot: str
     equipment_use_snapshot: str
     equipment_type_snapshot: str

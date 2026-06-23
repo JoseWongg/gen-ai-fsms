@@ -30,6 +30,7 @@ class DailyShiftChillingTemperatureCheck(Base):
         index=True,
     )
 
+    equipment_asset_code_snapshot = Column(String(50), nullable=False)
     equipment_name_snapshot = Column(String(255), nullable=False)
     equipment_use_snapshot = Column(String(50), nullable=False)
     equipment_type_snapshot = Column(String(50), nullable=False)

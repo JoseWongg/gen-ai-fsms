@@ -456,6 +456,7 @@ def list_fridge_temperature_checks_for_shift_archive(
         {
             "id": check.id,
             "daily_shift_id": check.daily_shift_id,
+            "equipment_asset_code_snapshot": check.equipment_asset_code_snapshot,
             "equipment_name_snapshot": check.equipment_name_snapshot,
             "equipment_use_snapshot": check.equipment_use_snapshot,
             "equipment_type_snapshot": check.equipment_type_snapshot,

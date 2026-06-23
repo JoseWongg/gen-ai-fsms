@@ -15,6 +15,7 @@ class BusinessChillingEquipment(Base):
         index=True,
     )
     source_safety_point_id = Column(String(50), nullable=False, default="4.1.1.3")
+    equipment_asset_code = Column(String(50), nullable=False, unique=True)
     equipment_name = Column(String(255), nullable=False)
     equipment_use = Column(String(50), nullable=False)
     equipment_type = Column(String(50), nullable=False)

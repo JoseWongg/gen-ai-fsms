@@ -127,6 +127,7 @@ def render_read_only_fridge_temperature_records(records):
         return
 
     columns = [
+        "Asset code",
         "Equipment",
         "Use",
         "Type",
@@ -144,6 +145,7 @@ def render_read_only_fridge_temperature_records(records):
     for record in records:
         table_rows.append(
             [
+                format_text(record.get("equipment_asset_code_snapshot")),
                 format_text(record.get("equipment_name_snapshot")),
                 format_text(record.get("equipment_use_snapshot")),
                 format_text(record.get("equipment_type_snapshot")),

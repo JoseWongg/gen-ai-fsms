@@ -1,3 +1,6 @@
+from datetime import datetime
+from uuid import uuid4
+from zoneinfo import ZoneInfo
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -6,6 +9,16 @@ from gen_ai_fsms.schemas.chilling_equipment import (
     ChillingEquipmentCreate,
     ChillingEquipmentUpdate,
 )
+
+
+CHILLING_EQUIPMENT_TIMEZONE = ZoneInfo("Europe/London")
+
+
+def generate_chilling_equipment_asset_code(
+    equipment: BusinessChillingEquipment,
+) -> str:
+    created_date = datetime.now(CHILLING_EQUIPMENT_TIMEZONE).strftime("%Y%m%d")
+    return f"CHILL-{created_date}-{equipment.id:04d}"
 
 
 def _clean_required_text(value: str, field_name: str) -> str:
@@ -77,9 +90,14 @@ def create_chilling_equipment(
         equipment_type=data.equipment_type,
         temperature_check_method=data.temperature_check_method,
         is_active=True,
+        equipment_asset_code=f"PENDING-{uuid4().hex}",
     )
 
     db.add(equipment)
+    db.flush()
+
+    equipment.equipment_asset_code = generate_chilling_equipment_asset_code(equipment)
+
     db.commit()
     db.refresh(equipment)
 

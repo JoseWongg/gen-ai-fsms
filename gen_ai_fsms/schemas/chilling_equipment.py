@@ -32,6 +32,7 @@ class ChillingEquipmentResponse(BaseModel):
     id: int
     business_profile_id: int
     source_safety_point_id: str
+    equipment_asset_code: str
     equipment_name: str
     equipment_use: str
     equipment_type: str

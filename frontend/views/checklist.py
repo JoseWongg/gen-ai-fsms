@@ -404,28 +404,30 @@ def render_fridge_temperatures_tab(token):
         )
         return
 
-    header_columns = st.columns([2, 1, 2.35, 0.25, 2.35])
-    header_columns[0].markdown('<div class="temperature-group-header">Name</div>', unsafe_allow_html=True)
-    header_columns[1].markdown('<div class="temperature-group-header">Type</div>', unsafe_allow_html=True)
-    header_columns[2].markdown('<div class="temperature-group-header">AM</div>', unsafe_allow_html=True)
-    header_columns[4].markdown('<div class="temperature-group-header">PM</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="temperature-list-spacer"></div>', unsafe_allow_html=True)
-
     for row in rows:
         check_id = row["id"]
-        row_columns = st.columns([2, 1, 2.35, 0.25, 2.35])
 
-        with row_columns[0]:
-            st.write(row.get("equipment_name_snapshot", ""))
+        details_columns = st.columns([2.4, 2.2, 1.4])
 
-        with row_columns[1]:
+        with details_columns[0]:
             st.markdown(
-                f'<div class="temperature-row-type">{html.escape(row.get("equipment_type_snapshot", ""))}</div>',
-                unsafe_allow_html=True,
+                f"**Name**  \n{row.get('equipment_name_snapshot', '')}"
             )
 
-        with row_columns[2]:
+        with details_columns[1]:
+            st.markdown(
+                f"**Asset code**  \n{row.get('equipment_asset_code_snapshot', '')}"
+            )
+
+        with details_columns[2]:
+            st.markdown(
+                f"**Type**  \n{row.get('equipment_type_snapshot', '')}"
+            )
+
+        temperature_columns = st.columns([1, 1], gap="large")
+
+        with temperature_columns[0]:
+            st.markdown('<div class="temperature-group-header">AM</div>', unsafe_allow_html=True)
             am_columns = st.columns([1.65, 1], gap="small")
 
             am_value = am_columns[0].text_input(
@@ -467,7 +469,8 @@ def render_fridge_temperatures_tab(token):
                 recorded_at=am_recorded_at,
             )
 
-        with row_columns[4]:
+        with temperature_columns[1]:
+            st.markdown('<div class="temperature-group-header">PM</div>', unsafe_allow_html=True)
             pm_columns = st.columns([1.65, 1], gap="small")
 
             pm_value = pm_columns[0].text_input(
