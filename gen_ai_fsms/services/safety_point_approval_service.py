@@ -10,6 +10,7 @@ workflow so that safety point retrieval rules remain consistent.
 """
 
 from typing import Any, Dict, List
+from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
@@ -21,6 +22,9 @@ from gen_ai_fsms.db.models.auth.user import User
 from gen_ai_fsms.db.models.condition import Condition
 from gen_ai_fsms.db.models.condition_value import ConditionValue
 from gen_ai_fsms.db.models.business_chilling_equipment import BusinessChillingEquipment
+from gen_ai_fsms.services.chilling_equipment_service import (
+    generate_chilling_equipment_asset_code,
+)
 
 
 
@@ -367,9 +371,11 @@ def save_chilling_equipment_items_for_profile(
                 equipment_type=equipment_type,
                 temperature_check_method=temperature_check_method,
                 is_active=True,
+                equipment_asset_code=f"PENDING-{uuid4().hex}",
             )
             db.add(record)
             db.flush()
+            record.equipment_asset_code = generate_chilling_equipment_asset_code(record)
             existing_by_name[lookup_key] = record
         else:
             record = existing_record
@@ -383,6 +389,7 @@ def save_chilling_equipment_items_for_profile(
         saved_items.append(
             {
                 "id": record.id,
+                "equipment_asset_code": record.equipment_asset_code,
                 "equipment_name": record.equipment_name,
                 "equipment_use": record.equipment_use,
                 "equipment_type": record.equipment_type,

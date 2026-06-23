@@ -257,6 +257,7 @@ def get_or_create_chilling_temperature_checks_for_active_shift(
         check = DailyShiftChillingTemperatureCheck(
             daily_shift_id=active_shift.id,
             chilling_equipment_id=equipment.id,
+            equipment_asset_code_snapshot=equipment.equipment_asset_code,
             equipment_name_snapshot=equipment.equipment_name,
             equipment_use_snapshot=equipment.equipment_use,
             equipment_type_snapshot=equipment.equipment_type,
