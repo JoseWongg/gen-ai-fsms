@@ -8,6 +8,7 @@ from gen_ai_fsms.api.deps import get_current_user, get_db, require_admin
 from gen_ai_fsms.db.models import User
 from gen_ai_fsms.schemas.daily_shift import (
     DailyShiftCurrentResponse,
+    ArchiveFridgeTemperatureCheckResponse,
     DailyShiftChillingTemperatureCheckResponse,
     DailyShiftChillingTemperatureCheckUpdateRequest,
     DailyShiftEndRequest,
@@ -21,6 +22,7 @@ from gen_ai_fsms.services.daily_shift_service import (
     get_or_create_chilling_temperature_checks_for_active_shift,
     get_fridge_temperature_checklist_progress_for_active_shift,
     list_daily_shifts,
+    list_fridge_temperature_checks_for_shift_archive,
     start_daily_shift,
     update_chilling_temperature_check_for_active_shift,
 )
@@ -106,6 +108,24 @@ def get_current_fridge_temperature_progress(
     return get_fridge_temperature_checklist_progress_for_active_shift(
         db=db,
         business_profile_id=business_profile_id,
+    )
+
+
+@router.get(
+    "/archive/{shift_id}/fridge-temperature-checks",
+    response_model=list[ArchiveFridgeTemperatureCheckResponse],
+)
+def get_shift_archive_fridge_temperature_checks(
+    shift_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    business_profile_id = get_current_business_profile_id(current_user)
+
+    return list_fridge_temperature_checks_for_shift_archive(
+        db=db,
+        business_profile_id=business_profile_id,
+        shift_id=shift_id,
     )
 
 

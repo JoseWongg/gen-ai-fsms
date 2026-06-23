@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from gen_ai_fsms.db.models.business_chilling_equipment import BusinessChillingEquipment
 from gen_ai_fsms.db.models.daily_shift import DailyShift
 from gen_ai_fsms.db.models.daily_shift_chilling_temperature_check import DailyShiftChillingTemperatureCheck
+from gen_ai_fsms.db.models.auth.user import User
 
 
 ACTIVE_STATUS = "active"
@@ -402,3 +403,73 @@ def get_fridge_temperature_checklist_progress_for_active_shift(
     )
 
     return calculate_fridge_temperature_checklist_progress(checks)
+
+def format_user_display_name(user: User | None) -> str | None:
+    if user is None:
+        return None
+
+    full_name_parts = [
+        user.first_name,
+        user.last_name,
+    ]
+
+    full_name = " ".join(
+        part.strip()
+        for part in full_name_parts
+        if part and part.strip()
+    )
+
+    if full_name:
+        return full_name
+
+    return user.email
+
+
+def list_fridge_temperature_checks_for_shift_archive(
+    db: Session,
+    business_profile_id: int,
+    shift_id: int,
+) -> list[dict]:
+    shift = (
+        db.query(DailyShift)
+        .filter(
+            DailyShift.id == shift_id,
+            DailyShift.business_profile_id == business_profile_id,
+        )
+        .first()
+    )
+
+    if shift is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Daily shift was not found for this business profile.",
+        )
+
+    checks = (
+        db.query(DailyShiftChillingTemperatureCheck)
+        .filter(DailyShiftChillingTemperatureCheck.daily_shift_id == shift.id)
+        .order_by(DailyShiftChillingTemperatureCheck.id.asc())
+        .all()
+    )
+
+    return [
+        {
+            "id": check.id,
+            "daily_shift_id": check.daily_shift_id,
+            "equipment_name_snapshot": check.equipment_name_snapshot,
+            "equipment_use_snapshot": check.equipment_use_snapshot,
+            "equipment_type_snapshot": check.equipment_type_snapshot,
+            "temperature_check_method_snapshot": check.temperature_check_method_snapshot,
+            "am_temperature": check.am_temperature,
+            "am_recorded_by_user_id": check.am_recorded_by_user_id,
+            "am_recorded_by_name": format_user_display_name(check.am_recorded_by_user),
+            "am_recorded_at": check.am_recorded_at,
+            "pm_temperature": check.pm_temperature,
+            "pm_recorded_by_user_id": check.pm_recorded_by_user_id,
+            "pm_recorded_by_name": format_user_display_name(check.pm_recorded_by_user),
+            "pm_recorded_at": check.pm_recorded_at,
+            "created_at": check.created_at,
+            "updated_at": check.updated_at,
+        }
+        for check in checks
+    ]

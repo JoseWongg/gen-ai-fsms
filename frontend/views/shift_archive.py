@@ -1,4 +1,5 @@
 from collections import defaultdict
+import html
 from datetime import date, datetime
 
 import streamlit as st
@@ -85,6 +86,87 @@ def load_shift_archive(token, selected_date=None):
     return response.json(), None
 
 
+def format_temperature(value):
+    if value is None or value == "":
+        return "No data yet"
+
+    return f"{value} degrees C"
+
+
+def format_temperature_method(value):
+    method_labels = {
+        "digital_or_dial_display": "Digital/dial display",
+        "probe_between_packs": "Probe between packs",
+    }
+
+    return method_labels.get(value, format_text(value))
+
+
+def load_shift_fridge_temperature_records(token, shift_id):
+    if not token:
+        return None, "Not signed in."
+
+    response = api_request(
+        "GET",
+        f"/daily-shifts/archive/{shift_id}/fridge-temperature-checks",
+        token=token,
+    )
+
+    if response is None:
+        return None, "Fridge temperature records are unavailable."
+
+    if response.status_code != 200:
+        return None, f"Fridge temperature records unavailable. HTTP {response.status_code}"
+
+    return response.json(), None
+
+
+def render_read_only_fridge_temperature_records(records):
+    if not records:
+        st.info("No fridge/freezer temperature records were saved for this shift.")
+        return
+
+    columns = [
+        "Equipment",
+        "Use",
+        "Type",
+        "Check method",
+        "AM temperature",
+        "AM recorded by",
+        "AM recorded at",
+        "PM temperature",
+        "PM recorded by",
+        "PM recorded at",
+    ]
+
+    table_rows = []
+
+    for record in records:
+        table_rows.append(
+            [
+                format_text(record.get("equipment_name_snapshot")),
+                format_text(record.get("equipment_use_snapshot")),
+                format_text(record.get("equipment_type_snapshot")),
+                format_temperature_method(record.get("temperature_check_method_snapshot")),
+                format_temperature(record.get("am_temperature")),
+                format_text(record.get("am_recorded_by_name")),
+                format_datetime(record.get("am_recorded_at")),
+                format_temperature(record.get("pm_temperature")),
+                format_text(record.get("pm_recorded_by_name")),
+                format_datetime(record.get("pm_recorded_at")),
+            ]
+        )
+
+    header = "| " + " | ".join(columns) + " |"
+    separator = "| " + " | ".join(["---"] * len(columns)) + " |"
+    body = "\n".join(
+        "| " + " | ".join(html.escape(str(value)) for value in row) + " |"
+        for row in table_rows
+    )
+
+    st.markdown(header + "\n" + separator + "\n" + body)
+
+
 def group_shifts_by_year_month(shifts):
     grouped = defaultdict(lambda: defaultdict(list))
 
@@ -131,9 +213,19 @@ def render_shift_checklist_preview(shift):
 
     if st.session_state.get(selected_key):
         st.markdown("#### Checklist")
-        st.info(
-            "Checklist records for this shift will be populated once checklist completion is implemented."
+        st.markdown("##### Fridge/Freezer Temperatures")
+
+        token = st.session_state.get("token")
+        records, error = load_shift_fridge_temperature_records(
+            token=token,
+            shift_id=shift_id,
         )
+
+        if error:
+            st.error(error)
+            return
+
+        render_read_only_fridge_temperature_records(records)
 
 
 def render_filtered_archive(shifts):
@@ -221,6 +313,3 @@ def show():
         return
 
     render_archive(shifts)
-
-
-
