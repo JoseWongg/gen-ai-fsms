@@ -110,6 +110,103 @@ def submit_status_change(token, equipment_id, action):
     return True
 
 
+PENDING_EQUIPMENT_CHANGE_KEY = "pending_chilling_equipment_change"
+
+EQUIPMENT_CHANGE_WARNINGS = {
+    "create": (
+        "This will add the equipment to Food Safety > Approved Methods and to "
+        "Fridge Temperatures checklist rows where applicable. Historical shift "
+        "records will not be changed."
+    ),
+    "update": (
+        "This will update the equipment shown in Food Safety > Approved Methods. "
+        "If the current shift checklist already has this equipment, its existing "
+        "row details will not be changed. The updated details will apply to "
+        "future shift checklist rows. Historical shift records will not be changed."
+    ),
+    "deactivate": (
+        "This will remove the equipment from Food Safety > Approved Methods and "
+        "from active and future Fridge Temperatures checklist rows. Historical "
+        "shift records will not be changed."
+    ),
+    "activate": (
+        "This will add the equipment back to Food Safety > Approved Methods and "
+        "to Fridge Temperatures checklist rows where applicable. Historical shift "
+        "records will not be changed."
+    ),
+}
+
+
+def get_equipment_change_warning(action):
+    return EQUIPMENT_CHANGE_WARNINGS.get(
+        action,
+        (
+            "This change may affect Food Safety > Approved Methods and "
+            "Fridge Temperatures checklist rows. Historical shift records "
+            "will not be changed."
+        ),
+    )
+
+
+def set_pending_equipment_change(action, label, equipment_id=None, payload=None):
+    st.session_state[PENDING_EQUIPMENT_CHANGE_KEY] = {
+        "action": action,
+        "label": label,
+        "equipment_id": equipment_id,
+        "payload": payload,
+    }
+
+
+def clear_pending_equipment_change():
+    st.session_state.pop(PENDING_EQUIPMENT_CHANGE_KEY, None)
+
+
+def render_pending_equipment_change(token):
+    pending_change = st.session_state.get(PENDING_EQUIPMENT_CHANGE_KEY)
+
+    if not pending_change:
+        return False
+
+    st.warning(get_equipment_change_warning(pending_change.get("action")))
+    st.caption(f"Pending change: {pending_change.get('label')}")
+
+    continue_col, cancel_col = st.columns(2)
+
+    with continue_col:
+        if st.button(
+            "Continue and save change",
+            key="continue_chilling_equipment_change",
+        ):
+            action = pending_change.get("action")
+            equipment_id = pending_change.get("equipment_id")
+            payload = pending_change.get("payload") or {}
+
+            if action == "create":
+                success = submit_create_equipment(token, payload)
+            elif action == "update":
+                success = submit_update_equipment(token, equipment_id, payload)
+            elif action in ("activate", "deactivate"):
+                success = submit_status_change(token, equipment_id, action)
+            else:
+                st.error("Unknown chilling equipment change.")
+                return True
+
+            if success:
+                clear_pending_equipment_change()
+                st.rerun()
+
+    with cancel_col:
+        if st.button(
+            "Cancel change",
+            key="cancel_chilling_equipment_change",
+        ):
+            clear_pending_equipment_change()
+            st.info("Change cancelled.")
+            st.rerun()
+
+    return True
+
+
 def render_create_form(token):
     st.subheader("Add chilling equipment")
 
@@ -148,8 +245,12 @@ def render_create_form(token):
         "temperature_check_method": temperature_check_method,
     }
 
-    if submit_create_equipment(token, payload):
-        st.rerun()
+    set_pending_equipment_change(
+        action="create",
+        label=f"Add {equipment_name.strip()}",
+        payload=payload,
+    )
+    st.rerun()
 
 
 def render_equipment_editor(token, equipment):
@@ -230,17 +331,30 @@ def render_equipment_editor(token, equipment):
                 "temperature_check_method": temperature_check_method,
             }
 
-            if submit_update_equipment(token, equipment_id, payload):
-                st.rerun()
+            set_pending_equipment_change(
+                action="update",
+                label=f"Update {equipment_name.strip()}",
+                equipment_id=equipment_id,
+                payload=payload,
+            )
+            st.rerun()
 
         if equipment.get("is_active"):
             if st.button("Deactivate equipment", key=f"deactivate_{equipment_id}"):
-                if submit_status_change(token, equipment_id, "deactivate"):
-                    st.rerun()
+                set_pending_equipment_change(
+                    action="deactivate",
+                    label=f"Deactivate {equipment.get('equipment_name') or 'this equipment'}",
+                    equipment_id=equipment_id,
+                )
+                st.rerun()
         else:
             if st.button("Activate equipment", key=f"activate_{equipment_id}"):
-                if submit_status_change(token, equipment_id, "activate"):
-                    st.rerun()
+                set_pending_equipment_change(
+                    action="activate",
+                    label=f"Activate {equipment.get('equipment_name') or 'this equipment'}",
+                    equipment_id=equipment_id,
+                )
+                st.rerun()
 
 
 def render_equipment_list(token, equipment_items):
@@ -280,6 +394,9 @@ def show():
         "and future daily shift checklist rows. Historical shift records keep their "
         "original equipment snapshots."
     )
+
+    if render_pending_equipment_change(token):
+        return
 
     equipment_items = load_chilling_equipment(token)
     if equipment_items is None:
