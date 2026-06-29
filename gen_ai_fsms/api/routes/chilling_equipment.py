@@ -9,9 +9,11 @@ from gen_ai_fsms.schemas.chilling_equipment import (
     ChillingEquipmentUpdate,
 )
 from gen_ai_fsms.services.chilling_equipment_service import (
+    activate_chilling_equipment,
     create_chilling_equipment,
     deactivate_chilling_equipment,
     list_active_chilling_equipment,
+    list_chilling_equipment,
     update_chilling_equipment,
 )
 
@@ -83,6 +85,29 @@ def deactivate_business_chilling_equipment(
     business_profile_id = get_current_business_profile_id(current_user)
 
     return deactivate_chilling_equipment(
+        db=db,
+        business_profile_id=business_profile_id,
+        equipment_id=equipment_id,
+    )
+
+@router.get("/", response_model=list[ChillingEquipmentResponse])
+def get_chilling_equipment(
+    business_profile_id: int = Depends(get_current_business_profile_id),
+    db: Session = Depends(get_db),
+):
+    return list_chilling_equipment(
+        db=db,
+        business_profile_id=business_profile_id,
+    )
+
+
+@router.patch("/{equipment_id}/activate", response_model=ChillingEquipmentResponse)
+def activate_business_chilling_equipment(
+    equipment_id: int,
+    business_profile_id: int = Depends(get_current_business_profile_id),
+    db: Session = Depends(get_db),
+):
+    return activate_chilling_equipment(
         db=db,
         business_profile_id=business_profile_id,
         equipment_id=equipment_id,

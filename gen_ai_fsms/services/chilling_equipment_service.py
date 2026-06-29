@@ -162,3 +162,37 @@ def deactivate_chilling_equipment(
     db.refresh(equipment)
 
     return equipment
+
+def list_chilling_equipment(
+    db: Session,
+    business_profile_id: int,
+) -> list[BusinessChillingEquipment]:
+    return (
+        db.query(BusinessChillingEquipment)
+        .filter(BusinessChillingEquipment.business_profile_id == business_profile_id)
+        .order_by(
+            BusinessChillingEquipment.is_active.desc(),
+            BusinessChillingEquipment.equipment_name.asc(),
+            BusinessChillingEquipment.id.asc(),
+        )
+        .all()
+    )
+
+
+def activate_chilling_equipment(
+    db: Session,
+    business_profile_id: int,
+    equipment_id: int,
+) -> BusinessChillingEquipment:
+    equipment = get_chilling_equipment_for_business(
+        db=db,
+        business_profile_id=business_profile_id,
+        equipment_id=equipment_id,
+    )
+
+    equipment.is_active = True
+
+    db.commit()
+    db.refresh(equipment)
+
+    return equipment
