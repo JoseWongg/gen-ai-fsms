@@ -176,14 +176,19 @@ ROUTES = {
     },
     "food_safety_cleaning_schedule": {
         "title": "Cleaning Schedule",
-        "message": "Full view of the cleaning schedule.",
+        "message": (
+            "Future view for the business cleaning schedule. This page will display "
+            "the generated cleaning tasks, frequencies, responsible roles, methods, "
+            "records, and evidence needed for day-to-day food safety checks."
+        ),
         "admin_only": False,
     },
     "food_safety_cleaning_schedule_builder": {
         "title": "Cleaning Schedule Builder",
         "message": (
-            "AI-assisted chatbot to define equipment, restaurant layout, cleaning methods, "
-            "scheduling and design a bespoke cleaning schedule accordingly."
+            "Future builder for creating a bespoke cleaning schedule. This page will "
+            "guide an admin user through setting up areas, cleaning methods, products, "
+            "frequencies, responsibilities, and verification records."
         ),
         "admin_only": True,
     },
@@ -361,9 +366,7 @@ def get_navigation_items():
         sac.MenuItem("Allergens", children=[
             sac.MenuItem("Allergens Matrix"),
         ]),
-        sac.MenuItem("Cleaning", children=[
-            sac.MenuItem("Cleaning Schedule"),
-        ]),
+        sac.MenuItem("Cleaning Schedule"),
     ]
 
     procurement_children = [
@@ -385,7 +388,6 @@ def get_navigation_items():
         training_children.append(sac.MenuItem("Staff Training Records"))
 
         food_safety_children[2].children.append(sac.MenuItem("Edit Allergens Matrix"))
-        food_safety_children[3].children.append(sac.MenuItem("Cleaning Schedule Builder"))
 
         procurement_children.insert(1, sac.MenuItem("Invoices"))
         procurement_children.insert(2, sac.MenuItem("Recalls Log"))
@@ -407,6 +409,7 @@ def get_navigation_items():
                         sac.MenuItem("Chilling Equipment"),
                         sac.MenuItem("Processing Equipment"),
                     ]),
+                    sac.MenuItem("Cleaning Schedule Builder"),
                 ]),
                 sac.MenuItem("Health & Safety"),
                 sac.MenuItem("Fire Safety"),
