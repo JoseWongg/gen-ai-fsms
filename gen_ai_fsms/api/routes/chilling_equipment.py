@@ -6,6 +6,7 @@ from gen_ai_fsms.db.models import User
 from gen_ai_fsms.schemas.chilling_equipment import (
     ChillingEquipmentCreate,
     ChillingEquipmentResponse,
+    ChillingEquipmentTemperatureHistoryResponse,
     ChillingEquipmentUpdate,
 )
 from gen_ai_fsms.services.chilling_equipment_service import (
@@ -14,6 +15,7 @@ from gen_ai_fsms.services.chilling_equipment_service import (
     deactivate_chilling_equipment,
     list_active_chilling_equipment,
     list_chilling_equipment,
+    list_chilling_equipment_temperature_history,
     update_chilling_equipment,
 )
 
@@ -89,6 +91,25 @@ def deactivate_business_chilling_equipment(
         business_profile_id=business_profile_id,
         equipment_id=equipment_id,
     )
+
+
+@router.get(
+    "/{equipment_id}/temperature-history",
+    response_model=list[ChillingEquipmentTemperatureHistoryResponse],
+)
+def get_business_chilling_equipment_temperature_history(
+    equipment_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    business_profile_id = get_current_business_profile_id(current_user)
+
+    return list_chilling_equipment_temperature_history(
+        db=db,
+        business_profile_id=business_profile_id,
+        equipment_id=equipment_id,
+    )
+
 
 @router.get("/", response_model=list[ChillingEquipmentResponse])
 def get_chilling_equipment(

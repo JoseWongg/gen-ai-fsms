@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from gen_ai_fsms.db.models.auth.user import User
 from gen_ai_fsms.db.models.business_chilling_equipment import BusinessChillingEquipment
 from gen_ai_fsms.db.models.daily_shift import DailyShift
 from gen_ai_fsms.db.models.daily_shift_chilling_temperature_check import (
@@ -191,6 +192,81 @@ def deactivate_chilling_equipment(
     db.refresh(equipment)
 
     return equipment
+
+
+def format_user_display_name(user: User | None) -> str | None:
+    if user is None:
+        return None
+
+    full_name_parts = [
+        user.first_name,
+        user.last_name,
+    ]
+    full_name = " ".join(
+        part.strip()
+        for part in full_name_parts
+        if part and part.strip()
+    )
+
+    if full_name:
+        return full_name
+
+    return user.email
+
+
+def list_chilling_equipment_temperature_history(
+    db: Session,
+    business_profile_id: int,
+    equipment_id: int,
+) -> list[dict]:
+    equipment = get_chilling_equipment_for_business(
+        db=db,
+        business_profile_id=business_profile_id,
+        equipment_id=equipment_id,
+    )
+
+    checks = (
+        db.query(DailyShiftChillingTemperatureCheck)
+        .join(
+            DailyShift,
+            DailyShift.id == DailyShiftChillingTemperatureCheck.daily_shift_id,
+        )
+        .filter(
+            DailyShift.business_profile_id == business_profile_id,
+            DailyShiftChillingTemperatureCheck.chilling_equipment_id == equipment.id,
+        )
+        .order_by(
+            DailyShift.shift_date.desc(),
+            DailyShift.started_at.desc(),
+            DailyShiftChillingTemperatureCheck.id.desc(),
+        )
+        .all()
+    )
+
+    return [
+        {
+            "id": check.id,
+            "daily_shift_id": check.daily_shift_id,
+            "shift_date": check.daily_shift.shift_date,
+            "shift_status": check.daily_shift.status,
+            "equipment_asset_code_snapshot": check.equipment_asset_code_snapshot,
+            "equipment_name_snapshot": check.equipment_name_snapshot,
+            "equipment_use_snapshot": check.equipment_use_snapshot,
+            "equipment_type_snapshot": check.equipment_type_snapshot,
+            "temperature_check_method_snapshot": check.temperature_check_method_snapshot,
+            "am_temperature": check.am_temperature,
+            "am_recorded_by_user_id": check.am_recorded_by_user_id,
+            "am_recorded_by_name": format_user_display_name(check.am_recorded_by_user),
+            "am_recorded_at": check.am_recorded_at,
+            "pm_temperature": check.pm_temperature,
+            "pm_recorded_by_user_id": check.pm_recorded_by_user_id,
+            "pm_recorded_by_name": format_user_display_name(check.pm_recorded_by_user),
+            "pm_recorded_at": check.pm_recorded_at,
+            "created_at": check.created_at,
+            "updated_at": check.updated_at,
+        }
+        for check in checks
+    ]
 
 def list_chilling_equipment(
     db: Session,

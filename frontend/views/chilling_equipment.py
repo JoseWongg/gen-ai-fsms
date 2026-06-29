@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import streamlit as st
 
 from shared import api_request
@@ -22,7 +24,55 @@ TEMPERATURE_CHECK_METHOD_OPTIONS = [
 def format_option(value):
     if not value:
         return ""
-    return str(value).replace("_", " ").title()
+
+    labels = {
+        "fridge": "Fridge",
+        "freezer": "Freezer",
+        "storage": "Storage",
+        "display": "Display",
+        "digital_or_dial_display": "Digital/dial display",
+        "probe_between_packs": "Probe between packs",
+        "active": "Active",
+        "ended": "Ended",
+    }
+
+    return labels.get(value, str(value).replace("_", " ").title())
+
+
+def format_datetime(value):
+    if not value:
+        return "No data yet"
+
+    try:
+        parsed = datetime.fromisoformat(value)
+        return parsed.strftime("%d-%m-%Y %H:%M")
+    except ValueError:
+        return str(value)
+
+
+def format_date(value):
+    if not value:
+        return "No data yet"
+
+    try:
+        parsed = datetime.strptime(value, "%Y-%m-%d").date()
+        return parsed.strftime("%d-%m-%Y")
+    except ValueError:
+        return str(value)
+
+
+def format_temperature(value):
+    if value is None or value == "":
+        return "No data yet"
+
+    return f"{value} degrees C"
+
+
+def format_text(value):
+    if value is None or value == "":
+        return "No data yet"
+
+    return str(value)
 
 
 def options_with_current(options, current_value):
@@ -54,6 +104,20 @@ def load_chilling_equipment(token):
 
     if response is None or response.status_code != 200:
         show_api_error(response, "Unable to load chilling equipment.")
+        return None
+
+    return response.json()
+
+
+def load_chilling_equipment_temperature_records(token, equipment_id):
+    response = api_request(
+        "GET",
+        f"/chilling-equipment/{equipment_id}/temperature-history",
+        token=token,
+    )
+
+    if response is None or response.status_code != 200:
+        show_api_error(response, "Unable to load chilling equipment temperature records.")
         return None
 
     return response.json()
@@ -111,6 +175,7 @@ def submit_status_change(token, equipment_id, action):
 
 
 PENDING_EQUIPMENT_CHANGE_KEY = "pending_chilling_equipment_change"
+TEMPERATURE_RECORDS_VISIBILITY_PREFIX = "show_chilling_equipment_temperature_records_"
 
 EQUIPMENT_CHANGE_WARNINGS = {
     "create": (
@@ -253,6 +318,130 @@ def render_create_form(token):
     st.rerun()
 
 
+def render_temperature_record_block(title, temperature, recorded_by, recorded_at):
+    st.markdown(f"**{title}**")
+    st.markdown(format_temperature(temperature))
+    st.caption(f"Recorded by: {format_text(recorded_by)}")
+    st.caption(f"Recorded at: {format_datetime(recorded_at)}")
+
+
+def render_equipment_temperature_records(records):
+    if not records:
+        st.info("No temperature records have been saved for this equipment yet.")
+        return
+
+    for record in records:
+        shift_label = (
+            f"{format_date(record.get('shift_date'))} "
+            f"({format_option(record.get('shift_status'))})"
+        )
+
+        st.markdown(f"##### Shift: {shift_label}")
+
+        snapshot_columns = st.columns(3)
+
+        with snapshot_columns[0]:
+            st.markdown("**Use**")
+            st.markdown(format_option(record.get("equipment_use_snapshot")))
+
+        with snapshot_columns[1]:
+            st.markdown("**Type**")
+            st.markdown(format_option(record.get("equipment_type_snapshot")))
+
+        with snapshot_columns[2]:
+            st.markdown("**Check method**")
+            st.markdown(format_option(record.get("temperature_check_method_snapshot")))
+
+        temperature_columns = st.columns(2)
+
+        with temperature_columns[0]:
+            render_temperature_record_block(
+                title="AM temperature",
+                temperature=record.get("am_temperature"),
+                recorded_by=record.get("am_recorded_by_name"),
+                recorded_at=record.get("am_recorded_at"),
+            )
+
+        with temperature_columns[1]:
+            render_temperature_record_block(
+                title="PM temperature",
+                temperature=record.get("pm_temperature"),
+                recorded_by=record.get("pm_recorded_by_name"),
+                recorded_at=record.get("pm_recorded_at"),
+            )
+
+        st.divider()
+
+
+def render_equipment_action_buttons(token, equipment):
+    equipment_id = equipment.get("id")
+    records_visibility_key = f"{TEMPERATURE_RECORDS_VISIBILITY_PREFIX}{equipment_id}"
+    records_visible = st.session_state.get(records_visibility_key, False)
+
+    temperature_label = (
+        "Hide temperature records"
+        if records_visible
+        else "Temperature records"
+    )
+
+    temperature_col, change_col, status_col = st.columns(3)
+
+    with temperature_col:
+        if st.button(
+            temperature_label,
+            key=f"temperature_records_{equipment_id}",
+            use_container_width=True,
+        ):
+            st.session_state[records_visibility_key] = not records_visible
+            st.rerun()
+
+    with change_col:
+        st.button(
+            "Change records",
+            key=f"change_records_{equipment_id}",
+            use_container_width=True,
+            disabled=True,
+            help="Change records will be added next.",
+        )
+
+    with status_col:
+        if equipment.get("is_active"):
+            if st.button(
+                "Deactivate equipment",
+                key=f"deactivate_{equipment_id}",
+                use_container_width=True,
+            ):
+                set_pending_equipment_change(
+                    action="deactivate",
+                    label=f"Deactivate {equipment.get('equipment_name') or 'this equipment'}",
+                    equipment_id=equipment_id,
+                )
+                st.rerun()
+        else:
+            if st.button(
+                "Activate equipment",
+                key=f"activate_{equipment_id}",
+                use_container_width=True,
+            ):
+                set_pending_equipment_change(
+                    action="activate",
+                    label=f"Activate {equipment.get('equipment_name') or 'this equipment'}",
+                    equipment_id=equipment_id,
+                )
+                st.rerun()
+
+    if not st.session_state.get(records_visibility_key, False):
+        return
+
+    records = load_chilling_equipment_temperature_records(token, equipment_id)
+
+    if records is None:
+        return
+
+    st.markdown("#### Temperature records")
+    render_equipment_temperature_records(records)
+
+
 def render_equipment_editor(token, equipment):
     equipment_id = equipment.get("id")
     status_label = "Active" if equipment.get("is_active") else "Inactive"
@@ -265,6 +454,10 @@ def render_equipment_editor(token, equipment):
 
     with st.expander(title, expanded=False):
         st.caption(f"Asset code: {asset_code}")
+
+        render_equipment_action_buttons(token, equipment)
+
+        st.divider()
 
         with st.form(f"edit_chilling_equipment_{equipment_id}"):
             equipment_name = st.text_input(
@@ -339,22 +532,6 @@ def render_equipment_editor(token, equipment):
             )
             st.rerun()
 
-        if equipment.get("is_active"):
-            if st.button("Deactivate equipment", key=f"deactivate_{equipment_id}"):
-                set_pending_equipment_change(
-                    action="deactivate",
-                    label=f"Deactivate {equipment.get('equipment_name') or 'this equipment'}",
-                    equipment_id=equipment_id,
-                )
-                st.rerun()
-        else:
-            if st.button("Activate equipment", key=f"activate_{equipment_id}"):
-                set_pending_equipment_change(
-                    action="activate",
-                    label=f"Activate {equipment.get('equipment_name') or 'this equipment'}",
-                    equipment_id=equipment_id,
-                )
-                st.rerun()
 
 
 def render_equipment_list(token, equipment_items):

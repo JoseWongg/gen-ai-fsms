@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Literal, Optional
 
 from pydantic import BaseModel
@@ -43,3 +44,25 @@ class ChillingEquipmentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ChillingEquipmentTemperatureHistoryResponse(BaseModel):
+    id: int
+    daily_shift_id: int
+    shift_date: date
+    shift_status: str
+    equipment_asset_code_snapshot: str
+    equipment_name_snapshot: str
+    equipment_use_snapshot: str
+    equipment_type_snapshot: str
+    temperature_check_method_snapshot: str
+    am_temperature: Optional[Decimal] = None
+    am_recorded_by_user_id: Optional[int] = None
+    am_recorded_by_name: Optional[str] = None
+    am_recorded_at: Optional[datetime] = None
+    pm_temperature: Optional[Decimal] = None
+    pm_recorded_by_user_id: Optional[int] = None
+    pm_recorded_by_name: Optional[str] = None
+    pm_recorded_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
