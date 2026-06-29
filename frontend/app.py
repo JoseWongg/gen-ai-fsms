@@ -1,4 +1,5 @@
 import streamlit as st
+from views import chilling_equipment as chilling_equipment_page
 import streamlit_antd_components as sac
 
 from shared import api_request
@@ -232,11 +233,7 @@ ROUTES = {
     },
     "compliance_food_safety_chilling_equipment": {
         "title": "Chilling Equipment",
-        "message": (
-            "Admin setup page for chilling equipment used by the Food Safety "
-            "Management System and daily shift checklist. Full add, edit, "
-            "activate and deactivate functionality will be implemented in Step 13."
-        ),
+        "view": chilling_equipment_page.show,
         "admin_only": True,
     },
     "compliance_food_safety_processing_equipment": {

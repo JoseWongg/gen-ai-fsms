@@ -5,6 +5,10 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from gen_ai_fsms.db.models.business_chilling_equipment import BusinessChillingEquipment
+from gen_ai_fsms.db.models.daily_shift import DailyShift
+from gen_ai_fsms.db.models.daily_shift_chilling_temperature_check import (
+    DailyShiftChillingTemperatureCheck,
+)
 from gen_ai_fsms.schemas.chilling_equipment import (
     ChillingEquipmentCreate,
     ChillingEquipmentUpdate,
@@ -155,6 +159,31 @@ def deactivate_chilling_equipment(
         business_profile_id=business_profile_id,
         equipment_id=equipment_id,
     )
+
+    active_shift_ids = [
+        shift_id
+        for (shift_id,) in (
+            db.query(DailyShift.id)
+            .filter(
+                DailyShift.business_profile_id == business_profile_id,
+                DailyShift.status == "active",
+            )
+            .all()
+        )
+    ]
+
+    if active_shift_ids:
+        (
+            db.query(DailyShiftChillingTemperatureCheck)
+            .filter(
+                DailyShiftChillingTemperatureCheck.daily_shift_id.in_(
+                    active_shift_ids
+                ),
+                DailyShiftChillingTemperatureCheck.chilling_equipment_id
+                == equipment.id,
+            )
+            .delete(synchronize_session=False)
+        )
 
     equipment.is_active = False
 

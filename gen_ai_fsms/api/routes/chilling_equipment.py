@@ -92,9 +92,11 @@ def deactivate_business_chilling_equipment(
 
 @router.get("/", response_model=list[ChillingEquipmentResponse])
 def get_chilling_equipment(
-    business_profile_id: int = Depends(get_current_business_profile_id),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    business_profile_id = get_current_business_profile_id(current_user)
+
     return list_chilling_equipment(
         db=db,
         business_profile_id=business_profile_id,
@@ -104,9 +106,11 @@ def get_chilling_equipment(
 @router.patch("/{equipment_id}/activate", response_model=ChillingEquipmentResponse)
 def activate_business_chilling_equipment(
     equipment_id: int,
-    business_profile_id: int = Depends(get_current_business_profile_id),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    business_profile_id = get_current_business_profile_id(current_user)
+
     return activate_chilling_equipment(
         db=db,
         business_profile_id=business_profile_id,
