@@ -45,6 +45,56 @@ def show():
 
         return f"<ul>{items}</ul>"
 
+    def format_equipment_value(value):
+        labels = {
+            "fridge": "Fridge",
+            "freezer": "Freezer",
+            "storage": "Storage",
+            "display": "Display",
+            "digital_or_dial_display": "Digital/dial display",
+            "probe_between_packs": "Probe between packs",
+        }
+
+        if value is None:
+            return "Not recorded"
+
+        return labels.get(str(value), str(value).replace("_", " ").title())
+
+
+    def format_current_chilling_equipment_table(equipment_items):
+        if not equipment_items:
+            return (
+                "<p>No active chilling equipment is currently recorded for this "
+                "business.</p>"
+            )
+
+        rows = []
+
+        for equipment in equipment_items:
+            rows.append(
+                "<tr>"
+                f"<td>{html.escape(str(equipment.get('equipment_name') or 'Unnamed equipment'))}</td>"
+                f"<td>{html.escape(format_equipment_value(equipment.get('equipment_type')))}</td>"
+                f"<td>{html.escape(format_equipment_value(equipment.get('equipment_use')))}</td>"
+                f"<td>{html.escape(format_equipment_value(equipment.get('temperature_check_method')))}</td>"
+                "</tr>"
+            )
+
+        return (
+            "<table class='approved-equipment-table'>"
+            "<thead>"
+            "<tr>"
+            "<th>Equipment</th>"
+            "<th>Type</th>"
+            "<th>Use</th>"
+            "<th>Temperature check method</th>"
+            "</tr>"
+            "</thead>"
+            f"<tbody>{''.join(rows)}</tbody>"
+            "</table>"
+        )
+
+
     def format_additional_responses(safety_point):
         additional_responses = safety_point.get("additional_responses", [])
 
@@ -52,6 +102,7 @@ def show():
             return ""
 
         response_html = []
+
         for response in additional_responses:
             question = (
                 response.get("question_text")
@@ -59,12 +110,18 @@ def show():
                 or "Additional question"
             )
 
-            answer = response.get("response_text") or "No response recorded."
+            if response.get("question_key") == "chilling_equipment_temperature_checks":
+                answer_html = format_current_chilling_equipment_table(
+                    response.get("current_chilling_equipment", [])
+                )
+            else:
+                answer = response.get("response_text") or "No response recorded."
+                answer_html = f"<p>{html.escape(str(answer))}</p>"
 
             response_html.append(
                 "<div class='additional-response'>"
                 f"<p><strong>{html.escape(str(question))}</strong></p>"
-                f"<p>{html.escape(str(answer))}</p>"
+                f"{answer_html}"
                 "</div>"
             )
 

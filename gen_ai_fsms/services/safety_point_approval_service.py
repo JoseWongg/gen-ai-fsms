@@ -190,8 +190,40 @@ def get_approved_methods_for_profile(
             or approved_safety_point.safe_method_name
         )
 
-        responses = [
-            {
+        current_chilling_equipment = []
+
+        if approved_safety_point.safety_point_id == "4.1.1.3":
+            current_chilling_equipment = [
+                {
+                    "id": equipment.id,
+                    "equipment_asset_code": equipment.equipment_asset_code,
+                    "equipment_name": equipment.equipment_name,
+                    "equipment_type": equipment.equipment_type,
+                    "equipment_use": equipment.equipment_use,
+                    "temperature_check_method": equipment.temperature_check_method,
+                }
+                for equipment in (
+                    db.query(BusinessChillingEquipment)
+                    .filter(
+                        BusinessChillingEquipment.business_profile_id
+                        == business_profile_id,
+                        BusinessChillingEquipment.is_active.is_(True),
+                    )
+                    .order_by(
+                        BusinessChillingEquipment.equipment_name,
+                        BusinessChillingEquipment.id,
+                    )
+                    .all()
+                )
+            ]
+
+        responses = []
+
+        for response in sorted(
+            approved_safety_point.responses,
+            key=lambda response: response.id,
+        ):
+            response_view = {
                 "id": response.id,
                 "question_key": response.question_key,
                 "question_text": response.question_text,
@@ -207,11 +239,15 @@ def get_approved_methods_for_profile(
                     else None
                 ),
             }
-            for response in sorted(
-                approved_safety_point.responses,
-                key=lambda response: response.id,
-            )
-        ]
+
+            if (
+                approved_safety_point.safety_point_id == "4.1.1.3"
+                and response.question_key == "chilling_equipment_temperature_checks"
+            ):
+                response_view["response_text"] = None
+                response_view["current_chilling_equipment"] = current_chilling_equipment
+
+            responses.append(response_view)
 
         approved_safety_point_view = {
             "approved_safety_point_id": approved_safety_point.id,
