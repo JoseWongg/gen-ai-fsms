@@ -230,6 +230,25 @@ ROUTES = {
         "message": "AI-assisted chatbot to introduce changes to the FSMS.",
         "admin_only": True,
     },
+    "compliance_food_safety_chilling_equipment": {
+        "title": "Chilling Equipment",
+        "message": (
+            "Admin setup page for chilling equipment used by the Food Safety "
+            "Management System and daily shift checklist. Full add, edit, "
+            "activate and deactivate functionality will be implemented in Step 13."
+        ),
+        "admin_only": True,
+    },
+    "compliance_food_safety_processing_equipment": {
+        "title": "Processing Equipment",
+        "message": (
+            "Future functionality will support food-processing equipment with "
+            "implications for the Food Safety Management System, including "
+            "cooling-down equipment, sous-vide equipment, hot-holding equipment, "
+            "vacuum-packing equipment, meat slicers and meat grinders."
+        ),
+        "admin_only": True,
+    },
     "compliance_health_safety": {
         "title": "Health & Safety Compliance",
         "message": None,
@@ -315,6 +334,8 @@ MENU_LABEL_TO_ROUTE = {
     "FSMS Builder": "compliance_food_safety_fsms_builder",
     "Approved Methods": "compliance_food_safety_approved_methods",
     "FSMS Review": "compliance_food_safety_review",
+    "Chilling Equipment": "compliance_food_safety_chilling_equipment",
+    "Processing Equipment": "compliance_food_safety_processing_equipment",
     "Health & Safety": "compliance_health_safety",
     "Fire Safety": "compliance_fire_safety",
     "Environmental & Waste": "compliance_environmental_waste",
@@ -384,7 +405,11 @@ def get_navigation_items():
                 sac.MenuItem("Food Safety", children=[
                     sac.MenuItem("Profile Builder"),
                     sac.MenuItem("FSMS Builder"),
-                        sac.MenuItem("FSMS Review"),
+                    sac.MenuItem("FSMS Review"),
+                    sac.MenuItem("Critical Equipment", children=[
+                        sac.MenuItem("Chilling Equipment"),
+                        sac.MenuItem("Processing Equipment"),
+                    ]),
                 ]),
                 sac.MenuItem("Health & Safety"),
                 sac.MenuItem("Fire Safety"),
