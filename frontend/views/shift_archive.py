@@ -1,5 +1,4 @@
 from collections import defaultdict
-import html
 from datetime import date, datetime
 
 import streamlit as st
@@ -21,6 +20,8 @@ MONTH_NAMES = {
     11: "November",
     12: "December",
 }
+
+SELECTED_ARCHIVE_SHIFT_ID_KEY = "selected_archive_shift_id"
 
 
 def format_date(value):
@@ -62,6 +63,19 @@ def format_status(value):
     return format_text(value)
 
 
+def format_equipment_value(value):
+    labels = {
+        "fridge": "Fridge",
+        "freezer": "Freezer",
+        "storage": "Storage",
+        "display": "Display",
+        "digital_or_dial_display": "Digital/dial display",
+        "probe_between_packs": "Probe between packs",
+    }
+
+    return labels.get(value, format_text(value))
+
+
 def load_shift_archive(token, selected_date=None):
     if not token:
         return None, "Not signed in."
@@ -94,12 +108,7 @@ def format_temperature(value):
 
 
 def format_temperature_method(value):
-    method_labels = {
-        "digital_or_dial_display": "Digital/dial display",
-        "probe_between_packs": "Probe between packs",
-    }
-
-    return method_labels.get(value, format_text(value))
+    return format_equipment_value(value)
 
 
 def load_shift_fridge_temperature_records(token, shift_id):
@@ -121,52 +130,58 @@ def load_shift_fridge_temperature_records(token, shift_id):
     return response.json(), None
 
 
+def render_temperature_record_block(title, temperature, recorded_by, recorded_at):
+    st.markdown(f"**{title}**")
+    st.markdown(format_temperature(temperature))
+    st.caption(f"Recorded by: {format_text(recorded_by)}")
+    st.caption(f"Recorded at: {format_datetime(recorded_at)}")
+
+
 def render_read_only_fridge_temperature_records(records):
     if not records:
         st.info("No fridge/freezer temperature records were saved for this shift.")
         return
 
-    columns = [
-        "Asset code",
-        "Equipment",
-        "Use",
-        "Type",
-        "Check method",
-        "AM temperature",
-        "AM recorded by",
-        "AM recorded at",
-        "PM temperature",
-        "PM recorded by",
-        "PM recorded at",
-    ]
+    for index, record in enumerate(records, start=1):
+        asset_code = format_text(record.get("equipment_asset_code_snapshot"))
+        equipment_name = format_text(record.get("equipment_name_snapshot"))
 
-    table_rows = []
+        title = f"{index}. {equipment_name} ({asset_code})"
 
-    for record in records:
-        table_rows.append(
-            [
-                format_text(record.get("equipment_asset_code_snapshot")),
-                format_text(record.get("equipment_name_snapshot")),
-                format_text(record.get("equipment_use_snapshot")),
-                format_text(record.get("equipment_type_snapshot")),
-                format_temperature_method(record.get("temperature_check_method_snapshot")),
-                format_temperature(record.get("am_temperature")),
-                format_text(record.get("am_recorded_by_name")),
-                format_datetime(record.get("am_recorded_at")),
-                format_temperature(record.get("pm_temperature")),
-                format_text(record.get("pm_recorded_by_name")),
-                format_datetime(record.get("pm_recorded_at")),
-            ]
-        )
+        with st.expander(title, expanded=True):
+            detail_columns = st.columns(3)
 
-    header = "| " + " | ".join(columns) + " |"
-    separator = "| " + " | ".join(["---"] * len(columns)) + " |"
-    body = "\n".join(
-        "| " + " | ".join(html.escape(str(value)) for value in row) + " |"
-        for row in table_rows
-    )
+            with detail_columns[0]:
+                st.markdown("**Use**")
+                st.markdown(format_equipment_value(record.get("equipment_use_snapshot")))
 
-    st.markdown(header + "\n" + separator + "\n" + body)
+            with detail_columns[1]:
+                st.markdown("**Type**")
+                st.markdown(format_equipment_value(record.get("equipment_type_snapshot")))
+
+            with detail_columns[2]:
+                st.markdown("**Check method**")
+                st.markdown(format_temperature_method(record.get("temperature_check_method_snapshot")))
+
+            st.divider()
+
+            temperature_columns = st.columns(2)
+
+            with temperature_columns[0]:
+                render_temperature_record_block(
+                    title="AM temperature",
+                    temperature=record.get("am_temperature"),
+                    recorded_by=record.get("am_recorded_by_name"),
+                    recorded_at=record.get("am_recorded_at"),
+                )
+
+            with temperature_columns[1]:
+                render_temperature_record_block(
+                    title="PM temperature",
+                    temperature=record.get("pm_temperature"),
+                    recorded_by=record.get("pm_recorded_by_name"),
+                    recorded_at=record.get("pm_recorded_at"),
+                )
 
 
 def group_shifts_by_year_month(shifts):
@@ -183,6 +198,18 @@ def group_shifts_by_year_month(shifts):
         grouped[parsed_date.year][parsed_date.month].append(shift)
 
     return grouped
+
+
+def find_shift_by_id(shifts, shift_id):
+    for shift in shifts:
+        if str(shift.get("id")) == str(shift_id):
+            return shift
+
+    return None
+
+
+def clear_selected_archive_shift():
+    st.session_state.pop(SELECTED_ARCHIVE_SHIFT_ID_KEY, None)
 
 
 def render_shift_details(shift):
@@ -202,32 +229,47 @@ def render_shift_details(shift):
         st.markdown(f"**{label}:** {value}")
 
 
-def render_shift_checklist_preview(shift):
+def render_shift_checklist_button(shift):
     shift_id = shift.get("id")
-    selected_key = f"show_shift_checklist_{shift_id}"
 
     if st.button(
         "View checklist",
         key=f"view_checklist_{shift_id}",
         use_container_width=True,
     ):
-        st.session_state[selected_key] = not st.session_state.get(selected_key, False)
+        st.session_state[SELECTED_ARCHIVE_SHIFT_ID_KEY] = shift_id
+        st.rerun()
 
-    if st.session_state.get(selected_key):
-        st.markdown("#### Checklist")
-        st.markdown("##### Fridge/Freezer Temperatures")
 
-        token = st.session_state.get("token")
-        records, error = load_shift_fridge_temperature_records(
-            token=token,
-            shift_id=shift_id,
-        )
+def render_shift_checklist_detail(shift):
+    if st.button("Back to archive"):
+        clear_selected_archive_shift()
+        st.rerun()
 
-        if error:
-            st.error(error)
-            return
+    st.title("Archived Shift Checklist")
 
-        render_read_only_fridge_temperature_records(records)
+    st.caption(
+        "Read-only checklist record for the selected shift session."
+    )
+
+    render_shift_details(shift)
+
+    st.divider()
+
+    st.markdown("### Checklist")
+    st.markdown("#### Fridge/Freezer Temperatures")
+
+    token = st.session_state.get("token")
+    records, error = load_shift_fridge_temperature_records(
+        token=token,
+        shift_id=shift.get("id"),
+    )
+
+    if error:
+        st.error(error)
+        return
+
+    render_read_only_fridge_temperature_records(records)
 
 
 def render_filtered_archive(shifts):
@@ -243,7 +285,7 @@ def render_filtered_archive(shifts):
 
         st.markdown(f"### {title}")
         render_shift_details(shift)
-        render_shift_checklist_preview(shift)
+        render_shift_checklist_button(shift)
 
 
 def render_archive(shifts):
@@ -278,13 +320,31 @@ def render_archive(shifts):
 
                         with st.expander(title):
                             render_shift_details(shift)
-                            render_shift_checklist_preview(shift)
+                            render_shift_checklist_button(shift)
 
 
 def show():
-    st.title("Shift Session Archive")
-
     token = st.session_state.get("token")
+
+    selected_shift_id = st.session_state.get(SELECTED_ARCHIVE_SHIFT_ID_KEY)
+
+    if selected_shift_id is not None:
+        shifts, error = load_shift_archive(token=token)
+
+        if error:
+            st.error(error)
+            return
+
+        selected_shift = find_shift_by_id(shifts, selected_shift_id)
+
+        if selected_shift is None:
+            clear_selected_archive_shift()
+            st.warning("The selected shift could not be found.")
+        else:
+            render_shift_checklist_detail(selected_shift)
+            return
+
+    st.title("Shift Session Archive")
 
     st.caption(
         "View current and historical shift sessions for this business profile."
