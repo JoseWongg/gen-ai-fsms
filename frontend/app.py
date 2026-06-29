@@ -363,9 +363,7 @@ def get_navigation_items():
     food_safety_children = [
         sac.MenuItem("Q&A"),
         sac.MenuItem("Approved Methods"),
-        sac.MenuItem("Allergens", children=[
-            sac.MenuItem("Allergens Matrix"),
-        ]),
+        sac.MenuItem("Allergens Matrix"),
         sac.MenuItem("Cleaning Schedule"),
     ]
 
@@ -387,7 +385,6 @@ def get_navigation_items():
         training_children[0].children.append(sac.MenuItem("Create a Quiz"))
         training_children.append(sac.MenuItem("Staff Training Records"))
 
-        food_safety_children[2].children.append(sac.MenuItem("Edit Allergens Matrix"))
 
         procurement_children.insert(1, sac.MenuItem("Invoices"))
         procurement_children.insert(2, sac.MenuItem("Recalls Log"))
@@ -410,6 +407,7 @@ def get_navigation_items():
                         sac.MenuItem("Processing Equipment"),
                     ]),
                     sac.MenuItem("Cleaning Schedule Builder"),
+                    sac.MenuItem("Edit Allergens Matrix"),
                 ]),
                 sac.MenuItem("Health & Safety"),
                 sac.MenuItem("Fire Safety"),
