@@ -75,6 +75,31 @@ def format_text(value):
     return str(value)
 
 
+def format_change_field(value):
+    labels = {
+        "current_state": "Current state",
+        "equipment_name": "Equipment name",
+        "equipment_use": "Equipment use",
+        "equipment_type": "Equipment type",
+        "temperature_check_method": "Temperature check method",
+        "is_active": "Active status",
+    }
+
+    return labels.get(value, format_option(value))
+
+
+def format_change_type(value):
+    labels = {
+        "baseline": "Baseline",
+        "created": "Created",
+        "updated": "Updated",
+        "activated": "Activated",
+        "deactivated": "Deactivated",
+    }
+
+    return labels.get(value, format_option(value))
+
+
 def options_with_current(options, current_value):
     values = list(options)
     if current_value and current_value not in values:
@@ -118,6 +143,20 @@ def load_chilling_equipment_temperature_records(token, equipment_id):
 
     if response is None or response.status_code != 200:
         show_api_error(response, "Unable to load chilling equipment temperature records.")
+        return None
+
+    return response.json()
+
+
+def load_chilling_equipment_change_records(token, equipment_id):
+    response = api_request(
+        "GET",
+        f"/chilling-equipment/{equipment_id}/change-records",
+        token=token,
+    )
+
+    if response is None or response.status_code != 200:
+        show_api_error(response, "Unable to load chilling equipment change records.")
         return None
 
     return response.json()
@@ -176,6 +215,7 @@ def submit_status_change(token, equipment_id, action):
 
 PENDING_EQUIPMENT_CHANGE_KEY = "pending_chilling_equipment_change"
 TEMPERATURE_RECORDS_VISIBILITY_PREFIX = "show_chilling_equipment_temperature_records_"
+CHANGE_RECORDS_VISIBILITY_PREFIX = "show_chilling_equipment_change_records_"
 
 EQUIPMENT_CHANGE_WARNINGS = {
     "create": (
@@ -373,15 +413,54 @@ def render_equipment_temperature_records(records):
         st.divider()
 
 
+def render_equipment_change_records(records):
+    if not records:
+        st.info("No change records have been saved for this equipment yet.")
+        return
+
+    for record in records:
+        change_type = format_change_type(record.get("change_type"))
+        field_name = format_change_field(record.get("field_name"))
+        changed_by = format_text(record.get("changed_by_name"))
+        changed_at = format_datetime(record.get("changed_at"))
+
+        st.markdown(f"##### {change_type} - {field_name}")
+        st.caption(f"Changed by: {changed_by}")
+        st.caption(f"Changed at: {changed_at}")
+
+        old_value = record.get("old_value")
+        new_value = record.get("new_value")
+
+        if old_value is not None or new_value is not None:
+            value_columns = st.columns(2)
+
+            with value_columns[0]:
+                st.markdown("**Old value**")
+                st.markdown(format_text(old_value))
+
+            with value_columns[1]:
+                st.markdown("**New value**")
+                st.markdown(format_text(new_value))
+
+        st.divider()
+
+
 def render_equipment_action_buttons(token, equipment):
     equipment_id = equipment.get("id")
     records_visibility_key = f"{TEMPERATURE_RECORDS_VISIBILITY_PREFIX}{equipment_id}"
+    change_records_visibility_key = f"{CHANGE_RECORDS_VISIBILITY_PREFIX}{equipment_id}"
     records_visible = st.session_state.get(records_visibility_key, False)
+    change_records_visible = st.session_state.get(change_records_visibility_key, False)
 
     temperature_label = (
         "Hide temperature records"
         if records_visible
         else "Temperature records"
+    )
+    change_records_label = (
+        "Hide change records"
+        if change_records_visible
+        else "Change records"
     )
 
     temperature_col, change_col, status_col = st.columns(3)
@@ -396,13 +475,13 @@ def render_equipment_action_buttons(token, equipment):
             st.rerun()
 
     with change_col:
-        st.button(
-            "Change records",
+        if st.button(
+            change_records_label,
             key=f"change_records_{equipment_id}",
             use_container_width=True,
-            disabled=True,
-            help="Change records will be added next.",
-        )
+        ):
+            st.session_state[change_records_visibility_key] = not change_records_visible
+            st.rerun()
 
     with status_col:
         if equipment.get("is_active"):
@@ -430,16 +509,19 @@ def render_equipment_action_buttons(token, equipment):
                 )
                 st.rerun()
 
-    if not st.session_state.get(records_visibility_key, False):
-        return
+    if st.session_state.get(records_visibility_key, False):
+        records = load_chilling_equipment_temperature_records(token, equipment_id)
 
-    records = load_chilling_equipment_temperature_records(token, equipment_id)
+        if records is not None:
+            st.markdown("#### Temperature records")
+            render_equipment_temperature_records(records)
 
-    if records is None:
-        return
+    if st.session_state.get(change_records_visibility_key, False):
+        change_records = load_chilling_equipment_change_records(token, equipment_id)
 
-    st.markdown("#### Temperature records")
-    render_equipment_temperature_records(records)
+        if change_records is not None:
+            st.markdown("#### Change records")
+            render_equipment_change_records(change_records)
 
 
 def render_equipment_editor(token, equipment):
