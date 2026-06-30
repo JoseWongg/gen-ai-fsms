@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -8,19 +8,32 @@ from gen_ai_fsms.db.base import Base
 class BusinessChillingEquipmentChangeRecord(Base):
     __tablename__ = "business_chilling_equipment_change_records"
 
+    __table_args__ = (
+        Index(
+            "ix_bce_change_records_business_profile_id",
+            "business_profile_id",
+        ),
+        Index(
+            "ix_bce_change_records_chilling_equipment_id",
+            "chilling_equipment_id",
+        ),
+        Index(
+            "ix_bce_change_records_changed_by_user_id",
+            "changed_by_user_id",
+        ),
+    )
+
     id = Column(Integer, primary_key=True, index=True)
 
     business_profile_id = Column(
         Integer,
         ForeignKey("business_profiles.id"),
         nullable=False,
-        index=True,
     )
     chilling_equipment_id = Column(
         Integer,
         ForeignKey("business_chilling_equipment.id"),
         nullable=False,
-        index=True,
     )
 
     change_type = Column(String(50), nullable=False)
@@ -33,7 +46,6 @@ class BusinessChillingEquipmentChangeRecord(Base):
         Integer,
         ForeignKey("users.id"),
         nullable=True,
-        index=True,
     )
     changed_at = Column(
         DateTime(timezone=True),
