@@ -58,6 +58,7 @@ def create_business_chilling_equipment(
         db=db,
         business_profile_id=business_profile_id,
         data=data,
+        user_id=current_user.id,
     )
 
 
@@ -75,6 +76,7 @@ def update_business_chilling_equipment(
         business_profile_id=business_profile_id,
         equipment_id=equipment_id,
         data=data,
+        user_id=current_user.id,
     )
 
 
@@ -90,6 +92,7 @@ def deactivate_business_chilling_equipment(
         db=db,
         business_profile_id=business_profile_id,
         equipment_id=equipment_id,
+        user_id=current_user.id,
     )
 
 
@@ -136,4 +139,5 @@ def activate_business_chilling_equipment(
         db=db,
         business_profile_id=business_profile_id,
         equipment_id=equipment_id,
+        user_id=current_user.id,
     )

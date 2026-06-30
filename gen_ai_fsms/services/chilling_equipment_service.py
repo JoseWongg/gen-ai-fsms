@@ -6,6 +6,9 @@ from sqlalchemy.orm import Session
 
 from gen_ai_fsms.db.models.auth.user import User
 from gen_ai_fsms.db.models.business_chilling_equipment import BusinessChillingEquipment
+from gen_ai_fsms.db.models.business_chilling_equipment_change_record import (
+    BusinessChillingEquipmentChangeRecord,
+)
 from gen_ai_fsms.db.models.daily_shift import DailyShift
 from gen_ai_fsms.db.models.daily_shift_chilling_temperature_check import (
     DailyShiftChillingTemperatureCheck,
@@ -17,6 +20,90 @@ from gen_ai_fsms.schemas.chilling_equipment import (
 
 
 CHILLING_EQUIPMENT_TIMEZONE = ZoneInfo("Europe/London")
+
+
+
+TRACKED_EQUIPMENT_FIELDS = (
+    "equipment_name",
+    "equipment_use",
+    "equipment_type",
+    "temperature_check_method",
+)
+
+
+def normalise_change_value(value):
+    if value is None:
+        return None
+
+    if isinstance(value, bool):
+        return "true" if value else "false"
+
+    return str(value)
+
+
+def build_chilling_equipment_state_summary(
+    equipment: BusinessChillingEquipment,
+) -> str:
+    return (
+        f"asset_code={equipment.equipment_asset_code}; "
+        f"name={equipment.equipment_name}; "
+        f"use={equipment.equipment_use}; "
+        f"type={equipment.equipment_type}; "
+        f"temperature_check_method={equipment.temperature_check_method}; "
+        f"is_active={normalise_change_value(equipment.is_active)}"
+    )
+
+
+def record_chilling_equipment_change(
+    db: Session,
+    business_profile_id: int,
+    chilling_equipment_id: int,
+    change_type: str,
+    field_name: str | None = None,
+    old_value=None,
+    new_value=None,
+    changed_by_user_id: int | None = None,
+) -> BusinessChillingEquipmentChangeRecord:
+    change_record = BusinessChillingEquipmentChangeRecord(
+        business_profile_id=business_profile_id,
+        chilling_equipment_id=chilling_equipment_id,
+        change_type=change_type,
+        field_name=field_name,
+        old_value=normalise_change_value(old_value),
+        new_value=normalise_change_value(new_value),
+        changed_by_user_id=changed_by_user_id,
+    )
+
+    db.add(change_record)
+    return change_record
+
+
+def record_chilling_equipment_field_changes(
+    db: Session,
+    business_profile_id: int,
+    equipment: BusinessChillingEquipment,
+    old_values: dict,
+    changed_by_user_id: int | None = None,
+) -> None:
+    for field_name in TRACKED_EQUIPMENT_FIELDS:
+        old_value = old_values.get(field_name)
+        new_value = getattr(equipment, field_name)
+
+        if normalise_change_value(old_value) == normalise_change_value(new_value):
+            continue
+
+        record_chilling_equipment_change(
+            db=db,
+            business_profile_id=business_profile_id,
+            chilling_equipment_id=equipment.id,
+            change_type="updated",
+            field_name=field_name,
+            old_value=old_value,
+            new_value=new_value,
+            changed_by_user_id=changed_by_user_id,
+        )
+
+
 
 
 def generate_chilling_equipment_asset_code(
@@ -80,6 +167,7 @@ def create_chilling_equipment(
     db: Session,
     business_profile_id: int,
     data: ChillingEquipmentCreate,
+    user_id: int | None = None,
 ) -> BusinessChillingEquipment:
     equipment = BusinessChillingEquipment(
         business_profile_id=business_profile_id,
@@ -103,6 +191,17 @@ def create_chilling_equipment(
 
     equipment.equipment_asset_code = generate_chilling_equipment_asset_code(equipment)
 
+    record_chilling_equipment_change(
+        db=db,
+        business_profile_id=business_profile_id,
+        chilling_equipment_id=equipment.id,
+        change_type="created",
+        field_name="current_state",
+        old_value=None,
+        new_value=build_chilling_equipment_state_summary(equipment),
+        changed_by_user_id=user_id,
+    )
+
     db.commit()
     db.refresh(equipment)
 
@@ -114,6 +213,7 @@ def update_chilling_equipment(
     business_profile_id: int,
     equipment_id: int,
     data: ChillingEquipmentUpdate,
+    user_id: int | None = None,
 ) -> BusinessChillingEquipment:
     equipment = get_chilling_equipment_for_business(
         db=db,
@@ -122,6 +222,11 @@ def update_chilling_equipment(
     )
 
     update_data = data.model_dump(exclude_unset=True)
+
+    old_values = {
+        field_name: getattr(equipment, field_name)
+        for field_name in TRACKED_EQUIPMENT_FIELDS
+    }
 
     if "equipment_name" in update_data and update_data["equipment_name"] is not None:
         equipment.equipment_name = _clean_required_text(
@@ -144,6 +249,14 @@ def update_chilling_equipment(
     if "temperature_check_method" in update_data and update_data["temperature_check_method"] is not None:
         equipment.temperature_check_method = update_data["temperature_check_method"]
 
+    record_chilling_equipment_field_changes(
+        db=db,
+        business_profile_id=business_profile_id,
+        equipment=equipment,
+        old_values=old_values,
+        changed_by_user_id=user_id,
+    )
+
     db.commit()
     db.refresh(equipment)
 
@@ -154,6 +267,7 @@ def deactivate_chilling_equipment(
     db: Session,
     business_profile_id: int,
     equipment_id: int,
+    user_id: int | None = None,
 ) -> BusinessChillingEquipment:
     equipment = get_chilling_equipment_for_business(
         db=db,
@@ -173,6 +287,8 @@ def deactivate_chilling_equipment(
         )
     ]
 
+    was_active = bool(equipment.is_active)
+
     if active_shift_ids:
         (
             db.query(DailyShiftChillingTemperatureCheck)
@@ -187,6 +303,18 @@ def deactivate_chilling_equipment(
         )
 
     equipment.is_active = False
+
+    if was_active:
+        record_chilling_equipment_change(
+            db=db,
+            business_profile_id=business_profile_id,
+            chilling_equipment_id=equipment.id,
+            change_type="deactivated",
+            field_name="is_active",
+            old_value=True,
+            new_value=False,
+            changed_by_user_id=user_id,
+        )
 
     db.commit()
     db.refresh(equipment)
@@ -288,6 +416,7 @@ def activate_chilling_equipment(
     db: Session,
     business_profile_id: int,
     equipment_id: int,
+    user_id: int | None = None,
 ) -> BusinessChillingEquipment:
     equipment = get_chilling_equipment_for_business(
         db=db,
@@ -295,7 +424,21 @@ def activate_chilling_equipment(
         equipment_id=equipment_id,
     )
 
+    was_active = bool(equipment.is_active)
+
     equipment.is_active = True
+
+    if not was_active:
+        record_chilling_equipment_change(
+            db=db,
+            business_profile_id=business_profile_id,
+            chilling_equipment_id=equipment.id,
+            change_type="activated",
+            field_name="is_active",
+            old_value=False,
+            new_value=True,
+            changed_by_user_id=user_id,
+        )
 
     db.commit()
     db.refresh(equipment)
