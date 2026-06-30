@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from gen_ai_fsms.api.deps import get_current_user, get_db, require_admin
 from gen_ai_fsms.db.models import User
 from gen_ai_fsms.schemas.chilling_equipment import (
+    ChillingEquipmentChangeRecordResponse,
     ChillingEquipmentCreate,
     ChillingEquipmentResponse,
     ChillingEquipmentTemperatureHistoryResponse,
@@ -15,6 +16,7 @@ from gen_ai_fsms.services.chilling_equipment_service import (
     deactivate_chilling_equipment,
     list_active_chilling_equipment,
     list_chilling_equipment,
+    list_chilling_equipment_change_records,
     list_chilling_equipment_temperature_history,
     update_chilling_equipment,
 )
@@ -93,6 +95,24 @@ def deactivate_business_chilling_equipment(
         business_profile_id=business_profile_id,
         equipment_id=equipment_id,
         user_id=current_user.id,
+    )
+
+
+@router.get(
+    "/{equipment_id}/change-records",
+    response_model=list[ChillingEquipmentChangeRecordResponse],
+)
+def get_business_chilling_equipment_change_records(
+    equipment_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    business_profile_id = get_current_business_profile_id(current_user)
+
+    return list_chilling_equipment_change_records(
+        db=db,
+        business_profile_id=business_profile_id,
+        equipment_id=equipment_id,
     )
 
 

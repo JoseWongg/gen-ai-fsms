@@ -66,3 +66,19 @@ class ChillingEquipmentTemperatureHistoryResponse(BaseModel):
     pm_recorded_at: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+
+class ChillingEquipmentChangeRecordResponse(BaseModel):
+    id: int
+    business_profile_id: int
+    chilling_equipment_id: int
+    change_type: str
+    field_name: Optional[str] = None
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    changed_by_user_id: Optional[int] = None
+    changed_by_name: Optional[str] = None
+    changed_at: datetime
+
+    class Config:
+        from_attributes = True

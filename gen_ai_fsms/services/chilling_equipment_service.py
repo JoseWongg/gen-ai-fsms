@@ -342,6 +342,49 @@ def format_user_display_name(user: User | None) -> str | None:
     return user.email
 
 
+def list_chilling_equipment_change_records(
+    db: Session,
+    business_profile_id: int,
+    equipment_id: int,
+) -> list[dict]:
+    equipment = get_chilling_equipment_for_business(
+        db=db,
+        business_profile_id=business_profile_id,
+        equipment_id=equipment_id,
+    )
+
+    change_records = (
+        db.query(BusinessChillingEquipmentChangeRecord)
+        .filter(
+            BusinessChillingEquipmentChangeRecord.business_profile_id
+            == business_profile_id,
+            BusinessChillingEquipmentChangeRecord.chilling_equipment_id
+            == equipment.id,
+        )
+        .order_by(
+            BusinessChillingEquipmentChangeRecord.changed_at.desc(),
+            BusinessChillingEquipmentChangeRecord.id.desc(),
+        )
+        .all()
+    )
+
+    return [
+        {
+            "id": record.id,
+            "business_profile_id": record.business_profile_id,
+            "chilling_equipment_id": record.chilling_equipment_id,
+            "change_type": record.change_type,
+            "field_name": record.field_name,
+            "old_value": record.old_value,
+            "new_value": record.new_value,
+            "changed_by_user_id": record.changed_by_user_id,
+            "changed_by_name": format_user_display_name(record.changed_by_user),
+            "changed_at": record.changed_at,
+        }
+        for record in change_records
+    ]
+
+
 def list_chilling_equipment_temperature_history(
     db: Session,
     business_profile_id: int,
