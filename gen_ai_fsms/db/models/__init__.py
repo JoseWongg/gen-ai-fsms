@@ -12,3 +12,5 @@ from .business_chilling_equipment import BusinessChillingEquipment
 from .daily_shift_chilling_temperature_check import DailyShiftChillingTemperatureCheck
 from .business_chilling_equipment_change_record import BusinessChillingEquipmentChangeRecord
 from .notification import Notification
+from .chilling_temperature_incident import ChillingTemperatureIncident
+from .shift_diary_entry import ShiftDiaryEntry
