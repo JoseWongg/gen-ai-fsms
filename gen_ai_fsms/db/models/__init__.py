@@ -10,3 +10,4 @@ from .approved_safety_point_response import ApprovedSafetyPointResponse
 from .daily_shift import DailyShift
 from .business_chilling_equipment import BusinessChillingEquipment
 from .daily_shift_chilling_temperature_check import DailyShiftChillingTemperatureCheck
+from .business_chilling_equipment_change_record import BusinessChillingEquipmentChangeRecord
