@@ -15,6 +15,7 @@ from views.onboarding_approval import show as approval_page
 from views.approved_methods import show as approved_methods_page
 from views.checklist import show as checklist_page
 from views.shift_archive import show as shift_archive_page
+from views.notifications import show as notifications_page
 
 # If a reset token is present in the URL, show the reset page immediately.
 query_params = st.query_params
@@ -111,6 +112,12 @@ ROUTES = {
     "dashboard": {
         "title": "",
         "view": dashboard_page,
+        "admin_only": False,
+    },
+
+    "notifications": {
+        "title": "Notifications",
+        "view": notifications_page,
         "admin_only": False,
     },
 
@@ -372,8 +379,13 @@ def get_navigation_items():
         sac.MenuItem("Maintenance"),
     ]
 
+
+    unread_notification_count = load_unread_notification_count()
+    notifications_label = f"Notifications ({unread_notification_count})"
+
     menu_items = [
         sac.MenuItem("Dashboard", icon="house"),
+        sac.MenuItem(notifications_label, icon="bell"),
         sac.MenuItem("Shift Management", icon="calendar", children=[
             sac.MenuItem("Checklist"),
             sac.MenuItem("Diary"),
@@ -463,6 +475,25 @@ def format_shift_date(value):
         return value
 
 
+def load_unread_notification_count():
+    token = st.session_state.get("token")
+
+    if not token:
+        return 0
+
+    response = api_request(
+        "GET",
+        "/notifications/unread-count",
+        token=token,
+    )
+
+    if response is None or response.status_code != 200:
+        return 0
+
+    data = response.json()
+    return data.get("unread_count", 0) or 0
+
+
 def render_sidebar_shift_status():
     shift_state = load_sidebar_daily_shift_state()
 
@@ -504,6 +535,7 @@ def render_sidebar():
     if site_name:
         st.sidebar.write(f"Venue: {site_name}")
 
+
     pending_navigation_route = st.session_state.pop(
         "pending_navigation_route",
         None,
@@ -530,7 +562,10 @@ def render_sidebar():
     if selected_label == "Logout":
         logout()
 
-    selected_route = MENU_LABEL_TO_ROUTE.get(selected_label)
+    if selected_label and selected_label.startswith("Notifications"):
+        selected_route = "notifications"
+    else:
+        selected_route = MENU_LABEL_TO_ROUTE.get(selected_label)
 
     if selected_route:
         st.session_state.page = selected_route
