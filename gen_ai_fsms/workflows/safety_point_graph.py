@@ -619,6 +619,7 @@ def _finalize_chilling_equipment_flow(
             source_safety_point_id=(
                 CHILLING_EQUIPMENT_SOURCE_SAFETY_POINT_ID
             ),
+            changed_by_user_id=state.get("user_id"),
         )
         db.commit()
         flow["saved_result"] = saved_result

@@ -27,7 +27,11 @@ from gen_ai_fsms.db.models.daily_shift_chilling_temperature_check import (
 )
 from gen_ai_fsms.db.models.business_chilling_equipment import BusinessChillingEquipment
 from gen_ai_fsms.services.chilling_equipment_service import (
+    TRACKED_EQUIPMENT_FIELDS,
+    build_chilling_equipment_state_summary,
     generate_chilling_equipment_asset_code,
+    record_chilling_equipment_change,
+    record_chilling_equipment_field_changes,
 )
 
 
@@ -382,6 +386,7 @@ def save_chilling_equipment_items_for_profile(
     business_profile_id: int,
     equipment_items: List[Dict[str, Any]],
     source_safety_point_id: str = "4.1.1.3",
+    changed_by_user_id: int | None = None,
 ) -> Dict[str, Any]:
     """
     Save complete chilling equipment items for a business profile.
@@ -451,15 +456,53 @@ def save_chilling_equipment_items_for_profile(
             db.add(record)
             db.flush()
             record.equipment_asset_code = generate_chilling_equipment_asset_code(record)
+
+            record_chilling_equipment_change(
+                db=db,
+                business_profile_id=business_profile_id,
+                chilling_equipment_id=record.id,
+                change_type="created",
+                field_name="current_state",
+                old_value=None,
+                new_value=build_chilling_equipment_state_summary(record),
+                changed_by_user_id=changed_by_user_id,
+            )
+
             existing_by_name[lookup_key] = record
         else:
             record = existing_record
+            old_values = {
+                field_name: getattr(record, field_name)
+                for field_name in TRACKED_EQUIPMENT_FIELDS
+            }
+            was_active = bool(record.is_active)
+
             record.equipment_name = equipment_name
             record.equipment_use = equipment_use
             record.equipment_type = equipment_type
             record.temperature_check_method = temperature_check_method
             record.is_active = True
             db.flush()
+
+            record_chilling_equipment_field_changes(
+                db=db,
+                business_profile_id=business_profile_id,
+                equipment=record,
+                old_values=old_values,
+                changed_by_user_id=changed_by_user_id,
+            )
+
+            if not was_active:
+                record_chilling_equipment_change(
+                    db=db,
+                    business_profile_id=business_profile_id,
+                    chilling_equipment_id=record.id,
+                    change_type="activated",
+                    field_name="is_active",
+                    old_value=False,
+                    new_value=True,
+                    changed_by_user_id=changed_by_user_id,
+                )
 
         saved_items.append(
             {
