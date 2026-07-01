@@ -262,6 +262,17 @@ def rerun_checklist_page():
     return None
 
 
+def show_pending_checklist_success_message():
+    success_message = st.session_state.pop("checklist_temperature_save_message", None)
+    error_message = st.session_state.pop("checklist_temperature_error_message", None)
+
+    if success_message:
+        st.success(success_message)
+
+    if error_message:
+        st.error(error_message)
+
+
 def normalise_temperature_for_comparison(value):
     if value is None:
         return None
@@ -371,6 +382,28 @@ def render_sections(sections):
         render_section(section)
 
 
+def save_temperature_from_session(token, check_id, field_name, input_key):
+    st.session_state.checklist_default_tab = "Fridge Temperatures"
+
+    raw_value = st.session_state.get(input_key, "")
+    temperature_value, validation_error = validate_temperature_input(raw_value)
+
+    if validation_error:
+        st.session_state.checklist_temperature_error_message = validation_error
+        return
+
+    saved, message = save_fridge_temperature_check(
+        token=token,
+        check_id=check_id,
+        payload={field_name: temperature_value},
+    )
+
+    if saved:
+        st.session_state.checklist_temperature_save_message = message
+    else:
+        st.session_state.checklist_temperature_error_message = message
+
+
 def render_fridge_temperatures_tab(token):
     section = FRIDGE_TEMPERATURES_SECTION
     result = load_fridge_temperature_checks(token)
@@ -429,39 +462,30 @@ def render_fridge_temperatures_tab(token):
         with temperature_columns[0]:
             st.markdown('<div class="temperature-group-header">AM</div>', unsafe_allow_html=True)
             am_columns = st.columns([1.65, 1], gap="small")
+            am_input_key = f"am_temperature_{check_id}"
 
             am_value = am_columns[0].text_input(
                 "AM",
                 value=format_temperature_input(row.get("am_temperature")),
-                key=f"am_temperature_{check_id}",
+                key=am_input_key,
                 label_visibility="collapsed",
             )
 
             am_saved_value = row.get("am_temperature")
             am_recorded_at = row.get("am_recorded_at")
 
-            if am_columns[1].button(
+            am_columns[1].button(
                 "Save",
                 key=f"save_am_temperature_{check_id}",
                 use_container_width=True,
-            ):
-                temperature_value, validation_error = validate_temperature_input(am_value)
-
-                if validation_error:
-                    st.error(validation_error)
-                else:
-                    saved, message = save_fridge_temperature_check(
-                        token=token,
-                        check_id=check_id,
-                        payload={"am_temperature": temperature_value},
-                    )
-
-                    if saved:
-                        am_saved_value = temperature_value
-                        am_recorded_at = "saved"
-                        st.success(message)
-                    else:
-                        st.error(message)
+                on_click=save_temperature_from_session,
+                args=(
+                    token,
+                    check_id,
+                    "am_temperature",
+                    am_input_key,
+                ),
+            )
 
             render_temperature_status(
                 saved_value=am_saved_value,
@@ -472,39 +496,30 @@ def render_fridge_temperatures_tab(token):
         with temperature_columns[1]:
             st.markdown('<div class="temperature-group-header">PM</div>', unsafe_allow_html=True)
             pm_columns = st.columns([1.65, 1], gap="small")
+            pm_input_key = f"pm_temperature_{check_id}"
 
             pm_value = pm_columns[0].text_input(
                 "PM",
                 value=format_temperature_input(row.get("pm_temperature")),
-                key=f"pm_temperature_{check_id}",
+                key=pm_input_key,
                 label_visibility="collapsed",
             )
 
             pm_saved_value = row.get("pm_temperature")
             pm_recorded_at = row.get("pm_recorded_at")
 
-            if pm_columns[1].button(
+            pm_columns[1].button(
                 "Save",
                 key=f"save_pm_temperature_{check_id}",
                 use_container_width=True,
-            ):
-                temperature_value, validation_error = validate_temperature_input(pm_value)
-
-                if validation_error:
-                    st.error(validation_error)
-                else:
-                    saved, message = save_fridge_temperature_check(
-                        token=token,
-                        check_id=check_id,
-                        payload={"pm_temperature": temperature_value},
-                    )
-
-                    if saved:
-                        pm_saved_value = temperature_value
-                        pm_recorded_at = "saved"
-                        st.success(message)
-                    else:
-                        st.error(message)
+                on_click=save_temperature_from_session,
+                args=(
+                    token,
+                    check_id,
+                    "pm_temperature",
+                    pm_input_key,
+                ),
+            )
 
             render_temperature_status(
                 saved_value=pm_saved_value,
@@ -517,14 +532,16 @@ def render_fridge_temperatures_tab(token):
 
 def show():
     inject_checklist_styles()
-
     st.title("Daily Shift Checklist")
+    show_pending_checklist_success_message()
 
     token = st.session_state.get("token")
     shift_state = load_daily_shift_state(token)
 
     if not render_shift_state_guard(shift_state):
         return
+
+    default_checklist_tab = st.session_state.pop("checklist_default_tab", None)
 
     tabs = st.tabs(
         [
@@ -534,7 +551,8 @@ def show():
             "Food Temperatures",
             "Delivery Temperatures",
             "Cleaning",
-        ]
+        ],
+        default=default_checklist_tab,
     )
 
     with tabs[0]:

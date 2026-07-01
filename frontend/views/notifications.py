@@ -5,122 +5,63 @@ import streamlit as st
 from shared import api_request
 
 
+ACTION_ROUTE_LABELS = {
+    "dashboard": "Dashboard",
+    "notifications": "Notifications",
+    "shift_checklist": "Checklist",
+    "shift_diary": "Diary",
+    "shift_archive": "Archive",
+}
+
+
 def inject_notification_styles():
     st.markdown(
         """
         <style>
             .notifications-header {
-                border: 1px solid #d8e1ef;
-                border-radius: 12px;
-                background: #f8fafc;
-                padding: 1rem 1.25rem;
-                margin-bottom: 1rem;
+                margin-bottom: 1.25rem;
             }
 
-            .notifications-title {
-                color: #0f172a;
-                font-size: 1.5rem;
-                font-weight: 700;
-                margin-bottom: 0.25rem;
+            .notifications-header h2 {
+                margin-bottom: 0.2rem;
             }
 
-            .notifications-subtitle {
-                color: #475569;
-                font-size: 0.92rem;
-            }
-
-            .notification-card {
-                border: 1px solid #d8e1ef;
-                border-radius: 12px;
-                background: #ffffff;
-                padding: 1rem 1.25rem;
-                margin-bottom: 0.85rem;
-                box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-            }
-
-            .notification-card.unread {
-                border-color: #f59e0b;
-                background: #fff7ed;
-            }
-
-            .notification-title {
-                color: #0f172a;
-                font-size: 1.05rem;
-                font-weight: 700;
-                margin-bottom: 0.25rem;
-            }
-
-            .notification-message {
-                color: #334155;
-                font-size: 0.94rem;
-                margin-bottom: 0.45rem;
-                line-height: 1.4;
-            }
-
-            .notification-meta {
-                color: #64748b;
-                font-size: 0.82rem;
-            }
-
-            .notification-status {
-                display: inline-block;
-                border-radius: 999px;
-                padding: 0.18rem 0.55rem;
-                font-size: 0.75rem;
-                font-weight: 700;
-                margin-bottom: 0.35rem;
-            }
-
-            .notification-status.unread {
-                background: #fed7aa;
-                color: #9a3412;
-            }
-
-            .notification-status.read {
-                background: #e2e8f0;
-                color: #475569;
+            .notifications-header p {
+                margin-top: 0;
+                opacity: 0.75;
             }
 
             div[data-testid="stButton"] > button {
-                border: 1px solid #c7d2fe !important;
-                border-radius: 10px !important;
-                background: #eef4ff !important;
-                color: #1e3a8a !important;
-                font-weight: 700 !important;
-                min-height: 40px !important;
+                text-align: left !important;
+                justify-content: flex-start !important;
             }
 
-            div[data-testid="stButton"] > button:hover {
-                border-color: #93c5fd !important;
-                background: #e0ecff !important;
-                color: #1d4ed8 !important;
+            div[data-testid="stButton"] > button div[data-testid="stMarkdownContainer"] {
+                width: 100% !important;
+                text-align: left !important;
             }
 
-            @media (prefers-color-scheme: dark) {
-                .notifications-header,
-                .notification-card {
-                    background: #111827;
-                    border-color: #334155;
-                }
+            div[data-testid="stButton"] > button div[data-testid="stMarkdownContainer"] p {
+                width: 100% !important;
+                text-align: left !important;
+            }
 
-                .notification-card.unread {
-                    background: #1f2937;
-                    border-color: #f59e0b;
-                }
+            .notification-message-body {
+                max-height: 220px;
+                overflow-y: auto;
+                padding: 0.85rem;
+                border: 1px solid rgba(128, 128, 128, 0.25);
+                border-radius: 0.5rem;
+                margin-top: 0.4rem;
+                margin-bottom: 0.7rem;
+                line-height: 1.45;
+                white-space: pre-wrap;
+            }
 
-                .notifications-title,
-                .notification-title {
-                    color: #f8fafc;
-                }
-
-                .notifications-subtitle,
-                .notification-message {
-                    color: #cbd5e1;
-                }
-
-                .notification-meta {
-                    color: #f59e0b;
-                }
+            .notification-meta {
+                font-size: 0.82rem;
+                opacity: 0.72;
+                margin-bottom: 0.5rem;
             }
         </style>
         """,
@@ -171,99 +112,91 @@ def mark_notification_read(token, notification_id):
     return True
 
 
-def mark_all_notifications_read(token):
-    response = api_request(
-        "PATCH",
-        "/notifications/read-all",
-        token=token,
-    )
-
-    if response is None:
-        st.error("Unable to connect to the backend.")
-        return False
-
-    if response.status_code != 200:
-        st.error(f"Unable to mark notifications as read. HTTP {response.status_code}")
-        return False
-
-    data = response.json()
-    st.success(f"{data.get('updated_count', 0)} notification(s) marked as read.")
-    return True
-
-
 def render_header(unread_count):
     st.markdown(
         f"""
         <div class="notifications-header">
-            <div class="notifications-title">Notifications</div>
-            <div class="notifications-subtitle">
-                You have {unread_count} unread notification(s).
-            </div>
+            <h2>Notifications</h2>
+            <p>{unread_count} unread notification(s).</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 
-def render_notification_card(token, notification):
+def open_notification_action(action_route):
+    route_label = ACTION_ROUTE_LABELS.get(action_route)
+
+    st.session_state.pending_navigation_route = action_route
+
+    if route_label:
+        st.session_state.pending_navigation_label = route_label
+
+    st.rerun()
+
+
+def toggle_notification(token, notification):
     notification_id = notification["id"]
     status = notification.get("status", "unread")
-    css_status = "unread" if status == "unread" else "read"
-    title = escape(notification.get("title") or "Notification")
+    currently_expanded_id = st.session_state.get("expanded_notification_id")
+
+    if currently_expanded_id == notification_id:
+        st.session_state.expanded_notification_id = None
+        st.rerun()
+
+    st.session_state.expanded_notification_id = notification_id
+
+    if status == "unread":
+        if not mark_notification_read(token, notification_id):
+            st.session_state.expanded_notification_id = None
+            return
+
+    st.rerun()
+
+
+def render_notification_item(token, notification):
+    notification_id = notification["id"]
+    status = notification.get("status", "unread")
+    is_unread = status == "unread"
+    is_expanded = st.session_state.get("expanded_notification_id") == notification_id
+
+    title = notification.get("title") or "Notification"
+    status_marker = "🟠" if is_unread else "○"
+    title_label = f"{status_marker} {title}"
+
+    if st.button(
+        title_label,
+        key=f"toggle_notification_{notification_id}",
+    ):
+        toggle_notification(token, notification)
+
+    if not is_expanded:
+        return
+
     message = escape(notification.get("message") or "")
-    notification_type = escape(notification.get("notification_type") or "system")
     created_at = escape(format_datetime(notification.get("created_at")))
     action_route = notification.get("action_route")
 
-    st.markdown(
-        f"""
-        <div class="notification-card {css_status}">
-            <div class="notification-status {css_status}">{escape(status.upper())}</div>
-            <div class="notification-title">{title}</div>
-            <div class="notification-message">{message}</div>
+    with st.container(border=True):
+        st.markdown(
+            f"""
             <div class="notification-meta">
-                Type: {notification_type} &nbsp;|&nbsp; Created: {created_at}
+                Created: {created_at}
             </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            <div class="notification-message-body">
+                {message}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    button_cols = st.columns([1, 1, 3])
-
-    with button_cols[0]:
-        if status == "unread":
-            if st.button(
-                "Mark as read",
-                key=f"mark_notification_read_{notification_id}",
-                use_container_width=True,
-            ):
-                if mark_notification_read(token, notification_id):
-                    st.rerun()
-        else:
-            st.button(
-                "Read",
-                key=f"notification_already_read_{notification_id}",
-                use_container_width=True,
-                disabled=True,
-            )
-
-    with button_cols[1]:
         if action_route:
             if st.button(
                 "Open action",
                 key=f"open_notification_action_{notification_id}",
                 use_container_width=True,
             ):
-                st.session_state.page = action_route
-                st.rerun()
-        else:
-            st.button(
-                "No action",
-                key=f"notification_no_action_{notification_id}",
-                use_container_width=True,
-                disabled=True,
-            )
+                open_notification_action(action_route)
 
 
 def show():
@@ -275,32 +208,25 @@ def show():
         st.error("You must be logged in to view notifications.")
         return
 
+    if "expanded_notification_id" not in st.session_state:
+        st.session_state.expanded_notification_id = None
+
     notifications = load_notifications(token)
 
     if notifications is None:
         return
 
     unread_count = sum(
-        1 for notification in notifications
+        1
+        for notification in notifications
         if notification.get("status") == "unread"
     )
 
     render_header(unread_count)
-
-    top_cols = st.columns([1, 1, 3])
-
-    with top_cols[0]:
-        if st.button("Refresh", use_container_width=True):
-            st.rerun()
-
-    with top_cols[1]:
-        if st.button("Mark all as read", use_container_width=True):
-            if mark_all_notifications_read(token):
-                st.rerun()
 
     if not notifications:
         st.info("No notifications yet.")
         return
 
     for notification in notifications:
-        render_notification_card(token, notification)
+        render_notification_item(token, notification)

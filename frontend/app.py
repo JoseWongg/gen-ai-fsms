@@ -318,6 +318,7 @@ ROUTES = {
 
 MENU_LABEL_TO_ROUTE = {
     "Dashboard": "dashboard",
+    "Notifications": "notifications",
 
     "Checklist": "shift_checklist",
     "Diary": "shift_diary",
@@ -381,11 +382,13 @@ def get_navigation_items():
 
 
     unread_notification_count = load_unread_notification_count()
-    notifications_label = f"Notifications ({unread_notification_count})"
+    notification_tag = [
+        sac.Tag(str(unread_notification_count), color="red")
+    ]
 
     menu_items = [
         sac.MenuItem("Dashboard", icon="house"),
-        sac.MenuItem(notifications_label, icon="bell"),
+        sac.MenuItem("Notifications", icon="bell", tag=notification_tag),
         sac.MenuItem("Shift Management", icon="calendar", children=[
             sac.MenuItem("Checklist"),
             sac.MenuItem("Diary"),
@@ -535,7 +538,6 @@ def render_sidebar():
     if site_name:
         st.sidebar.write(f"Venue: {site_name}")
 
-
     pending_navigation_route = st.session_state.pop(
         "pending_navigation_route",
         None,
@@ -552,6 +554,7 @@ def render_sidebar():
     if pending_navigation_label:
         st.session_state.main_navigation = pending_navigation_label
 
+
     with st.sidebar:
         selected_label = sac.menu(
             items=get_navigation_items(),
@@ -562,10 +565,7 @@ def render_sidebar():
     if selected_label == "Logout":
         logout()
 
-    if selected_label and selected_label.startswith("Notifications"):
-        selected_route = "notifications"
-    else:
-        selected_route = MENU_LABEL_TO_ROUTE.get(selected_label)
+    selected_route = MENU_LABEL_TO_ROUTE.get(selected_label)
 
     if selected_route:
         st.session_state.page = selected_route
@@ -583,6 +583,9 @@ def clear_dashboard_shift_messages():
 
 def render_current_page():
     current_page = st.session_state.page
+
+    if current_page != "notifications":
+        st.session_state.pop("expanded_notification_id", None)
 
     if current_page != "dashboard":
         clear_dashboard_shift_messages()

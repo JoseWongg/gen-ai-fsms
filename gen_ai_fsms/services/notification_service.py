@@ -3,9 +3,11 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
+from sqlalchemy import case
 from sqlalchemy.orm import Session
 
 from gen_ai_fsms.db.models.notification import Notification
+
 
 UNREAD_STATUS = "unread"
 READ_STATUS = "read"
@@ -23,6 +25,8 @@ def create_notification(
     related_entity_type: Optional[str] = None,
     related_entity_id: Optional[int] = None,
     action_route: Optional[str] = None,
+    commit: bool = True,
+    refresh: bool = True,
 ) -> Notification:
     notification = Notification(
         recipient_user_id=recipient_user_id,
@@ -38,8 +42,17 @@ def create_notification(
     )
 
     db.add(notification)
-    db.commit()
-    db.refresh(notification)
+
+    if commit:
+        db.commit()
+
+        if refresh:
+            db.refresh(notification)
+    else:
+        db.flush()
+
+        if refresh:
+            db.refresh(notification)
 
     return notification
 
@@ -52,7 +65,7 @@ def list_notifications_for_user(
         db.query(Notification)
         .filter(Notification.recipient_user_id == recipient_user_id)
         .order_by(
-            Notification.status.asc(),
+            case((Notification.status == UNREAD_STATUS, 0), else_=1),
             Notification.created_at.desc(),
             Notification.id.desc(),
         )
@@ -91,7 +104,7 @@ def get_notification_for_user(
     if notification is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Notification was not found.",
+            detail="Notification not found.",
         )
 
     return notification
@@ -108,11 +121,14 @@ def mark_notification_read(
         recipient_user_id=recipient_user_id,
     )
 
-    if notification.status != READ_STATUS:
-        notification.status = READ_STATUS
-        notification.read_at = datetime.now(NOTIFICATION_TIMEZONE)
-        db.commit()
-        db.refresh(notification)
+    if notification.status == READ_STATUS:
+        return notification
+
+    notification.status = READ_STATUS
+    notification.read_at = datetime.now(NOTIFICATION_TIMEZONE)
+
+    db.commit()
+    db.refresh(notification)
 
     return notification
 
@@ -130,7 +146,9 @@ def mark_all_notifications_read(
         .all()
     )
 
-    if not unread_notifications:
+    updated_count = len(unread_notifications)
+
+    if updated_count == 0:
         return 0
 
     read_at = datetime.now(NOTIFICATION_TIMEZONE)
@@ -138,8 +156,6 @@ def mark_all_notifications_read(
     for notification in unread_notifications:
         notification.status = READ_STATUS
         notification.read_at = read_at
-
-    updated_count = len(unread_notifications)
 
     db.commit()
 

@@ -9,7 +9,9 @@ from gen_ai_fsms.db.models.business_chilling_equipment import BusinessChillingEq
 from gen_ai_fsms.db.models.daily_shift import DailyShift
 from gen_ai_fsms.db.models.daily_shift_chilling_temperature_check import DailyShiftChillingTemperatureCheck
 from gen_ai_fsms.db.models.auth.user import User
-
+from gen_ai_fsms.services.chilling_temperature_incident_service import (
+    record_chilling_temperature_incident_if_needed,
+)
 
 ACTIVE_STATUS = "active"
 ENDED_STATUS = "ended"
@@ -338,10 +340,30 @@ def update_chilling_temperature_check_for_active_shift(
             check.am_recorded_by_user_id = user_id
             check.am_recorded_at = recorded_at
 
+            record_chilling_temperature_incident_if_needed(
+                db=db,
+                active_shift=active_shift,
+                check=check,
+                check_period="am",
+                temperature=temperature_value,
+                recorded_by_user_id=user_id,
+                recorded_at=recorded_at,
+            )
+
         if field_name == "pm_temperature":
             check.pm_temperature = temperature_value
             check.pm_recorded_by_user_id = user_id
             check.pm_recorded_at = recorded_at
+
+            record_chilling_temperature_incident_if_needed(
+                db=db,
+                active_shift=active_shift,
+                check=check,
+                check_period="pm",
+                temperature=temperature_value,
+                recorded_by_user_id=user_id,
+                recorded_at=recorded_at,
+            )
 
     db.commit()
     db.refresh(check)
