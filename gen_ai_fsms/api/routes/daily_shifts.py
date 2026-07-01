@@ -15,6 +15,8 @@ from gen_ai_fsms.schemas.daily_shift import (
     DailyShiftResponse,
     FridgeTemperatureChecklistProgressResponse,
 )
+from gen_ai_fsms.schemas.shift_diary import ShiftDiaryEntryResponse
+
 from gen_ai_fsms.services.daily_shift_service import (
     end_daily_shift,
     get_current_shift_date,
@@ -27,6 +29,9 @@ from gen_ai_fsms.services.daily_shift_service import (
     update_chilling_temperature_check_for_active_shift,
 )
 
+from gen_ai_fsms.services.shift_diary_service import (
+    list_shift_diary_entries_for_active_shift,
+)
 
 router = APIRouter(prefix="/daily-shifts", tags=["Daily Shifts"])
 
@@ -56,7 +61,20 @@ def get_current_daily_shift(
     )
 
 
+@router.get(
+    "/current/diary-entries",
+    response_model=list[ShiftDiaryEntryResponse],
+)
+def get_current_shift_diary_entries(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    business_profile_id = get_current_business_profile_id(current_user)
 
+    return list_shift_diary_entries_for_active_shift(
+        db=db,
+        business_profile_id=business_profile_id,
+    )
 
 @router.get(
     "/current/fridge-temperature-checks",

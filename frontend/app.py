@@ -15,6 +15,7 @@ from views.onboarding_approval import show as approval_page
 from views.approved_methods import show as approved_methods_page
 from views.checklist import show as checklist_page
 from views.shift_archive import show as shift_archive_page
+from views.shift_diary import show as shift_diary_page
 from views.notifications import show as notifications_page
 
 # If a reset token is present in the URL, show the reset page immediately.
@@ -130,12 +131,7 @@ ROUTES = {
     },
     "shift_diary": {
         "title": "Shift Diary",
-        "message": (
-            "Diary for current shift. Includes an AI chatbot that suggests and records entries "
-            "in the diary and, alternatively, other logs such as the repairs log or recall log "
-            "when appropriate. The AI layer can recognise recordable incidents and label incidents "
-            "by type to support search functionality and can suggest corrective measures."
-        ),
+        "view": shift_diary_page,
         "admin_only": False,
     },
     "shift_archive": {
