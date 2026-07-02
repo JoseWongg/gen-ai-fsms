@@ -22,6 +22,9 @@ MONTH_NAMES = {
 }
 
 SELECTED_ARCHIVE_SHIFT_ID_KEY = "selected_archive_shift_id"
+SELECTED_ARCHIVE_VIEW_KEY = "selected_archive_view"
+ARCHIVE_VIEW_CHECKLIST = "checklist"
+ARCHIVE_VIEW_DIARY = "diary"
 
 
 def format_date(value):
@@ -130,6 +133,25 @@ def load_shift_fridge_temperature_records(token, shift_id):
     return response.json(), None
 
 
+def load_shift_diary_entries(token, shift_id):
+    if not token:
+        return None, "Not signed in."
+
+    response = api_request(
+        "GET",
+        f"/daily-shifts/archive/{shift_id}/diary-entries",
+        token=token,
+    )
+
+    if response is None:
+        return None, "Shift diary entries are unavailable."
+
+    if response.status_code != 200:
+        return None, f"Shift diary entries unavailable. HTTP {response.status_code}"
+
+    return response.json(), None
+
+
 def render_temperature_record_block(title, temperature, recorded_by, recorded_at):
     st.markdown(f"**{title}**")
     st.markdown(format_temperature(temperature))
@@ -210,6 +232,7 @@ def find_shift_by_id(shifts, shift_id):
 
 def clear_selected_archive_shift():
     st.session_state.pop(SELECTED_ARCHIVE_SHIFT_ID_KEY, None)
+    st.session_state.pop(SELECTED_ARCHIVE_VIEW_KEY, None)
 
 
 def render_shift_details(shift):
@@ -229,33 +252,82 @@ def render_shift_details(shift):
         st.markdown(f"**{label}:** {value}")
 
 
-def render_shift_checklist_button(shift):
+def toggle_archive_view(shift_id, requested_view):
+    current_shift_id = st.session_state.get(SELECTED_ARCHIVE_SHIFT_ID_KEY)
+    current_view = st.session_state.get(SELECTED_ARCHIVE_VIEW_KEY)
+
+    st.session_state[SELECTED_ARCHIVE_SHIFT_ID_KEY] = shift_id
+
+    if str(current_shift_id) == str(shift_id) and current_view == requested_view:
+        st.session_state.pop(SELECTED_ARCHIVE_VIEW_KEY, None)
+    else:
+        st.session_state[SELECTED_ARCHIVE_VIEW_KEY] = requested_view
+
+    st.rerun()
+
+
+def render_shift_action_buttons(shift):
     shift_id = shift.get("id")
 
-    if st.button(
-        "View checklist",
-        key=f"view_checklist_{shift_id}",
-        use_container_width=True,
-    ):
-        st.session_state[SELECTED_ARCHIVE_SHIFT_ID_KEY] = shift_id
-        st.rerun()
+    button_columns = st.columns(2)
+
+    with button_columns[0]:
+        if st.button(
+            "View diary",
+            key=f"view_diary_{shift_id}",
+            use_container_width=True,
+        ):
+            toggle_archive_view(
+                shift_id=shift_id,
+                requested_view=ARCHIVE_VIEW_DIARY,
+            )
+
+    with button_columns[1]:
+        if st.button(
+            "View checklist",
+            key=f"view_checklist_{shift_id}",
+            use_container_width=True,
+        ):
+            toggle_archive_view(
+                shift_id=shift_id,
+                requested_view=ARCHIVE_VIEW_CHECKLIST,
+            )
+
+def render_read_only_shift_diary_entries(entries):
+    if not entries:
+        st.info("No diary entries were recorded for this shift.")
+        return
+
+    for entry in entries:
+        title = format_text(entry.get("title"))
+        entry_text = format_text(entry.get("entry_text"))
+        created_at = format_datetime(entry.get("created_at"))
+        created_by = format_text(entry.get("created_by_name"))
+
+        with st.expander(title, expanded=False):
+            st.caption(f"Created at: {created_at}")
+            st.caption(f"Created by: {created_by}")
+            st.markdown(entry_text)
+
+
+def render_shift_diary_detail(shift):
+    st.markdown("### Diary entries")
+
+    token = st.session_state.get("token")
+
+    entries, error = load_shift_diary_entries(
+        token=token,
+        shift_id=shift.get("id"),
+    )
+
+    if error:
+        st.error(error)
+        return
+
+    render_read_only_shift_diary_entries(entries)
 
 
 def render_shift_checklist_detail(shift):
-    if st.button("Back to archive"):
-        clear_selected_archive_shift()
-        st.rerun()
-
-    st.title("Archived Shift Checklist")
-
-    st.caption(
-        "Read-only checklist record for the selected shift session."
-    )
-
-    render_shift_details(shift)
-
-    st.divider()
-
     st.markdown("### Checklist")
     st.markdown("#### Fridge/Freezer Temperatures")
 
@@ -272,6 +344,39 @@ def render_shift_checklist_detail(shift):
     render_read_only_fridge_temperature_records(records)
 
 
+def render_selected_shift_detail(shift):
+    if st.button("Back to archive"):
+        clear_selected_archive_shift()
+        st.rerun()
+
+    st.title("Archived Shift Session")
+    st.caption(
+        "Read-only archive record for the selected shift session."
+    )
+
+    render_shift_details(shift)
+
+    st.divider()
+
+    render_shift_action_buttons(shift)
+
+    selected_archive_view = st.session_state.get(SELECTED_ARCHIVE_VIEW_KEY)
+
+    if selected_archive_view is None:
+        st.info("Select View diary or View checklist to display archived shift records.")
+        return
+
+    st.divider()
+
+    if selected_archive_view == ARCHIVE_VIEW_DIARY:
+        render_shift_diary_detail(shift)
+        return
+
+    if selected_archive_view == ARCHIVE_VIEW_CHECKLIST:
+        render_shift_checklist_detail(shift)
+        return
+
+
 def render_filtered_archive(shifts):
     if not shifts:
         st.info("No shift sessions found.")
@@ -285,7 +390,7 @@ def render_filtered_archive(shifts):
 
         st.markdown(f"### {title}")
         render_shift_details(shift)
-        render_shift_checklist_button(shift)
+        render_shift_action_buttons(shift)
 
 
 def render_archive(shifts):
@@ -320,7 +425,7 @@ def render_archive(shifts):
 
                         with st.expander(title):
                             render_shift_details(shift)
-                            render_shift_checklist_button(shift)
+                            render_shift_action_buttons(shift)
 
 
 def show():
@@ -341,8 +446,8 @@ def show():
             clear_selected_archive_shift()
             st.warning("The selected shift could not be found.")
         else:
-            render_shift_checklist_detail(selected_shift)
-            return
+            render_selected_shift_detail(selected_shift)
+        return
 
     st.title("Shift Session Archive")
 

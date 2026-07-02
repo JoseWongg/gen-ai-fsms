@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from gen_ai_fsms.db.models.auth.user import User
 from gen_ai_fsms.db.models.shift_diary_entry import ShiftDiaryEntry
 from gen_ai_fsms.services.daily_shift_service import get_active_shift
-
+from gen_ai_fsms.db.models.daily_shift import DailyShift
 
 def format_user_display_name(user: User | None) -> str:
     if user is None:
@@ -47,6 +47,58 @@ def list_shift_diary_entries_for_active_shift(
         .filter(
             ShiftDiaryEntry.business_profile_id == business_profile_id,
             ShiftDiaryEntry.daily_shift_id == active_shift.id,
+        )
+        .order_by(
+            ShiftDiaryEntry.created_at.asc(),
+            ShiftDiaryEntry.id.asc(),
+        )
+        .all()
+    )
+
+    return [
+        {
+            "id": entry.id,
+            "business_profile_id": entry.business_profile_id,
+            "daily_shift_id": entry.daily_shift_id,
+            "created_by_user_id": entry.created_by_user_id,
+            "created_by_name": format_user_display_name(entry.created_by_user),
+            "entry_type": entry.entry_type,
+            "title": entry.title,
+            "entry_text": entry.entry_text,
+            "related_entity_type": entry.related_entity_type,
+            "related_entity_id": entry.related_entity_id,
+            "created_at": entry.created_at,
+            "updated_at": entry.updated_at,
+        }
+        for entry in entries
+    ]
+
+
+def list_shift_diary_entries_for_shift_archive(
+    db: Session,
+    business_profile_id: int,
+    shift_id: int,
+) -> list[dict]:
+    archived_shift = (
+        db.query(DailyShift)
+        .filter(
+            DailyShift.id == shift_id,
+            DailyShift.business_profile_id == business_profile_id,
+        )
+        .first()
+    )
+
+    if archived_shift is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shift session not found.",
+        )
+
+    entries = (
+        db.query(ShiftDiaryEntry)
+        .filter(
+            ShiftDiaryEntry.business_profile_id == business_profile_id,
+            ShiftDiaryEntry.daily_shift_id == shift_id,
         )
         .order_by(
             ShiftDiaryEntry.created_at.asc(),

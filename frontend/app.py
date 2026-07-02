@@ -583,6 +583,10 @@ def render_current_page():
     if current_page != "notifications":
         st.session_state.pop("expanded_notification_id", None)
 
+    if current_page != "shift_archive":
+        st.session_state.pop("selected_archive_shift_id", None)
+        st.session_state.pop("selected_archive_view", None)
+
     if current_page != "dashboard":
         clear_dashboard_shift_messages()
 

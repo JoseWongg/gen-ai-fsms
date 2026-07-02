@@ -31,6 +31,7 @@ from gen_ai_fsms.services.daily_shift_service import (
 
 from gen_ai_fsms.services.shift_diary_service import (
     list_shift_diary_entries_for_active_shift,
+    list_shift_diary_entries_for_shift_archive,
 )
 
 router = APIRouter(prefix="/daily-shifts", tags=["Daily Shifts"])
@@ -110,6 +111,23 @@ def update_current_fridge_temperature_check(
         user_id=current_user.id,
         check_id=check_id,
         update_data=data.model_dump(exclude_unset=True),
+    )
+
+@router.get(
+    "/archive/{shift_id}/diary-entries",
+    response_model=list[ShiftDiaryEntryResponse],
+)
+def get_shift_archive_diary_entries(
+    shift_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    business_profile_id = get_current_business_profile_id(current_user)
+
+    return list_shift_diary_entries_for_shift_archive(
+        db=db,
+        business_profile_id=business_profile_id,
+        shift_id=shift_id,
     )
 
 
