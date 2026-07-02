@@ -22,6 +22,7 @@ class DailyShiftResponse(BaseModel):
     ended_at: Optional[datetime] = None
     end_notes: Optional[str] = None
 
+
     class Config:
         from_attributes = True
 
@@ -29,6 +30,12 @@ class DailyShiftResponse(BaseModel):
 class DailyShiftCurrentResponse(BaseModel):
     state: str
     shift: Optional[DailyShiftResponse] = None
+
+
+class DailyShiftIncidentSummaryResponse(BaseModel):
+    temp_alert_count: int
+    unresolved_incident_count: int
+
 
 class FridgeTemperatureChecklistProgressResponse(BaseModel):
     progress_percentage: float

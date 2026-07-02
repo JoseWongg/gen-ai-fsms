@@ -546,6 +546,70 @@ def load_fridge_temperature_dashboard_progress(token):
     }
 
 
+def load_daily_shift_incident_summary_cards(token):
+    default_cards = {
+        "unresolved_incidents": {
+            "icon_label": "INC",
+            "title": "Unresolved Incidents",
+            "value": "0",
+            "caption": "No active shift",
+            "colour_class": "",
+        },
+        "temp_alerts": {
+            "icon_label": "TMP",
+            "title": "Temp Alerts",
+            "value": "0",
+            "caption": "No active shift",
+            "colour_class": "",
+        },
+    }
+
+    if not token:
+        return default_cards
+
+    response = api_request(
+        "GET",
+        "/daily-shifts/current/incident-summary",
+        token=token,
+    )
+
+    if response is None:
+        default_cards["unresolved_incidents"]["caption"] = "Summary unavailable"
+        default_cards["temp_alerts"]["caption"] = "Summary unavailable"
+        return default_cards
+
+    if response.status_code != 200:
+        default_cards["unresolved_incidents"]["caption"] = f"HTTP {response.status_code}"
+        default_cards["temp_alerts"]["caption"] = f"HTTP {response.status_code}"
+        return default_cards
+
+    data = response.json()
+
+    unresolved_incident_count = data.get("unresolved_incident_count", 0) or 0
+    temp_alert_count = data.get("temp_alert_count", 0) or 0
+
+    default_cards["unresolved_incidents"]["value"] = str(unresolved_incident_count)
+    default_cards["temp_alerts"]["value"] = str(temp_alert_count)
+
+    if unresolved_incident_count == 1:
+        default_cards["unresolved_incidents"]["caption"] = "Open incident"
+    else:
+        default_cards["unresolved_incidents"]["caption"] = "Open incidents"
+
+    if temp_alert_count == 1:
+        default_cards["temp_alerts"]["caption"] = "Unread alert"
+    else:
+        default_cards["temp_alerts"]["caption"] = "Unread alerts"
+
+    if unresolved_incident_count > 0:
+        default_cards["unresolved_incidents"]["colour_class"] = "red"
+
+    if temp_alert_count > 0:
+        default_cards["temp_alerts"]["colour_class"] = "red"
+
+    return default_cards
+
+
 def get_end_shift_blocking_message(token):
     response = api_request(
         "GET",
@@ -883,12 +947,30 @@ def show():
     profile_progress = load_food_safety_profile_progress(token)
     fsms_progress = load_fsms_builder_progress(token)
     fridge_temperature_progress = load_fridge_temperature_dashboard_progress(token)
+    incident_summary_cards = load_daily_shift_incident_summary_cards(token)
+
     fridge_temperature_card = dummy_status_card_html(
         fridge_temperature_progress["icon_label"],
         fridge_temperature_progress["title"],
         fridge_temperature_progress["value"],
         fridge_temperature_progress["caption"],
         fridge_temperature_progress["colour_class"],
+    )
+
+    unresolved_incidents_card = dummy_status_card_html(
+        incident_summary_cards["unresolved_incidents"]["icon_label"],
+        incident_summary_cards["unresolved_incidents"]["title"],
+        incident_summary_cards["unresolved_incidents"]["value"],
+        incident_summary_cards["unresolved_incidents"]["caption"],
+        incident_summary_cards["unresolved_incidents"]["colour_class"],
+    )
+
+    temp_alerts_card = dummy_status_card_html(
+        incident_summary_cards["temp_alerts"]["icon_label"],
+        incident_summary_cards["temp_alerts"]["title"],
+        incident_summary_cards["temp_alerts"]["value"],
+        incident_summary_cards["temp_alerts"]["caption"],
+        incident_summary_cards["temp_alerts"]["colour_class"],
     )
 
     status_cards_html = f"""
@@ -898,8 +980,8 @@ def show():
             {workflow_card_html(fsms_progress)}
             {fridge_temperature_card}
             {dummy_status_card_html("TRN", "Staff Trained", "4", "Trained today", "green")}
-            {dummy_status_card_html("INC", "Unresolved Incidents", "2", "Pending review")}
-            {dummy_status_card_html("TMP", "Temp Alerts", "1", "Above safe limits", "red")}
+            {unresolved_incidents_card}
+            {temp_alerts_card}
             {dummy_status_card_html("REP", "Repairs Logged", "3", "Open repair records")}
             {dummy_status_card_html("DOC", "Documents Ready", "6", "Inspection documents")}
         </div>

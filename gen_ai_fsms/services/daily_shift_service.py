@@ -9,9 +9,18 @@ from gen_ai_fsms.db.models.business_chilling_equipment import BusinessChillingEq
 from gen_ai_fsms.db.models.daily_shift import DailyShift
 from gen_ai_fsms.db.models.daily_shift_chilling_temperature_check import DailyShiftChillingTemperatureCheck
 from gen_ai_fsms.db.models.auth.user import User
+from gen_ai_fsms.db.models.chilling_temperature_incident import ChillingTemperatureIncident
+from gen_ai_fsms.db.models.notification import Notification
+
+
+
 from gen_ai_fsms.services.chilling_temperature_incident_service import (
+    INCIDENT_STATUS_OPEN,
+    NOTIFICATION_TYPE_CHILLING_TEMPERATURE_NON_COMPLIANCE,
     record_chilling_temperature_incident_if_needed,
 )
+
+from gen_ai_fsms.services.notification_service import UNREAD_STATUS
 
 ACTIVE_STATUS = "active"
 ENDED_STATUS = "ended"
@@ -86,6 +95,49 @@ def get_current_shift_state(
     return {
         "state": today_shift.status,
         "shift": today_shift,
+    }
+
+
+def get_active_shift_incident_summary(
+    db: Session,
+    business_profile_id: int,
+) -> dict:
+    active_shift = get_active_shift(
+        db=db,
+        business_profile_id=business_profile_id,
+    )
+
+    if active_shift is None:
+        return {
+            "temp_alert_count": 0,
+            "unresolved_incident_count": 0,
+        }
+
+    temp_alert_count = (
+        db.query(Notification)
+        .filter(
+            Notification.business_profile_id == business_profile_id,
+            Notification.daily_shift_id == active_shift.id,
+            Notification.notification_type
+            == NOTIFICATION_TYPE_CHILLING_TEMPERATURE_NON_COMPLIANCE,
+            Notification.status == UNREAD_STATUS,
+        )
+        .count()
+    )
+
+    unresolved_incident_count = (
+        db.query(ChillingTemperatureIncident)
+        .filter(
+            ChillingTemperatureIncident.business_profile_id == business_profile_id,
+            ChillingTemperatureIncident.daily_shift_id == active_shift.id,
+            ChillingTemperatureIncident.status == INCIDENT_STATUS_OPEN,
+        )
+        .count()
+    )
+
+    return {
+        "temp_alert_count": temp_alert_count,
+        "unresolved_incident_count": unresolved_incident_count,
     }
 
 
