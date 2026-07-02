@@ -53,3 +53,7 @@ For permissions or licensing enquiries, contact the University of Salford.
 ## License
 Proprietary software. All rights reserved.
 See the [LICENSE](LICENSE) file for details.
+
+
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/JoseWongg/gen-ai-fsms)
