@@ -141,6 +141,22 @@ def get_active_shift_incident_summary(
     }
 
 
+def chilling_temperature_incident_exists_for_check_period(
+    db: Session,
+    check_id: int,
+    check_period: str,
+) -> bool:
+    return (
+        db.query(ChillingTemperatureIncident.id)
+        .filter(
+            ChillingTemperatureIncident.chilling_temperature_check_id == check_id,
+            ChillingTemperatureIncident.check_period == check_period,
+        )
+        .first()
+        is not None
+    )
+
+
 def start_daily_shift(
     db: Session,
     business_profile_id: int,
@@ -377,6 +393,7 @@ def update_chilling_temperature_check_for_active_shift(
         )
 
     recorded_at = datetime.now(SHIFT_TIMEZONE)
+    non_compliance_incident_created = False
 
     for field_name in provided_fields:
         temperature_value = update_data[field_name]
@@ -392,7 +409,13 @@ def update_chilling_temperature_check_for_active_shift(
             check.am_recorded_by_user_id = user_id
             check.am_recorded_at = recorded_at
 
-            record_chilling_temperature_incident_if_needed(
+            incident_existed_before = chilling_temperature_incident_exists_for_check_period(
+                db=db,
+                check_id=check.id,
+                check_period="am",
+            )
+
+            incident = record_chilling_temperature_incident_if_needed(
                 db=db,
                 active_shift=active_shift,
                 check=check,
@@ -402,12 +425,21 @@ def update_chilling_temperature_check_for_active_shift(
                 recorded_at=recorded_at,
             )
 
+            if incident is not None and not incident_existed_before:
+                non_compliance_incident_created = True
+
         if field_name == "pm_temperature":
             check.pm_temperature = temperature_value
             check.pm_recorded_by_user_id = user_id
             check.pm_recorded_at = recorded_at
 
-            record_chilling_temperature_incident_if_needed(
+            incident_existed_before = chilling_temperature_incident_exists_for_check_period(
+                db=db,
+                check_id=check.id,
+                check_period="pm",
+            )
+
+            incident = record_chilling_temperature_incident_if_needed(
                 db=db,
                 active_shift=active_shift,
                 check=check,
@@ -417,8 +449,13 @@ def update_chilling_temperature_check_for_active_shift(
                 recorded_at=recorded_at,
             )
 
+            if incident is not None and not incident_existed_before:
+                non_compliance_incident_created = True
+
     db.commit()
     db.refresh(check)
+
+    check.non_compliance_incident_created = non_compliance_incident_created
 
     return check
 

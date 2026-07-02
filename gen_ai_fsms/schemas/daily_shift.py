@@ -85,6 +85,7 @@ class DailyShiftChillingTemperatureCheckResponse(BaseModel):
     pm_temperature: Optional[Decimal] = None
     pm_recorded_by_user_id: Optional[int] = None
     pm_recorded_at: Optional[datetime] = None
+    non_compliance_incident_created: bool = False
     created_at: datetime
     updated_at: Optional[datetime] = None
 

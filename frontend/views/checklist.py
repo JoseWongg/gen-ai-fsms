@@ -229,12 +229,22 @@ def save_fridge_temperature_check(token, check_id, payload):
     )
 
     if response is None:
-        return False, "Fridge temperature check could not be saved."
+        return False, "Fridge temperature check could not be saved.", False
 
     if response.status_code != 200:
-        return False, f"Fridge temperature check could not be saved. HTTP {response.status_code}"
+        return (
+            False,
+            f"Fridge temperature check could not be saved. HTTP {response.status_code}",
+            False,
+        )
 
-    return True, "Temperature change saved."
+    data = response.json()
+
+    return (
+        True,
+        "Temperature change saved.",
+        bool(data.get("non_compliance_incident_created")),
+    )
 
 
 def format_temperature_input(value):
@@ -264,10 +274,14 @@ def rerun_checklist_page():
 
 def show_pending_checklist_success_message():
     success_message = st.session_state.pop("checklist_temperature_save_message", None)
+    warning_message = st.session_state.pop("checklist_temperature_warning_message", None)
     error_message = st.session_state.pop("checklist_temperature_error_message", None)
 
     if success_message:
         st.success(success_message)
+
+    if warning_message:
+        st.warning(warning_message)
 
     if error_message:
         st.error(error_message)
@@ -392,7 +406,7 @@ def save_temperature_from_session(token, check_id, field_name, input_key):
         st.session_state.checklist_temperature_error_message = validation_error
         return
 
-    saved, message = save_fridge_temperature_check(
+    saved, message, non_compliance_incident_created = save_fridge_temperature_check(
         token=token,
         check_id=check_id,
         payload={field_name: temperature_value},
@@ -400,6 +414,13 @@ def save_temperature_from_session(token, check_id, field_name, input_key):
 
     if saved:
         st.session_state.checklist_temperature_save_message = message
+
+        if non_compliance_incident_created:
+            st.session_state.checklist_temperature_warning_message = (
+                "A non-compliant temperature has been recorded. "
+                "A notification has been sent to the admin user and "
+                "an entry has been added to the shift diary."
+            )
     else:
         st.session_state.checklist_temperature_error_message = message
 
