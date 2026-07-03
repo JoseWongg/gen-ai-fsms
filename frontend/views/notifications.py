@@ -13,6 +13,7 @@ ACTION_ROUTE_LABELS = {
     "shift_archive": "Archive",
 }
 
+CHILLING_TEMPERATURE_INCIDENT_ENTITY_TYPE = "chilling_temperature_incident"
 
 def inject_notification_styles():
     st.markdown(
@@ -135,6 +136,26 @@ def open_notification_action(action_route):
     st.rerun()
 
 
+def is_chilling_temperature_incident_notification(notification):
+    return (
+        notification.get("related_entity_type")
+        == CHILLING_TEMPERATURE_INCIDENT_ENTITY_TYPE
+        and notification.get("related_entity_id") is not None
+    )
+
+
+def open_corrective_action_workflow(notification):
+    st.session_state.selected_corrective_action_incident_id = notification[
+        "related_entity_id"
+    ]
+    st.session_state.corrective_action_dialog_open = True
+    st.session_state.corrective_action_source_notification_id = notification[
+        "id"
+    ]
+
+    st.rerun()
+
+
 def toggle_notification(token, notification):
     notification_id = notification["id"]
     status = notification.get("status", "unread")
@@ -196,7 +217,10 @@ def render_notification_item(token, notification):
                 key=f"open_notification_action_{notification_id}",
                 use_container_width=True,
             ):
-                open_notification_action(action_route)
+                if is_chilling_temperature_incident_notification(notification):
+                    open_corrective_action_workflow(notification)
+                else:
+                    open_notification_action(action_route)
 
 
 def show():
