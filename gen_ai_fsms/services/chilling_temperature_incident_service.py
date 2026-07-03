@@ -12,6 +12,7 @@ from gen_ai_fsms.db.models.daily_shift_chilling_temperature_check import (
 )
 from gen_ai_fsms.db.models.shift_diary_entry import ShiftDiaryEntry
 from gen_ai_fsms.services.chilling_temperature_compliance_service import (
+    FREEZER_TYPE,
     FRIDGE_TYPE,
     build_chilling_temperature_non_compliance_message,
     get_chilling_temperature_threshold,
@@ -163,6 +164,25 @@ def record_chilling_temperature_incident_if_needed(
 
     return incident
 
+
+def get_chilling_temperature_incident_for_corrective_action(
+    db: Session,
+    business_profile_id: int,
+    incident_id: int,
+) -> ChillingTemperatureIncident | None:
+    # Load a chilling-temperature incident for corrective-action routing.
+    # This does not filter by open status because completed sessions must still
+    # be able to return the already-resolved message.
+    return (
+        db.query(ChillingTemperatureIncident)
+        .filter(
+            ChillingTemperatureIncident.id == incident_id,
+            ChillingTemperatureIncident.business_profile_id == business_profile_id,
+        )
+        .first()
+    )
+
+
 def get_open_fridge_temperature_incident_for_corrective_action(
     db: Session,
     business_profile_id: int,
@@ -192,6 +212,39 @@ def get_open_fridge_temperature_incident_for_corrective_action(
         return None
 
     if normalized_equipment_type != FRIDGE_TYPE:
+        return None
+
+    return incident
+
+def get_open_freezer_temperature_incident_for_corrective_action(
+    db: Session,
+    business_profile_id: int,
+    incident_id: int,
+) -> ChillingTemperatureIncident | None:
+
+    # Back-end helper to load an open freezer-temperature incident for the corrective-action workflow.
+
+    incident = (
+        db.query(ChillingTemperatureIncident)
+        .filter(
+            ChillingTemperatureIncident.id == incident_id,
+            ChillingTemperatureIncident.business_profile_id == business_profile_id,
+            ChillingTemperatureIncident.status == INCIDENT_STATUS_OPEN,
+        )
+        .first()
+    )
+
+    if incident is None:
+        return None
+
+    try:
+        normalized_equipment_type = normalize_chilling_equipment_type(
+            incident.equipment_type_snapshot
+        )
+    except ValueError:
+        return None
+
+    if normalized_equipment_type != FREEZER_TYPE:
         return None
 
     return incident

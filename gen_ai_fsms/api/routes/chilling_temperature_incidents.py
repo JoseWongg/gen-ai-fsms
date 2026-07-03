@@ -7,7 +7,7 @@ from gen_ai_fsms.schemas.chilling_temperature_corrective_action_workflow import 
     CorrectiveActionMessageRequest,
     CorrectiveActionWorkflowResponse,
 )
-from gen_ai_fsms.workflows.fridge_corrective_action_workflow import (
+from gen_ai_fsms.workflows.chilling_temperature_corrective_action_workflow import (
     approve_final_summary,
     get_existing_session_status,
     process_user_message,
