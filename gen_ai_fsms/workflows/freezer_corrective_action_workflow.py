@@ -184,6 +184,7 @@ def _build_workflow_response(
     return {
         "session_id": session.id,
         "incident_id": session.incident_id,
+        "equipment_type": "freezer",
         "stage": session.current_stage,
         "status": session.status,
         "message": message,

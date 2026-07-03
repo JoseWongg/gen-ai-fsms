@@ -10,6 +10,7 @@ class CorrectiveActionMessageRequest(BaseModel):
 class CorrectiveActionWorkflowResponse(BaseModel):
     session_id: int
     incident_id: int
+    equipment_type: Optional[str] = None
     stage: str
     status: str
     message: Optional[str] = None

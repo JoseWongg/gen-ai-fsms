@@ -236,6 +236,22 @@ def clear_corrective_action_dialog_state():
     st.session_state.pop("corrective_action_workflow_error", None)
 
 
+
+def get_corrective_action_equipment_label(workflow_response):
+    if not workflow_response:
+        return "chilling equipment"
+
+    equipment_type = workflow_response.get("equipment_type")
+
+    if equipment_type == "fridge":
+        return "fridge"
+
+    if equipment_type == "freezer":
+        return "freezer"
+
+    return "chilling equipment"
+
+
 def render_corrective_action_workflow_response(workflow_response):
     if not workflow_response:
         return
@@ -289,8 +305,10 @@ def render_corrective_action_dialog(token, incident_id):
         return
 
     if not (workflow_response and workflow_response.get("is_completed")):
+        equipment_label = get_corrective_action_equipment_label(workflow_response)
         st.markdown(
-            "Describe the corrective action taken for this fridge temperature incident."
+            f"Describe the corrective action taken for this {equipment_label} "
+            "temperature incident."
         )
 
     render_corrective_action_workflow_response(workflow_response)
