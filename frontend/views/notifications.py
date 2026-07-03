@@ -113,6 +113,71 @@ def mark_notification_read(token, notification_id):
     return True
 
 
+def get_response_error_message(response, fallback_message):
+    if response is None:
+        return "Unable to connect to the backend."
+
+    try:
+        data = response.json()
+    except ValueError:
+        return f"{fallback_message} HTTP {response.status_code}"
+
+    detail = data.get("detail")
+    if detail:
+        return str(detail)
+
+    return f"{fallback_message} HTTP {response.status_code}"
+
+
+def start_corrective_action_session(token, incident_id):
+    response = api_request(
+        "POST",
+        f"/chilling-temperature-incidents/{incident_id}/corrective-action/session",
+        token=token,
+    )
+
+    if response is None or response.status_code != 200:
+        return None, get_response_error_message(
+            response,
+            "Unable to start corrective-action session.",
+        )
+
+    return response.json(), None
+
+
+def send_corrective_action_message(token, incident_id, message):
+    response = api_request(
+        "POST",
+        f"/chilling-temperature-incidents/{incident_id}/corrective-action/message",
+        json={"message": message},
+        token=token,
+    )
+
+    if response is None or response.status_code != 200:
+        return None, get_response_error_message(
+            response,
+            "Unable to send corrective-action message.",
+        )
+
+    return response.json(), None
+
+
+def approve_corrective_action_summary(token, incident_id):
+    response = api_request(
+        "POST",
+        f"/chilling-temperature-incidents/{incident_id}/corrective-action/approve",
+        token=token,
+    )
+
+    if response is None or response.status_code != 200:
+        return None, get_response_error_message(
+            response,
+            "Unable to approve corrective-action summary.",
+        )
+
+    return response.json(), None
+
+
 def render_header(unread_count):
     st.markdown(
         f"""
@@ -145,15 +210,187 @@ def is_chilling_temperature_incident_notification(notification):
 
 
 def open_corrective_action_workflow(notification):
-    st.session_state.selected_corrective_action_incident_id = notification[
-        "related_entity_id"
-    ]
+    incident_id = notification["related_entity_id"]
+
+    if (
+        st.session_state.get("selected_corrective_action_incident_id")
+        != incident_id
+    ):
+        st.session_state.pop("corrective_action_workflow_response", None)
+        st.session_state.pop("corrective_action_workflow_error", None)
+
+    st.session_state.selected_corrective_action_incident_id = incident_id
     st.session_state.corrective_action_dialog_open = True
     st.session_state.corrective_action_source_notification_id = notification[
         "id"
     ]
 
     st.rerun()
+
+
+def clear_corrective_action_dialog_state():
+    st.session_state.pop("selected_corrective_action_incident_id", None)
+    st.session_state.pop("corrective_action_dialog_open", None)
+    st.session_state.pop("corrective_action_source_notification_id", None)
+    st.session_state.pop("corrective_action_workflow_response", None)
+    st.session_state.pop("corrective_action_workflow_error", None)
+
+
+def render_corrective_action_workflow_response(workflow_response):
+    if not workflow_response:
+        return
+
+    stage = workflow_response.get("stage")
+    message = workflow_response.get("message")
+    final_summary = workflow_response.get("final_summary")
+    issues = workflow_response.get("issues") or []
+    is_completed = workflow_response.get("is_completed", False)
+
+    if is_completed:
+        st.success(message or "Corrective action recorded and incident resolved.")
+        return
+
+    if stage == "awaiting_approval" and final_summary:
+        st.markdown("**Final corrective-action summary**")
+        st.info(final_summary)
+        if message:
+            st.caption(message)
+        return
+
+    if message:
+        st.info(message)
+
+    if issues:
+        with st.expander("Validation details", expanded=False):
+            for issue in issues:
+                issue_message = issue.get("message") or "Validation issue."
+                issue_kind = issue.get("kind") or "issue"
+                st.write(f"**{issue_kind}:** {issue_message}")
+
+
+@st.dialog("Corrective action")
+def render_corrective_action_dialog(token, incident_id):
+    st.markdown(
+        "Describe the corrective action taken for this fridge temperature incident."
+    )
+
+    workflow_response = st.session_state.get("corrective_action_workflow_response")
+    workflow_error = st.session_state.pop("corrective_action_workflow_error", None)
+
+    if workflow_response is None:
+        workflow_response, workflow_error = start_corrective_action_session(
+            token=token,
+            incident_id=incident_id,
+        )
+        if workflow_response is not None:
+            st.session_state.corrective_action_workflow_response = workflow_response
+
+    if workflow_error:
+        st.error(workflow_error)
+        if st.button("Close", use_container_width=True):
+            clear_corrective_action_dialog_state()
+            st.rerun()
+        return
+
+    render_corrective_action_workflow_response(workflow_response)
+
+    if workflow_response and workflow_response.get("is_completed"):
+        if st.button("Close", use_container_width=True):
+            clear_corrective_action_dialog_state()
+            st.rerun()
+        return
+
+    if (
+        workflow_response
+        and workflow_response.get("stage") == "awaiting_approval"
+        and workflow_response.get("final_summary")
+    ):
+        approve_column, close_column = st.columns(2)
+
+        with approve_column:
+            if st.button("Approve summary", use_container_width=True):
+                response_data, error = approve_corrective_action_summary(
+                    token=token,
+                    incident_id=incident_id,
+                )
+
+                if error:
+                    st.session_state.corrective_action_workflow_error = error
+                else:
+                    st.session_state.corrective_action_workflow_response = (
+                        response_data
+                    )
+
+                st.rerun()
+
+        with close_column:
+            if st.button("Close", use_container_width=True):
+                clear_corrective_action_dialog_state()
+                st.rerun()
+
+        correction = st.text_area(
+            "Correction or extra detail",
+            key=f"corrective_action_correction_{incident_id}",
+            placeholder="Enter a correction if the summary is not accurate.",
+        )
+
+        if st.button("Send correction", use_container_width=True):
+            if not correction.strip():
+                st.warning("Enter a correction before sending.")
+            else:
+                response_data, error = send_corrective_action_message(
+                    token=token,
+                    incident_id=incident_id,
+                    message=correction,
+                )
+
+                if error:
+                    st.session_state.corrective_action_workflow_error = error
+                else:
+                    st.session_state.corrective_action_workflow_response = (
+                        response_data
+                    )
+
+                st.rerun()
+
+        return
+
+    user_message = st.text_area(
+        "Corrective action taken",
+        key=f"corrective_action_message_{incident_id}",
+        placeholder=(
+            "Example: I probed the food, confirmed it had been warm for less "
+            "than four hours, moved it to a compliant fridge, corrected the "
+            "fridge issue, and rechecked the fridge temperature."
+        ),
+    )
+
+    send_column, close_column = st.columns(2)
+
+    with send_column:
+        if st.button("Send", use_container_width=True):
+            if not user_message.strip():
+                st.warning("Enter the corrective action before sending.")
+            else:
+                response_data, error = send_corrective_action_message(
+                    token=token,
+                    incident_id=incident_id,
+                    message=user_message,
+                )
+
+                if error:
+                    st.session_state.corrective_action_workflow_error = error
+                else:
+                    st.session_state.corrective_action_workflow_response = (
+                        response_data
+                    )
+
+                st.rerun()
+
+    with close_column:
+        if st.button("Close", use_container_width=True):
+            clear_corrective_action_dialog_state()
+            st.rerun()
 
 
 def toggle_notification(token, notification):
@@ -254,3 +491,17 @@ def show():
 
     for notification in notifications:
         render_notification_item(token, notification)
+
+
+    selected_incident_id = st.session_state.get(
+        "selected_corrective_action_incident_id"
+    )
+
+    if (
+        st.session_state.get("corrective_action_dialog_open")
+        and selected_incident_id is not None
+    ):
+        render_corrective_action_dialog(
+            token=token,
+            incident_id=selected_incident_id,
+        )
