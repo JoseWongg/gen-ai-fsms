@@ -15,3 +15,4 @@ from .notification import Notification
 from .chilling_temperature_incident import ChillingTemperatureIncident
 from .shift_diary_entry import ShiftDiaryEntry
 from .chilling_temperature_corrective_action import ChillingTemperatureCorrectiveAction
+from .chilling_temperature_corrective_action_session import ChillingTemperatureCorrectiveActionSession
