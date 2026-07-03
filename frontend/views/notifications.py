@@ -268,12 +268,8 @@ def render_corrective_action_workflow_response(workflow_response):
                 st.write(f"**{issue_kind}:** {issue_message}")
 
 
-@st.dialog("Corrective action")
+@st.dialog("Corrective action", on_dismiss=clear_corrective_action_dialog_state)
 def render_corrective_action_dialog(token, incident_id):
-    st.markdown(
-        "Describe the corrective action taken for this fridge temperature incident."
-    )
-
     workflow_response = st.session_state.get("corrective_action_workflow_response")
     workflow_error = st.session_state.pop("corrective_action_workflow_error", None)
 
@@ -291,6 +287,11 @@ def render_corrective_action_dialog(token, incident_id):
             clear_corrective_action_dialog_state()
             st.rerun()
         return
+
+    if not (workflow_response and workflow_response.get("is_completed")):
+        st.markdown(
+            "Describe the corrective action taken for this fridge temperature incident."
+        )
 
     render_corrective_action_workflow_response(workflow_response)
 

@@ -195,6 +195,15 @@ def _build_workflow_response(
     }
 
 
+def _build_completed_incident_response(
+    session: ChillingTemperatureCorrectiveActionSession,
+) -> dict[str, Any]:
+    return _build_workflow_response(
+        session=session,
+        message="This incident has already been resolved.",
+    )
+
+
 def _validate_state_and_update_session(
     session: ChillingTemperatureCorrectiveActionSession,
 ) -> dict[str, Any]:
@@ -258,70 +267,68 @@ def _validate_state_and_update_session(
     )
 
 
+
 def start_or_resume_session(
     db: Session,
     business_profile_id: int,
     user_id: int,
     incident_id: int,
 ) -> dict[str, Any]:
-    incident = _get_open_incident_or_raise(
+    session = _get_existing_session(
         db=db,
         business_profile_id=business_profile_id,
         incident_id=incident_id,
     )
 
-    session = _get_existing_session(
-        db=db,
-        business_profile_id=business_profile_id,
-        incident_id=incident.id,
-    )
-
-    if session is None:
-        session = ChillingTemperatureCorrectiveActionSession(
-            incident_id=incident.id,
-            business_profile_id=incident.business_profile_id,
-            daily_shift_id=incident.daily_shift_id,
-            started_by_user_id=user_id,
-            status=SESSION_STATUS_IN_PROGRESS,
-            current_stage=STAGE_GATHERING,
-            state_json=_write_json({}),
-            issues_json=_write_json([]),
-            conversation_history_json=_write_json([]),
-        )
-        db.add(session)
-        db.commit()
+    if session is not None:
         db.refresh(session)
+
+        if session.status == SESSION_STATUS_COMPLETED:
+            return _build_completed_incident_response(session)
+
+        if session.status == SESSION_STATUS_AWAITING_APPROVAL:
+            return _build_workflow_response(
+                session=session,
+                message="Please review and approve the corrective-action summary.",
+            )
+
+        issues = _read_json_list(session.issues_json)
+        if issues:
+            adapter = get_llm_adapter()
+            question = adapter.generate_fridge_corrective_action_question(
+                issue=issues[0],
+                current_state=_read_json_object(session.state_json),
+            )
+            return _build_workflow_response(
+                session=session,
+                message=question,
+            )
 
         return _build_workflow_response(
             session=session,
             message="Describe the corrective action taken for this fridge temperature incident.",
         )
 
+    incident = _get_open_incident_or_raise(
+        db=db,
+        business_profile_id=business_profile_id,
+        incident_id=incident_id,
+    )
+
+    session = ChillingTemperatureCorrectiveActionSession(
+        incident_id=incident.id,
+        business_profile_id=incident.business_profile_id,
+        daily_shift_id=incident.daily_shift_id,
+        started_by_user_id=user_id,
+        status=SESSION_STATUS_IN_PROGRESS,
+        current_stage=STAGE_GATHERING,
+        state_json=_write_json({}),
+        issues_json=_write_json([]),
+        conversation_history_json=_write_json([]),
+    )
+    db.add(session)
+    db.commit()
     db.refresh(session)
-
-    if session.status == SESSION_STATUS_AWAITING_APPROVAL:
-        return _build_workflow_response(
-            session=session,
-            message="Please review and approve the corrective-action summary.",
-        )
-
-    if session.status == SESSION_STATUS_COMPLETED:
-        return _build_workflow_response(
-            session=session,
-            message="This corrective-action workflow is already completed.",
-        )
-
-    issues = _read_json_list(session.issues_json)
-    if issues:
-        adapter = get_llm_adapter()
-        question = adapter.generate_fridge_corrective_action_question(
-            issue=issues[0],
-            current_state=_read_json_object(session.state_json),
-        )
-        return _build_workflow_response(
-            session=session,
-            message=question,
-        )
 
     return _build_workflow_response(
         session=session,
@@ -352,6 +359,7 @@ def get_existing_session_status(
     )
 
 
+
 def process_user_message(
     db: Session,
     business_profile_id: int,
@@ -364,6 +372,18 @@ def process_user_message(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User message cannot be empty.",
         )
+
+    existing_session = _get_existing_session(
+        db=db,
+        business_profile_id=business_profile_id,
+        incident_id=incident_id,
+    )
+
+    if (
+        existing_session is not None
+        and existing_session.status == SESSION_STATUS_COMPLETED
+    ):
+        return _build_completed_incident_response(existing_session)
 
     incident = _get_open_incident_or_raise(
         db=db,
@@ -397,10 +417,7 @@ def process_user_message(
         )
 
     if session.status == SESSION_STATUS_COMPLETED:
-        return _build_workflow_response(
-            session=session,
-            message="This corrective-action workflow is already completed.",
-        )
+        return _build_completed_incident_response(session)
 
     adapter = get_llm_adapter()
 
@@ -487,12 +504,25 @@ def process_user_message(
     }
 
 
+
 def approve_final_summary(
     db: Session,
     business_profile_id: int,
     user_id: int,
     incident_id: int,
 ) -> dict[str, Any]:
+    existing_session = _get_existing_session(
+        db=db,
+        business_profile_id=business_profile_id,
+        incident_id=incident_id,
+    )
+
+    if (
+        existing_session is not None
+        and existing_session.status == SESSION_STATUS_COMPLETED
+    ):
+        return _build_completed_incident_response(existing_session)
+
     incident = _get_open_incident_or_raise(
         db=db,
         business_profile_id=business_profile_id,
