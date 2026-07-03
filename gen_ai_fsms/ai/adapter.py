@@ -1283,6 +1283,419 @@ class LLMAdapter:
             )
             return fallback_summary
 
+
+    def extract_freezer_corrective_action_facts(
+        self,
+        user_message: str,
+        existing_state: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Extract corrective-action facts from a user's freezer incident narrative.
+
+        This method extracts facts only. It must not decide compliance and must
+        not invent missing facts. A deterministic validator decides whether the
+        extracted facts are sufficient and compliant.
+        """
+        empty_facts = {
+            "food_checked_for_thawing_signs": None,
+            "thawing_signs_present": None,
+            "food_decision": None,
+            "destination_freezer_temperature_c": None,
+            "freezer_issue_type": None,
+            "transient_issue_description": None,
+            "corrective_action_taken": None,
+            "follow_up_temperature_c": None,
+            "food_returned_to_freezer": None,
+            "maintenance_logged": None,
+            "maintenance_reference": None,
+            "reason": "LLM not configured",
+        }
+
+        if not self.client:
+            return empty_facts
+
+        existing_state = existing_state or {}
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You extract facts from a manager's corrective-action "
+                    "narrative for an open freezer-temperature incident.\n"
+                    "Return only a JSON object with exactly these fields:\n"
+                    "{\n"
+                    '  "food_checked_for_thawing_signs": boolean or null,\n'
+                    '  "thawing_signs_present": boolean or null,\n'
+                    '  "food_decision": "discarded" | '
+                    '"moved_to_compliant_freezer" | null,\n'
+                    '  "destination_freezer_temperature_c": number or null,\n'
+                    '  "freezer_issue_type": "transient" | "maintenance" | null,\n'
+                    '  "transient_issue_description": string or null,\n'
+                    '  "corrective_action_taken": string or null,\n'
+                    '  "follow_up_temperature_c": number or null,\n'
+                    '  "food_returned_to_freezer": boolean or null,\n'
+                    '  "maintenance_logged": boolean or null,\n'
+                    '  "maintenance_reference": string or null,\n'
+                    '  "reason": string\n'
+                    "}\n"
+                    "Rules:\n"
+                    "- Extract only facts explicitly stated or clearly implied "
+                    "by the user's message.\n"
+                    "- Do not decide whether the corrective action is compliant. "
+                    "A deterministic validator will decide that.\n"
+                    "- Do not invent missing facts.\n"
+                    "- Do not infer a destination freezer temperature from the "
+                    "phrase 'moved to a compliant freezer'.\n"
+                    "- Extract destination_freezer_temperature_c only when the "
+                    "user explicitly states the destination freezer temperature.\n"
+                    "- If the user says food was moved to a compliant freezer, "
+                    "set food_decision to moved_to_compliant_freezer, but leave "
+                    "destination_freezer_temperature_c as null unless a "
+                    "temperature is explicitly stated.\n"
+                    "- Use food_checked_for_thawing_signs true when the user says "
+                    "they checked, inspected, assessed, or looked at the frozen "
+                    "food for signs of thawing.\n"
+                    "- Use thawing_signs_present true when the user says the food "
+                    "had started to thaw, was softening, defrosting, partially "
+                    "defrosted, wet, slushy, or otherwise showed thawing signs.\n"
+                    "- Use thawing_signs_present false when the user says the food "
+                    "was still fully frozen, hard frozen, had no signs of thawing, "
+                    "or was not thawing.\n"
+                    "- If the user says they discarded, threw away, disposed of, "
+                    "or binned the food, set food_decision to discarded.\n"
+                    "- If the user says they moved the food to another compliant "
+                    "freezer, set food_decision to moved_to_compliant_freezer.\n"
+                    "- Use freezer_issue_type transient when the issue was corrected "
+                    "without maintenance or repair, such as closing a door, adjusting "
+                    "a setting, reducing loading, or restoring power.\n"
+                    "- Use freezer_issue_type maintenance when the freezer was logged "
+                    "for repair, engineer callout, service, or maintenance.\n"
+                    "- Preserve existing facts unless the latest user message clearly "
+                    "corrects them.\n"
+                    "Return only valid JSON."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Existing extracted state:\n"
+                    f"{json.dumps(existing_state)}\n\n"
+                    "Latest user message:\n"
+                    f"{user_message}"
+                ),
+            },
+        ]
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.1,
+                response_format={"type": "json_object"},
+            )
+
+            content = response.choices[0].message.content
+            if content is None:
+                return {
+                    **empty_facts,
+                    "reason": "Empty response from LLM",
+                }
+
+            result = json.loads(content)
+
+            allowed_food_decisions = {
+                "discarded",
+                "moved_to_compliant_freezer",
+            }
+            allowed_issue_types = {"transient", "maintenance"}
+
+            def clean_enum(value, allowed_values):
+                return value if value in allowed_values else None
+
+            def clean_bool(value):
+                return value if isinstance(value, bool) else None
+
+            def clean_float(value):
+                if value is None:
+                    return None
+                try:
+                    return float(value)
+                except (TypeError, ValueError):
+                    return None
+
+            def clean_string(value):
+                if not isinstance(value, str):
+                    return None
+                cleaned = value.strip()
+                return cleaned or None
+
+            food_checked_for_thawing_signs = clean_bool(
+                result.get("food_checked_for_thawing_signs")
+            )
+            thawing_signs_present = clean_bool(
+                result.get("thawing_signs_present")
+            )
+            freezer_issue_type = clean_enum(
+                result.get("freezer_issue_type"),
+                allowed_issue_types,
+            )
+            maintenance_logged = clean_bool(
+                result.get("maintenance_logged")
+            )
+
+            if (
+                food_checked_for_thawing_signs is None
+                and thawing_signs_present is not None
+            ):
+                food_checked_for_thawing_signs = True
+
+            if (
+                freezer_issue_type != "maintenance"
+                and maintenance_logged is False
+            ):
+                maintenance_logged = None
+
+            return {
+                "food_checked_for_thawing_signs": food_checked_for_thawing_signs,
+                "thawing_signs_present": thawing_signs_present,
+                "food_decision": clean_enum(
+                    result.get("food_decision"),
+                    allowed_food_decisions,
+                ),
+                "destination_freezer_temperature_c": clean_float(
+                    result.get("destination_freezer_temperature_c")
+                ),
+                "freezer_issue_type": freezer_issue_type,
+                "transient_issue_description": clean_string(
+                    result.get("transient_issue_description")
+                ),
+                "corrective_action_taken": clean_string(
+                    result.get("corrective_action_taken")
+                ),
+                "follow_up_temperature_c": clean_float(
+                    result.get("follow_up_temperature_c")
+                ),
+                "food_returned_to_freezer": clean_bool(
+                    result.get("food_returned_to_freezer")
+                ),
+                "maintenance_logged": maintenance_logged,
+                "maintenance_reference": clean_string(
+                    result.get("maintenance_reference")
+                ),
+                "reason": result.get("reason", ""),
+            }
+
+        except Exception as e:
+            logger.error(
+                "LLM error in extract_freezer_corrective_action_facts: %s",
+                e,
+            )
+            return {
+                **empty_facts,
+                "reason": f"API error: {e}",
+            }
+
+    def generate_freezer_corrective_action_question(
+        self,
+        issue: Dict[str, Any],
+        current_state: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """
+        Generate a natural-language question for one freezer validator issue.
+
+        The validator decides what is missing or contradictory. This method only
+        phrases the question. It must not add extra requirements.
+        """
+        fallback_questions = {
+            "food_checked_for_thawing_signs": (
+                "Was the frozen food checked for signs of thawing?"
+            ),
+            "thawing_signs_present": (
+                "Did the frozen food show any signs of thawing?"
+            ),
+            "food_decision": (
+                "Was the food discarded, or was it moved to compliant freezer "
+                "equipment?"
+            ),
+            "freezer_issue_type": (
+                "Was the freezer issue corrected as a transient issue, or was "
+                "it logged for maintenance or repair?"
+            ),
+            "corrective_action_taken": (
+                "What corrective action was taken to correct the freezer issue?"
+            ),
+            "follow_up_temperature_c": (
+                "What was the follow-up freezer temperature after the corrective "
+                "action was taken?"
+            ),
+            "maintenance_logged": (
+                "Was the freezer logged for maintenance or repair?"
+            ),
+            "destination_freezer_temperature_c": (
+                "What was the temperature of the destination freezer?"
+            ),
+        }
+
+        field = issue.get("field")
+        fallback_question = fallback_questions.get(
+            field,
+            issue.get("message", "Please provide the missing information."),
+        )
+
+        if not self.client:
+            return fallback_question
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You phrase one concise clarification question for a food "
+                    "safety freezer corrective-action workflow.\n"
+                    "The deterministic validator has already decided what is "
+                    "missing or contradictory. You must not add any extra "
+                    "requirements.\n"
+                    "Return only a JSON object with exactly this field:\n"
+                    '{ "question": string }\n'
+                    "Rules:\n"
+                    "- Ask only about the validator issue provided.\n"
+                    "- Do not ask for destination freezer name.\n"
+                    "- Do not ask for destination freezer temperature unless the "
+                    "validator issue is specifically about a volunteered "
+                    "destination_freezer_temperature_c contradiction.\n"
+                    "- Do not ask for evidence beyond the validator issue.\n"
+                    "- Keep the question short and practical.\n"
+                    "Return only valid JSON."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Validator issue:\n"
+                    f"{json.dumps(issue)}\n\n"
+                    "Current extracted state:\n"
+                    f"{json.dumps(current_state or {})}"
+                ),
+            },
+        ]
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.2,
+                response_format={"type": "json_object"},
+            )
+
+            content = response.choices[0].message.content
+            if content is None:
+                return fallback_question
+
+            result = json.loads(content)
+            question = result.get("question")
+
+            if not isinstance(question, str) or not question.strip():
+                return fallback_question
+
+            return question.strip()
+
+        except Exception as e:
+            logger.error(
+                "LLM error in generate_freezer_corrective_action_question: %s",
+                e,
+            )
+            return fallback_question
+
+    def generate_freezer_corrective_action_summary(
+        self,
+        state: Dict[str, Any],
+    ) -> str:
+        """
+        Draft a final freezer corrective-action summary from validator-approved facts.
+
+        The workflow should call this only after deterministic validation passes.
+        """
+        fallback_summary = (
+            "Freezer corrective action was recorded and validated. Please review "
+            "the approved corrective-action facts before confirming."
+        )
+
+        if not self.client:
+            return fallback_summary
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You draft a concise final corrective-action summary for a "
+                    "food safety shift diary.\n"
+                    "The deterministic validator has already approved the facts. "
+                    "Do not decide compliance.\n"
+                    "Return only a JSON object with exactly this field:\n"
+                    '{ "summary": string }\n'
+                    "Rules:\n"
+                    "- Use only facts present in the provided state.\n"
+                    "- Do not invent destination freezer name or destination "
+                    "freezer temperature.\n"
+                    "- Mention destination freezer temperature only if it is "
+                    "present in the state.\n"
+                    "- Mention maintenance reference only if it is present in "
+                    "the state.\n"
+                    "- Write in clear audit-style English.\n"
+                    "- Do not include bullet points.\n"
+                    "Return only valid JSON."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Validator-approved freezer corrective-action state:\n"
+                    f"{json.dumps(state)}"
+                ),
+            },
+        ]
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.2,
+                response_format={"type": "json_object"},
+            )
+
+            content = response.choices[0].message.content
+            if content is None:
+                return fallback_summary
+
+            result = json.loads(content)
+            summary = result.get("summary")
+
+            if not isinstance(summary, str) or not summary.strip():
+                return fallback_summary
+
+            return summary.strip()
+
+        except Exception as e:
+            logger.error(
+                "LLM error in generate_freezer_corrective_action_summary: %s",
+                e,
+            )
+            return fallback_summary
+
+    def classify_freezer_corrective_action_approval(
+        self,
+        user_message: str,
+    ) -> Dict[str, Any]:
+        """
+        Classify whether the user approves the freezer corrective-action summary.
+
+        Approval intent is not fridge/freezer-specific, so this delegates to the
+        existing corrective-action approval classifier.
+        """
+        return self.classify_fridge_corrective_action_approval(
+            user_message=user_message,
+        )
+
+
     def classify_fridge_corrective_action_approval(
         self,
         user_message: str,
