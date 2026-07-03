@@ -12,14 +12,14 @@ logger = logging.getLogger(__name__)
 
 class LLMAdapter:
     """Central adapter for all LLM interactions."""
-    
+
     def __init__(self):
         self.api_key = os.getenv("OPENAI_API_KEY")
         if not self.api_key:
             logger.warning("OPENAI_API_KEY not set. LLM features will not work.")
         self.client = OpenAI(api_key=self.api_key) if self.api_key else None
         self.model = "gpt-4o"
-    
+
     def interpret_screening_answer(
         self,
         question: str,
@@ -37,7 +37,7 @@ class LLMAdapter:
                 "clarification_question": None,
                 "reason": "LLM not configured"
             }
-        
+
         messages = [
             {
                 "role": "system",
@@ -74,7 +74,7 @@ class LLMAdapter:
         ]
         if conversation_history:
             messages.extend(conversation_history)
-        
+
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -99,7 +99,7 @@ class LLMAdapter:
                 "clarification_question": "Could you please rephrase your answer?",
                 "reason": f"API error: {e}"
             }
-    
+
     def answer_screening_clarification(self, question: str, user_question: str) -> str:
         """Explain the meaning of a screening question."""
         if not self.client:
@@ -121,7 +121,7 @@ class LLMAdapter:
         except Exception as e:
             logger.error("LLM error in answer_screening_clarification: %s", e)
             return "Sorry, I couldn't process your request at this time."
-    
+
 
 
     def interpret_safety_point_response(
@@ -885,6 +885,503 @@ class LLMAdapter:
                 "reason": f"API error: {e}",
                 "assistant_message": fallback_message,
             }
+
+
+
+
+
+
+
+
+
+    """
+    This method extracts corrective-action facts from a manager's narrative about a fridge-temperature incident.
+    It does not decide compliance and does not invent missing facts. It returns a dictionary of extracted facts,
+    with null values for any facts that are missing or unclear. The 'reason' field explains why any facts are missing or unclear.
+    """
+    def extract_fridge_corrective_action_facts(
+        self,
+        user_message: str,
+        existing_state: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Extract corrective-action facts from a user's narrative.
+
+        This method extracts facts only. It must not decide compliance and must
+        not invent missing facts.
+        """
+
+        empty_facts = {
+            "food_probed": None,
+            "food_type": None,
+            "food_temperature_c": None,
+            "out_of_range_duration": None,
+            "food_decision": None,
+            "destination_fridge_temperature_c": None,
+            "fridge_issue_type": None,
+            "transient_issue_description": None,
+            "corrective_action_taken": None,
+            "follow_up_temperature_c": None,
+            "food_returned_to_fridge": None,
+            "maintenance_logged": None,
+            "maintenance_reference": None,
+            "reason": "LLM not configured",
+        }
+
+        if not self.client:
+            return empty_facts
+
+        existing_state = existing_state or {}
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You extract facts from a manager's corrective-action "
+                    "narrative for an open fridge-temperature incident.\n"
+                    "Return only a JSON object with exactly these fields:\n"
+                    "{\n"
+                    '  "food_probed": boolean or null,\n'
+                    '  "food_type": "fish" | "other" | null,\n'
+                    '  "food_temperature_c": number or null,\n'
+                    '  "out_of_range_duration": "le_4h" | "gt_4h" | "uncertain" | null,\n'
+                    '  "food_decision": "discarded" | "kept_moved_to_compliant_fridge" | null,\n'
+                    '  "destination_fridge_temperature_c": number or null,\n'
+                    '  "fridge_issue_type": "transient" | "maintenance" | null,\n'
+                    '  "transient_issue_description": string or null,\n'
+                    '  "corrective_action_taken": string or null,\n'
+                    '  "follow_up_temperature_c": number or null,\n'
+                    '  "food_returned_to_fridge": boolean or null,\n'
+                    '  "maintenance_logged": boolean or null,\n'
+                    '  "maintenance_reference": string or null,\n'
+                    '  "reason": string\n'
+                    "}\n"
+                    "Rules:\n"
+                    "- Extract only facts explicitly stated or clearly implied "
+                    "by the user's message.\n"
+                    "- Do not decide whether the corrective action is compliant. "
+                    "A deterministic validator will decide that.\n"
+                    "- Do not invent missing facts.\n"
+                    "- Do not infer a destination fridge temperature from the "
+                    "phrase 'moved to a compliant fridge'.\n"
+                    "- Extract destination_fridge_temperature_c only when the "
+                    "user explicitly states the destination fridge temperature.\n"
+                    "- If the user says food was moved to a compliant fridge, "
+                    "set food_decision to kept_moved_to_compliant_fridge, but "
+                    "leave destination_fridge_temperature_c as null unless a "
+                    "temperature is explicitly stated.\n"
+                    "- For duration, use le_4h when the user clearly says no "
+                    "more than four hours, within four hours, about two hours, "
+                    "or similar.\n"
+                    "- Use gt_4h when the user clearly says more than four "
+                    "hours.\n"
+                    "- Use uncertain when the user says they do not know, are "
+                    "not sure, or cannot confirm the duration.\n"
+                    "- Use food_type fish only for fish. Use other for meat, "
+                    "chicken, dairy, cooked food, prepared food, or unspecified "
+                    "non-fish food.\n"
+                    "- Use fridge_issue_type transient when the issue was "
+                    "corrected without maintenance or repair, such as closing "
+                    "a door, adjusting a setting, reducing loading, or restoring "
+                    "power.\n"
+                    "- Use fridge_issue_type maintenance when the fridge was "
+                    "logged for repair, engineer callout, service, or "
+                    "maintenance.\n"
+                    "- Preserve existing facts unless the latest user message "
+                    "clearly corrects them.\n"
+                    "Return only valid JSON."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Existing extracted state:\n"
+                    f"{json.dumps(existing_state)}\n\n"
+                    "Latest user message:\n"
+                    f"{user_message}"
+                ),
+            },
+        ]
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.1,
+                response_format={"type": "json_object"},
+            )
+            content = response.choices[0].message.content
+            if content is None:
+                return {
+                    **empty_facts,
+                    "reason": "Empty response from LLM",
+                }
+
+            result = json.loads(content)
+
+            allowed_food_types = {"fish", "other"}
+            allowed_durations = {"le_4h", "gt_4h", "uncertain"}
+            allowed_food_decisions = {
+                "discarded",
+                "kept_moved_to_compliant_fridge",
+            }
+            allowed_issue_types = {"transient", "maintenance"}
+
+            def clean_enum(value, allowed_values):
+                return value if value in allowed_values else None
+
+            def clean_bool(value):
+                return value if isinstance(value, bool) else None
+
+            def clean_float(value):
+                if value is None:
+                    return None
+                try:
+                    return float(value)
+                except (TypeError, ValueError):
+                    return None
+
+            def clean_string(value):
+                if not isinstance(value, str):
+                    return None
+                cleaned = value.strip()
+                return cleaned or None
+
+            return {
+                "food_probed": clean_bool(result.get("food_probed")),
+                "food_type": clean_enum(
+                    result.get("food_type"),
+                    allowed_food_types,
+                ),
+                "food_temperature_c": clean_float(
+                    result.get("food_temperature_c")
+                ),
+                "out_of_range_duration": clean_enum(
+                    result.get("out_of_range_duration"),
+                    allowed_durations,
+                ),
+                "food_decision": clean_enum(
+                    result.get("food_decision"),
+                    allowed_food_decisions,
+                ),
+                "destination_fridge_temperature_c": clean_float(
+                    result.get("destination_fridge_temperature_c")
+                ),
+                "fridge_issue_type": clean_enum(
+                    result.get("fridge_issue_type"),
+                    allowed_issue_types,
+                ),
+                "transient_issue_description": clean_string(
+                    result.get("transient_issue_description")
+                ),
+                "corrective_action_taken": clean_string(
+                    result.get("corrective_action_taken")
+                ),
+                "follow_up_temperature_c": clean_float(
+                    result.get("follow_up_temperature_c")
+                ),
+                "food_returned_to_fridge": clean_bool(
+                    result.get("food_returned_to_fridge")
+                ),
+                "maintenance_logged": clean_bool(
+                    result.get("maintenance_logged")
+                ),
+                "maintenance_reference": clean_string(
+                    result.get("maintenance_reference")
+                ),
+                "reason": result.get("reason", ""),
+            }
+        except Exception as e:
+            logger.error(
+                "LLM error in extract_fridge_corrective_action_facts: %s",
+                e,
+            )
+            return {
+                **empty_facts,
+                "reason": f"API error: {e}",
+            }
+
+    def generate_fridge_corrective_action_question(
+        self,
+        issue: Dict[str, Any],
+        current_state: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """
+        Generate a natural-language question for one validator issue.
+
+        The validator decides what is missing or contradictory. This method only
+        phrases the question. It must not add extra requirements.
+        """
+
+        fallback_questions = {
+            "food_probed": (
+                "Was the food inside the fridge probed with a thermometer?"
+            ),
+            "food_type": "Was the food fish or another type of food?",
+            "food_temperature_c": (
+                "What temperature was recorded when the food was probed?"
+            ),
+            "out_of_range_duration": (
+                "Was the food outside the safe range for no more than four "
+                "hours, more than four hours, or is the duration uncertain?"
+            ),
+            "food_decision": (
+                "Was the food discarded, or was it moved to another compliant "
+                "fridge?"
+            ),
+            "fridge_issue_type": (
+                "Was the fridge issue corrected as a transient issue, or was "
+                "it logged for maintenance or repair?"
+            ),
+            "corrective_action_taken": (
+                "What corrective action was taken to correct the fridge issue?"
+            ),
+            "follow_up_temperature_c": (
+                "What was the follow-up fridge temperature after the corrective "
+                "action was taken?"
+            ),
+            "maintenance_logged": (
+                "Was the fridge logged for maintenance or repair?"
+            ),
+        }
+
+        field = issue.get("field")
+        fallback_question = fallback_questions.get(
+            field,
+            issue.get("message", "Please provide the missing information."),
+        )
+
+        if not self.client:
+            return fallback_question
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You phrase one concise clarification question for a food "
+                    "safety corrective-action workflow.\n"
+                    "The deterministic validator has already decided what is "
+                    "missing or contradictory. You must not add any extra "
+                    "requirements.\n"
+                    "Return only a JSON object with exactly this field:\n"
+                    '{ "question": string }\n'
+                    "Rules:\n"
+                    "- Ask only about the validator issue provided.\n"
+                    "- Do not ask for destination fridge name.\n"
+                    "- Do not ask for destination fridge temperature.\n"
+                    "- Do not ask for evidence beyond the validator issue.\n"
+                    "- Keep the question short and practical.\n"
+                    "Return only valid JSON."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Validator issue:\n"
+                    f"{json.dumps(issue)}\n\n"
+                    "Current extracted state:\n"
+                    f"{json.dumps(current_state or {})}"
+                ),
+            },
+        ]
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.2,
+                response_format={"type": "json_object"},
+            )
+            content = response.choices[0].message.content
+            if content is None:
+                return fallback_question
+
+            result = json.loads(content)
+            question = result.get("question")
+            if not isinstance(question, str) or not question.strip():
+                return fallback_question
+
+            return question.strip()
+        except Exception as e:
+            logger.error(
+                "LLM error in generate_fridge_corrective_action_question: %s",
+                e,
+            )
+            return fallback_question
+
+    def generate_fridge_corrective_action_summary(
+        self,
+        state: Dict[str, Any],
+    ) -> str:
+        """
+        Draft a final corrective-action summary from validator-approved facts.
+
+        The workflow should call this only after deterministic validation passes.
+        """
+
+        fallback_summary = (
+            "Corrective action was recorded and validated. Please review the "
+            "approved corrective-action facts before confirming."
+        )
+
+        if not self.client:
+            return fallback_summary
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You draft a concise final corrective-action summary for a "
+                    "food safety shift diary.\n"
+                    "The deterministic validator has already approved the "
+                    "facts. Do not decide compliance.\n"
+                    "Return only a JSON object with exactly this field:\n"
+                    '{ "summary": string }\n'
+                    "Rules:\n"
+                    "- Use only facts present in the provided state.\n"
+                    "- Do not invent destination fridge name or destination "
+                    "fridge temperature.\n"
+                    "- Mention destination fridge temperature only if it is "
+                    "present in the state.\n"
+                    "- Mention maintenance reference only if it is present in "
+                    "the state.\n"
+                    "- Write in clear audit-style English.\n"
+                    "- Do not include bullet points.\n"
+                    "Return only valid JSON."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Validator-approved corrective-action state:\n"
+                    f"{json.dumps(state)}"
+                ),
+            },
+        ]
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.2,
+                response_format={"type": "json_object"},
+            )
+            content = response.choices[0].message.content
+            if content is None:
+                return fallback_summary
+
+            result = json.loads(content)
+            summary = result.get("summary")
+            if not isinstance(summary, str) or not summary.strip():
+                return fallback_summary
+
+            return summary.strip()
+        except Exception as e:
+            logger.error(
+                "LLM error in generate_fridge_corrective_action_summary: %s",
+                e,
+            )
+            return fallback_summary
+
+    def classify_fridge_corrective_action_approval(
+        self,
+        user_message: str,
+    ) -> Dict[str, Any]:
+        """
+        Classify whether the user approves the final corrective-action summary.
+        """
+
+        fallback = {
+            "action": "unclear",
+            "reason": "LLM not configured",
+            "assistant_message": (
+                "Please confirm whether you approve the corrective-action "
+                "summary, or provide the correction needed."
+            ),
+        }
+
+        if not self.client:
+            return fallback
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You classify the user's response to a final "
+                    "corrective-action summary.\n"
+                    "Return only a JSON object with exactly these fields:\n"
+                    "{\n"
+                    '  "action": "approve" | "correction" | "unclear",\n'
+                    '  "reason": string,\n'
+                    '  "assistant_message": string or null\n'
+                    "}\n"
+                    "Rules:\n"
+                    "- Use approve when the user clearly approves, accepts, "
+                    "confirms, or says the summary is correct.\n"
+                    "- Use correction when the user provides a correction, "
+                    "extra detail, or says the summary is wrong/incomplete.\n"
+                    "- Use unclear when the intention is not clear.\n"
+                    "- Do not decide compliance.\n"
+                    "Return only valid JSON."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"User response:\n{user_message}",
+            },
+        ]
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.1,
+                response_format={"type": "json_object"},
+            )
+            content = response.choices[0].message.content
+            if content is None:
+                return {
+                    **fallback,
+                    "reason": "Empty response from LLM",
+                }
+
+            result = json.loads(content)
+            action = result.get("action")
+            if action not in ("approve", "correction", "unclear"):
+                return {
+                    **fallback,
+                    "reason": "LLM returned an unsupported action",
+                }
+
+            return {
+                "action": action,
+                "reason": result.get("reason", ""),
+                "assistant_message": result.get("assistant_message"),
+            }
+        except Exception as e:
+            logger.error(
+                "LLM error in classify_fridge_corrective_action_approval: %s",
+                e,
+            )
+            return {
+                **fallback,
+                "reason": f"API error: {e}",
+            }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
