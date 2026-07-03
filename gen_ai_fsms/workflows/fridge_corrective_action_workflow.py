@@ -329,6 +329,29 @@ def start_or_resume_session(
     )
 
 
+def get_existing_session_status(
+    db: Session,
+    business_profile_id: int,
+    incident_id: int,
+) -> dict[str, Any]:
+    session = _get_existing_session(
+        db=db,
+        business_profile_id=business_profile_id,
+        incident_id=incident_id,
+    )
+
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Corrective-action session not found.",
+        )
+
+    return _build_workflow_response(
+        session=session,
+        message=None,
+    )
+
+
 def process_user_message(
     db: Session,
     business_profile_id: int,
