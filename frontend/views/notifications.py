@@ -389,7 +389,6 @@ def render_corrective_action_dialog(token, incident_id):
         correction = st.text_area(
             "Correction or extra detail",
             key=f"corrective_action_correction_{incident_id}_{correction_version}",
-            placeholder="Enter a correction if the summary is not accurate.",
         )
 
         if st.button("Send correction", use_container_width=True):
@@ -422,11 +421,6 @@ def render_corrective_action_dialog(token, incident_id):
     user_message = st.text_area(
         "Corrective action taken",
         key=f"corrective_action_message_{incident_id}_{message_version}",
-        placeholder=(
-            "Example: I probed the food, confirmed it had been warm for less "
-            "than four hours, moved it to a compliant fridge, corrected the "
-            "fridge issue, and rechecked the fridge temperature."
-        ),
     )
 
     send_column, close_column = st.columns(2)

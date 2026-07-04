@@ -82,7 +82,7 @@ def validate_freezer_corrective_action_state(
     - Destination freezer details are not required, but contradictory
       volunteered details are still flagged.
     - For the faulty freezer itself, the issue must either be resolved as a
-      transient issue with a compliant follow-up temperature, or logged for
+      temporary issue with a compliant follow-up temperature, or logged for
       maintenance/repair.
     """
 
@@ -162,7 +162,7 @@ def validate_freezer_corrective_action_state(
     if state.freezer_issue_type is None:
         missing(
             "freezer_issue_type",
-            "Confirm whether the freezer issue was corrected as a transient issue or logged for maintenance/repair.",
+            "Confirm whether the freezer issue was corrected as a temporary issue or logged for maintenance/repair.",
         )
         return FreezerCorrectiveActionValidationResult(issues=issues)
 
@@ -187,7 +187,7 @@ def validate_freezer_corrective_action_state(
             else:
                 contradiction(
                     "freezer_issue_type",
-                    "The freezer was still warmer than -18°C after the follow-up check, so it cannot be recorded as corrected by a transient action. Confirm whether it was logged for maintenance/repair.",
+                    "The freezer was still warmer than -18°C after the follow-up check, so it cannot be recorded as corrected by a temporary action. Confirm whether it was logged for maintenance/repair.",
                 )
 
     if state.freezer_issue_type == "maintenance":

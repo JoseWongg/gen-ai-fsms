@@ -100,7 +100,7 @@ def validate_fridge_corrective_action_state(
     - Destination fridge details are not required, but contradictory volunteered
       details are still flagged.
     - For the faulty fridge itself, the issue must be either resolved as a
-      transient issue with a compliant follow-up temperature, or logged for
+      temporary issue with a compliant follow-up temperature, or logged for
       maintenance/repair.
     """
 
@@ -144,7 +144,7 @@ def validate_fridge_corrective_action_state(
     if state.food_type is None:
         missing(
             "food_type",
-            "Confirm whether the food was fish or another type of food.",
+            "Confirm whether there was any fish in the affected fridge.",
         )
 
     if state.food_temperature_c is None:
@@ -197,7 +197,7 @@ def validate_fridge_corrective_action_state(
     if state.fridge_issue_type is None:
         missing(
             "fridge_issue_type",
-            "Confirm whether the fridge issue was corrected as a transient issue or logged for maintenance/repair.",
+            "Confirm whether the fridge issue was corrected as a temporary issue or logged for maintenance/repair.",
         )
         return FridgeCorrectiveActionValidationResult(issues=issues)
 
@@ -225,7 +225,7 @@ def validate_fridge_corrective_action_state(
             else:
                 contradiction(
                     "fridge_issue_type",
-                    "The fridge was still above 5°C after the follow-up check, so it cannot be recorded as corrected by a transient action. Confirm whether it was logged for maintenance/repair.",
+                    "The fridge was still above 5°C after the follow-up check, so it cannot be recorded as corrected by a temporary action. Confirm whether it was logged for maintenance/repair.",
                 )
 
     if state.fridge_issue_type == "maintenance":

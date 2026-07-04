@@ -982,9 +982,16 @@ class LLMAdapter:
                     "hours.\n"
                     "- Use uncertain when the user says they do not know, are "
                     "not sure, or cannot confirm the duration.\n"
-                    "- Use food_type fish only for fish. Use other for meat, "
-                    "chicken, dairy, cooked food, prepared food, or unspecified "
-                    "non-fish food.\n"
+                    "- Use food_type fish only when the user says fish was "
+                    "affected or present in the affected fridge.\n"
+                    "- Use food_type other when the user says there was no "
+                    "fish in the affected fridge, or when the affected food "
+                    "was meat, chicken, dairy, cooked food, prepared food, "
+                    "or unspecified non-fish food.\n"
+                    "- If the assistant asks whether there was any fish in "
+                    "the affected fridge and the user answers yes, extract "
+                    "food_type as fish. If the user answers no, extract "
+                    "food_type as other.\n"
                     "- Use fridge_issue_type transient when the issue was "
                     "corrected without maintenance or repair, such as closing "
                     "a door, adjusting a setting, reducing loading, or restoring "
@@ -1151,7 +1158,7 @@ class LLMAdapter:
             "food_probed": (
                 "Was the food inside the fridge probed with a thermometer?"
             ),
-            "food_type": "Was the food fish or another type of food?",
+            "food_type": "Was there any fish in the affected fridge?",
             "food_temperature_c": (
                 "What temperature was recorded when the food was probed?"
             ),
@@ -1205,6 +1212,7 @@ class LLMAdapter:
                     "- Do not ask for destination fridge temperature.\n"
                     "- Do not ask for evidence beyond the validator issue.\n"
                     "- Keep the question short and practical.\n"
+                    "- In user-facing wording, say temporary issue rather than transient issue.\n"
                     "Return only valid JSON."
                 ),
             },
@@ -1280,6 +1288,12 @@ class LLMAdapter:
                     "- Mention maintenance reference only if it is present in "
                     "the state.\n"
                     "- Write in clear audit-style English.\n"
+                    "- Use temporary issue instead of transient issue in user-facing text.\n"
+                    "- Do not expose internal categories such as food_type other.\n"
+                    "- If food_type is other, say no fish was reported in the affected fridge.\n"
+                    "- If food_type is fish, say fish was reported in the affected fridge.\n"
+                    "- food_temperature_c is the probed food temperature.\n"
+                    "- follow_up_temperature_c is the fridge temperature after corrective action, not the food temperature.\n"
                     "- Do not include bullet points.\n"
                     "Return only valid JSON."
                 ),
@@ -1632,6 +1646,7 @@ class LLMAdapter:
                     "destination_freezer_temperature_c contradiction.\n"
                     "- Do not ask for evidence beyond the validator issue.\n"
                     "- Keep the question short and practical.\n"
+                    "- In user-facing wording, say temporary issue rather than transient issue.\n"
                     "Return only valid JSON."
                 ),
             },
@@ -1709,6 +1724,7 @@ class LLMAdapter:
                     "- Mention maintenance reference only if it is present in "
                     "the state.\n"
                     "- Write in clear audit-style English.\n"
+                    "- Use temporary issue instead of transient issue in user-facing text.\n"
                     "- Do not include bullet points.\n"
                     "Return only valid JSON."
                 ),
