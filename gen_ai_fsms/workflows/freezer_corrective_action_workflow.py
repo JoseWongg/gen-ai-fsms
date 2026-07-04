@@ -121,6 +121,25 @@ def _merge_extracted_facts(
     return merged_state
 
 
+
+def _get_last_assistant_message(
+    conversation_history: list[dict[str, Any]],
+) -> str | None:
+    for message in reversed(conversation_history):
+        if message.get("role") == "assistant":
+            content = message.get("content")
+            if isinstance(content, str) and content.strip():
+                return content.strip()
+
+    return None
+
+
+def _get_recent_conversation_history(
+    conversation_history: list[dict[str, Any]],
+    max_messages: int = 6,
+) -> list[dict[str, Any]]:
+    return conversation_history[-max_messages:]
+
 def _append_conversation_message(
     conversation_history: list[dict[str, Any]],
     role: str,
@@ -474,9 +493,20 @@ def process_user_message(
         session.current_stage = STAGE_GATHERING
         session.final_summary = None
 
+    current_issues = _read_json_list(session.issues_json)
+    last_assistant_message = _get_last_assistant_message(
+        conversation_history
+    )
+    recent_conversation_history = _get_recent_conversation_history(
+        conversation_history
+    )
+
     extracted_facts = adapter.extract_freezer_corrective_action_facts(
         user_message=user_message.strip(),
         existing_state=current_state,
+        current_issues=current_issues,
+        last_assistant_message=last_assistant_message,
+        recent_conversation_history=recent_conversation_history,
     )
 
     merged_state = _merge_extracted_facts(

@@ -903,6 +903,9 @@ class LLMAdapter:
         self,
         user_message: str,
         existing_state: Optional[Dict[str, Any]] = None,
+        current_issues: Optional[List[Dict[str, Any]]] = None,
+        last_assistant_message: Optional[str] = None,
+        recent_conversation_history: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Extract corrective-action facts from a user's narrative.
@@ -932,6 +935,8 @@ class LLMAdapter:
             return empty_facts
 
         existing_state = existing_state or {}
+        current_issues = current_issues or []
+        recent_conversation_history = recent_conversation_history or []
 
         messages = [
             {
@@ -989,6 +994,29 @@ class LLMAdapter:
                     "maintenance.\n"
                     "- Preserve existing facts unless the latest user message "
                     "clearly corrects them.\n"
+                    "- Use the active validator issues and previous assistant question "
+                    "to interpret short contextual replies such as yes, no, "
+                    "yes it was, no it was not, I did, or we did.\n"
+                    "- If the previous assistant question asked whether a specific "
+                    "boolean fact is true, and the latest user message clearly "
+                    "confirms or denies it, extract that specific boolean fact.\n"
+                    "- Do not use a short yes/no reply to fill open-ended fields "
+                    "such as temperatures, food decisions, issue type, or corrective "
+                    "action taken. Those require the user to state the actual fact.\n"
+                    "- Extract facts across the full corrective-action schema, not only "
+                    "the field currently listed in the unresolved validator issue.\n"
+                    "- The unresolved validator issues and previous assistant question "
+                    "provide conversation context; they do not limit which fields can "
+                    "be extracted from the latest user response.\n"
+                    "- If the latest user response clearly states information relevant "
+                    "to any corrective-action field, extract it, even if the current "
+                    "assistant question was focused on a different field.\n"
+                    "- Keep cause and action separate. For example, if the user says "
+                    "a fridge or freezer door was left open and then says they closed "
+                    "it, extract the door-left-open detail as the issue description "
+                    "and extract closing the door as corrective_action_taken.\n"
+                    "- If the user gives an equipment temperature after the corrective "
+                    "action, extract it as follow_up_temperature_c.\n"
                     "Return only valid JSON."
                 ),
             },
@@ -997,6 +1025,12 @@ class LLMAdapter:
                 "content": (
                     "Existing extracted state:\n"
                     f"{json.dumps(existing_state)}\n\n"
+                    "Current unresolved validator issues:\n"
+                    f"{json.dumps(current_issues)}\n\n"
+                    "Previous assistant question:\n"
+                    f"{last_assistant_message}\n\n"
+                    "Recent conversation history:\n"
+                    f"{json.dumps(recent_conversation_history)}\n\n"
                     "Latest user message:\n"
                     f"{user_message}"
                 ),
@@ -1288,6 +1322,9 @@ class LLMAdapter:
         self,
         user_message: str,
         existing_state: Optional[Dict[str, Any]] = None,
+        current_issues: Optional[List[Dict[str, Any]]] = None,
+        last_assistant_message: Optional[str] = None,
+        recent_conversation_history: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Extract corrective-action facts from a user's freezer incident narrative.
@@ -1315,6 +1352,8 @@ class LLMAdapter:
             return empty_facts
 
         existing_state = existing_state or {}
+        current_issues = current_issues or []
+        recent_conversation_history = recent_conversation_history or []
 
         messages = [
             {
@@ -1372,6 +1411,29 @@ class LLMAdapter:
                     "for repair, engineer callout, service, or maintenance.\n"
                     "- Preserve existing facts unless the latest user message clearly "
                     "corrects them.\n"
+                    "- Use the active validator issues and previous assistant question "
+                    "to interpret short contextual replies such as yes, no, "
+                    "yes it was, no it was not, I did, or we did.\n"
+                    "- If the previous assistant question asked whether a specific "
+                    "boolean fact is true, and the latest user message clearly "
+                    "confirms or denies it, extract that specific boolean fact.\n"
+                    "- Do not use a short yes/no reply to fill open-ended fields "
+                    "such as temperatures, food decisions, issue type, or corrective "
+                    "action taken. Those require the user to state the actual fact.\n"
+                    "- Extract facts across the full corrective-action schema, not only "
+                    "the field currently listed in the unresolved validator issue.\n"
+                    "- The unresolved validator issues and previous assistant question "
+                    "provide conversation context; they do not limit which fields can "
+                    "be extracted from the latest user response.\n"
+                    "- If the latest user response clearly states information relevant "
+                    "to any corrective-action field, extract it, even if the current "
+                    "assistant question was focused on a different field.\n"
+                    "- Keep cause and action separate. For example, if the user says "
+                    "a fridge or freezer door was left open and then says they closed "
+                    "it, extract the door-left-open detail as the issue description "
+                    "and extract closing the door as corrective_action_taken.\n"
+                    "- If the user gives an equipment temperature after the corrective "
+                    "action, extract it as follow_up_temperature_c.\n"
                     "Return only valid JSON."
                 ),
             },
@@ -1380,6 +1442,12 @@ class LLMAdapter:
                 "content": (
                     "Existing extracted state:\n"
                     f"{json.dumps(existing_state)}\n\n"
+                    "Current unresolved validator issues:\n"
+                    f"{json.dumps(current_issues)}\n\n"
+                    "Previous assistant question:\n"
+                    f"{last_assistant_message}\n\n"
+                    "Recent conversation history:\n"
+                    f"{json.dumps(recent_conversation_history)}\n\n"
                     "Latest user message:\n"
                     f"{user_message}"
                 ),
