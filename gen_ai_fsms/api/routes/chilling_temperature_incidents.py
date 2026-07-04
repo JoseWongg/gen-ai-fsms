@@ -3,6 +3,9 @@ from sqlalchemy.orm import Session
 
 from gen_ai_fsms.api.deps import get_current_user, get_db
 from gen_ai_fsms.db.models import User
+from gen_ai_fsms.db.models.chilling_temperature_corrective_action_session import (
+    ChillingTemperatureCorrectiveActionSession,
+)
 from gen_ai_fsms.schemas.chilling_temperature_corrective_action_workflow import (
     CorrectiveActionMessageRequest,
     CorrectiveActionWorkflowResponse,
@@ -67,6 +70,51 @@ def get_chilling_temperature_corrective_action_session(
         incident_id=incident_id,
     )
 
+
+
+@router.post(
+    "/{incident_id}/corrective-action/session/abandon",
+)
+def abandon_chilling_temperature_corrective_action_session(
+    incident_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    business_profile_id = get_current_business_profile_id(current_user)
+
+    session = (
+        db.query(ChillingTemperatureCorrectiveActionSession)
+        .filter(
+            ChillingTemperatureCorrectiveActionSession.business_profile_id
+            == business_profile_id,
+            ChillingTemperatureCorrectiveActionSession.incident_id
+            == incident_id,
+        )
+        .first()
+    )
+
+    if session is None:
+        return {
+            "abandoned": False,
+            "is_completed": False,
+            "message": "No corrective-action session to abandon.",
+        }
+
+    if session.status == "completed":
+        return {
+            "abandoned": False,
+            "is_completed": True,
+            "message": "Completed corrective-action session was not abandoned.",
+        }
+
+    db.delete(session)
+    db.commit()
+
+    return {
+        "abandoned": True,
+        "is_completed": False,
+        "message": "Incomplete corrective-action session abandoned.",
+    }
 
 @router.post(
     "/{incident_id}/corrective-action/message",

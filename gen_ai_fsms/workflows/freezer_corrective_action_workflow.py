@@ -222,6 +222,33 @@ def _build_completed_incident_response(
     )
 
 
+
+def _build_validator_issue_message(issue: dict[str, Any]) -> str | None:
+    if issue.get("kind") != "contradiction":
+        return None
+
+    issue_message = issue.get("message") or (
+        "The corrective-action information is inconsistent with the "
+        "freezer safety rules."
+    )
+
+    guidance_by_field = {
+        "food_checked_for_thawing_signs": 'Please confirm whether the frozen food has now been checked for signs of thawing, or correct the earlier information if it was already checked.',
+        "food_decision": 'Please confirm whether the food has now been discarded, or correct the earlier information if it did not actually show signs of thawing.',
+        "destination_freezer_temperature_c": 'Please correct the food decision or the destination freezer temperature. Food can only be moved to compliant freezer equipment.',
+        "freezer_issue_type": 'Please confirm whether the freezer has now been logged for maintenance or repair, or correct the follow-up temperature if the freezer was actually back within the safe range.'
+    }
+
+    correction_guidance = guidance_by_field.get(
+        issue.get("field"),
+        (
+            "Please correct the earlier information or describe the updated "
+            "corrective action taken."
+        ),
+    )
+
+    return f"{issue_message}\n\n{correction_guidance}"
+
 def _validate_state_and_update_session(
     session: ChillingTemperatureCorrectiveActionSession,
 ) -> dict[str, Any]:
@@ -244,10 +271,13 @@ def _validate_state_and_update_session(
         session.final_summary = None
 
         first_issue = issue_data[0]
-        question = adapter.generate_freezer_corrective_action_question(
-            issue=first_issue,
-            current_state=state_data,
-        )
+        question = _build_validator_issue_message(first_issue)
+
+        if question is None:
+            question = adapter.generate_freezer_corrective_action_question(
+                issue=first_issue,
+                current_state=state_data,
+            )
 
         conversation_history = _read_json_list(
             session.conversation_history_json

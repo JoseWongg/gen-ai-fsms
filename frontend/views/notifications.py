@@ -178,6 +178,42 @@ def approve_corrective_action_summary(token, incident_id):
     return response.json(), None
 
 
+def abandon_corrective_action_session(token, incident_id):
+    response = api_request(
+        "POST",
+        (
+            f"/chilling-temperature-incidents/{incident_id}"
+            "/corrective-action/session/abandon"
+        ),
+        token=token,
+    )
+
+    if response is None:
+        return False
+
+    return response.status_code == 200
+
+
+def abandon_corrective_action_session_if_incomplete():
+    token = st.session_state.get("token")
+    incident_id = st.session_state.get("selected_corrective_action_incident_id")
+    workflow_response = st.session_state.get(
+        "corrective_action_workflow_response"
+    )
+
+    if not token or incident_id is None:
+        return
+
+    if workflow_response and workflow_response.get("is_completed"):
+        return
+
+    abandon_corrective_action_session(
+        token=token,
+        incident_id=incident_id,
+    )
+
+
+
 def render_header(unread_count):
     st.markdown(
         f"""
@@ -229,6 +265,20 @@ def open_corrective_action_workflow(notification):
 
 
 def clear_corrective_action_dialog_state():
+    incident_id = st.session_state.get("selected_corrective_action_incident_id")
+
+    abandon_corrective_action_session_if_incomplete()
+
+    if incident_id is not None:
+        st.session_state.pop(
+            f"corrective_action_message_version_{incident_id}",
+            None,
+        )
+        st.session_state.pop(
+            f"corrective_action_correction_version_{incident_id}",
+            None,
+        )
+
     st.session_state.pop("selected_corrective_action_incident_id", None)
     st.session_state.pop("corrective_action_dialog_open", None)
     st.session_state.pop("corrective_action_source_notification_id", None)
@@ -276,13 +326,6 @@ def render_corrective_action_workflow_response(workflow_response):
     if message:
         st.info(message)
 
-    if issues:
-        with st.expander("Validation details", expanded=False):
-            for issue in issues:
-                issue_message = issue.get("message") or "Validation issue."
-                issue_kind = issue.get("kind") or "issue"
-                st.write(f"**{issue_kind}:** {issue_message}")
-
 
 @st.dialog("Corrective action", on_dismiss=clear_corrective_action_dialog_state)
 def render_corrective_action_dialog(token, incident_id):
@@ -303,13 +346,6 @@ def render_corrective_action_dialog(token, incident_id):
             clear_corrective_action_dialog_state()
             st.rerun()
         return
-
-    if not (workflow_response and workflow_response.get("is_completed")):
-        equipment_label = get_corrective_action_equipment_label(workflow_response)
-        st.markdown(
-            f"Describe the corrective action taken for this {equipment_label} "
-            "temperature incident."
-        )
 
     render_corrective_action_workflow_response(workflow_response)
 
@@ -347,9 +383,12 @@ def render_corrective_action_dialog(token, incident_id):
                 clear_corrective_action_dialog_state()
                 st.rerun()
 
+        correction_version_key = f"corrective_action_correction_version_{incident_id}"
+        correction_version = st.session_state.get(correction_version_key, 0)
+
         correction = st.text_area(
             "Correction or extra detail",
-            key=f"corrective_action_correction_{incident_id}",
+            key=f"corrective_action_correction_{incident_id}_{correction_version}",
             placeholder="Enter a correction if the summary is not accurate.",
         )
 
@@ -369,14 +408,20 @@ def render_corrective_action_dialog(token, incident_id):
                     st.session_state.corrective_action_workflow_response = (
                         response_data
                     )
+                    st.session_state[correction_version_key] = (
+                        correction_version + 1
+                    )
 
                 st.rerun()
 
         return
 
+    message_version_key = f"corrective_action_message_version_{incident_id}"
+    message_version = st.session_state.get(message_version_key, 0)
+
     user_message = st.text_area(
         "Corrective action taken",
-        key=f"corrective_action_message_{incident_id}",
+        key=f"corrective_action_message_{incident_id}_{message_version}",
         placeholder=(
             "Example: I probed the food, confirmed it had been warm for less "
             "than four hours, moved it to a compliant fridge, corrected the "
@@ -402,6 +447,9 @@ def render_corrective_action_dialog(token, incident_id):
                 else:
                     st.session_state.corrective_action_workflow_response = (
                         response_data
+                    )
+                    st.session_state[message_version_key] = (
+                        message_version + 1
                     )
 
                 st.rerun()
