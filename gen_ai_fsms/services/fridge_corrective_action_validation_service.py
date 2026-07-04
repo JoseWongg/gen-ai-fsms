@@ -6,11 +6,15 @@ from pydantic import BaseModel, Field
 FoodType = Literal["fish", "other"]
 OutOfRangeDuration = Literal["le_4h", "gt_4h", "uncertain"]
 FoodDecision = Literal["discarded", "kept_moved_to_compliant_fridge"]
+CategoryFoodDecision = Literal[
+    "discarded",
+    "kept_moved_to_compliant_fridge",
+    "not_required",
+]
 FridgeIssueType = Literal["transient", "maintenance"]
 CorrectiveActionIssueKind = Literal["missing", "contradiction"]
 
-
-FOOD_THRESHOLD_FISH_C = 4.0
+FOOD_THRESHOLD_FISH_C = 5.0
 FOOD_THRESHOLD_OTHER_C = 8.0
 COMPLIANT_DESTINATION_FRIDGE_THRESHOLD_C = 5.0
 COMPLIANT_FOLLOW_UP_FRIDGE_THRESHOLD_C = 5.0
@@ -24,6 +28,13 @@ class FridgeCorrectiveActionState(BaseModel):
     several turns. The validator decides which fields are required based on the
     branch of the corrective-action narrative already established.
 
+    Backwards compatibility:
+    - food_type and food_decision are the original single-category fields.
+    - fish_present, non_fish_food_present, fish_decision, and
+      non_fish_decision support mixed fridge contents.
+    - food_temperature_c and out_of_range_duration remain shared across the
+      affected fridge incident.
+
     Important:
     - destination_fridge_temperature_c is optional.
     - food_returned_to_fridge is optional.
@@ -31,11 +42,20 @@ class FridgeCorrectiveActionState(BaseModel):
     """
 
     food_probed: bool | None = None
+
+    # Original single-category fields.
     food_type: FoodType | None = None
     food_temperature_c: float | None = None
-
     out_of_range_duration: OutOfRangeDuration | None = None
     food_decision: FoodDecision | None = None
+
+    # Mixed-food fields. These are additive and do not replace the original
+    # fields yet.
+    fish_present: bool | None = None
+    non_fish_food_present: bool | None = None
+    fish_decision: CategoryFoodDecision | None = None
+    non_fish_decision: CategoryFoodDecision | None = None
+
     destination_fridge_temperature_c: float | None = None
 
     fridge_issue_type: FridgeIssueType | None = None
@@ -66,6 +86,15 @@ class FridgeCorrectiveActionState(BaseModel):
 
         return self.food_temperature_c <= self.food_threshold_c
 
+    @property
+    def uses_mixed_food_fields(self) -> bool:
+        return (
+            self.fish_present is not None
+            or self.non_fish_food_present is not None
+            or self.fish_decision is not None
+            or self.non_fish_decision is not None
+        )
+
 
 class FridgeCorrectiveActionIssue(BaseModel):
     kind: CorrectiveActionIssueKind
@@ -89,19 +118,17 @@ def validate_fridge_corrective_action_state(
 
     Business logic:
     - Food must be probed.
-    - If food is within the relevant food-temperature threshold, no discard/move
-      decision is required.
-    - If food is outside the relevant food-temperature threshold, the duration
-      outside safe range must be known.
-    - Food outside the safe range may only be kept if it was outside range for
-      no more than four hours and moved to a compliant fridge.
-    - Food outside range for more than four hours, or where the duration is
-      uncertain, must be discarded.
+    - The food probe temperature is shared for the affected fridge incident.
+    - The duration outside safe range is shared for the affected fridge incident.
+    - Fish is safe at 5°C or below.
+    - Non-fish chilled food is safe at 8°C or below.
+    - If a category is outside its threshold, duration must be known.
+    - If duration is uncertain or more than four hours, the out-of-range
+      category must be discarded.
     - Destination fridge details are not required, but contradictory volunteered
       details are still flagged.
-    - For the faulty fridge itself, the issue must be either resolved as a
-      temporary issue with a compliant follow-up temperature, or logged for
-      maintenance/repair.
+    - The faulty fridge itself must be either resolved as a temporary issue with
+      a compliant follow-up temperature, or logged for maintenance/repair.
     """
 
     issues: list[FridgeCorrectiveActionIssue] = []
@@ -124,6 +151,12 @@ def validate_fridge_corrective_action_state(
             )
         )
 
+    def requires_discard(decision: str | None) -> bool:
+        return (
+            state.out_of_range_duration in ("gt_4h", "uncertain")
+            and decision == "kept_moved_to_compliant_fridge"
+        )
+
     # 1. Food probing is the first required branch.
     if state.food_probed is None:
         missing(
@@ -139,9 +172,21 @@ def validate_fridge_corrective_action_state(
         )
         return FridgeCorrectiveActionValidationResult(issues=issues)
 
-    # 2. Food type and probe temperature are needed to decide whether the food
-    # was actually outside the relevant safe range.
-    if state.food_type is None:
+    # 2. Food category/presence and probe temperature are needed before food
+    # risk can be assessed.
+    if state.uses_mixed_food_fields:
+        if state.fish_present is None:
+            missing(
+                "fish_present",
+                "Confirm whether there was any fish in the affected fridge.",
+            )
+
+        if state.non_fish_food_present is None:
+            missing(
+                "non_fish_food_present",
+                "Confirm whether there was any other chilled food in the affected fridge.",
+            )
+    elif state.food_type is None:
         missing(
             "food_type",
             "Confirm whether there was any fish in the affected fridge.",
@@ -153,47 +198,96 @@ def validate_fridge_corrective_action_state(
             "Provide the temperature recorded when the food was probed.",
         )
 
-    if state.food_type is None or state.food_temperature_c is None:
+    if issues:
         return FridgeCorrectiveActionValidationResult(issues=issues)
 
-    # 3. If food was outside its safe range, enforce the four-hour rule.
-    if state.food_in_safe_range is False:
+    # 3. Derive the relevant food categories. If the new mixed-food fields are
+    # absent, preserve the original food_type behaviour.
+    if state.uses_mixed_food_fields:
+        fish_present = state.fish_present is True
+        non_fish_food_present = state.non_fish_food_present is True
+    else:
+        fish_present = state.food_type == "fish"
+        non_fish_food_present = state.food_type == "other"
+
+    fish_out_of_range = (
+        fish_present
+        and state.food_temperature_c is not None
+        and state.food_temperature_c > FOOD_THRESHOLD_FISH_C
+    )
+    non_fish_out_of_range = (
+        non_fish_food_present
+        and state.food_temperature_c is not None
+        and state.food_temperature_c > FOOD_THRESHOLD_OTHER_C
+    )
+
+    any_food_out_of_range = fish_out_of_range or non_fish_out_of_range
+
+    # 4. If no relevant category is outside its threshold, no duration or food
+    # decision is required.
+    if any_food_out_of_range:
         if state.out_of_range_duration is None:
             missing(
                 "out_of_range_duration",
                 "Confirm whether the food was outside the safe range for no more than four hours, more than four hours, or whether the duration was uncertain.",
             )
 
-        if state.food_decision is None:
-            missing(
-                "food_decision",
-                "Confirm whether the food was discarded or moved to another compliant fridge.",
-            )
+        if state.uses_mixed_food_fields:
+            if fish_out_of_range:
+                if state.fish_decision is None:
+                    missing(
+                        "fish_decision",
+                        "Confirm whether the fish was discarded or moved to another compliant fridge.",
+                    )
+                elif requires_discard(state.fish_decision):
+                    contradiction(
+                        "fish_decision",
+                        "Fish that was outside the safe range for more than four hours, or where the duration is uncertain, cannot be kept. It must be discarded.",
+                    )
 
-        if (
-            state.out_of_range_duration in ("gt_4h", "uncertain")
-            and state.food_decision == "kept_moved_to_compliant_fridge"
-        ):
-            contradiction(
-                "food_decision",
-                "Food that was outside the safe range for more than four hours, or where the duration is uncertain, cannot be kept. It must be discarded.",
-            )
+            if non_fish_out_of_range:
+                if state.non_fish_decision is None:
+                    missing(
+                        "non_fish_decision",
+                        "Confirm whether the other chilled food was discarded or moved to another compliant fridge.",
+                    )
+                elif requires_discard(state.non_fish_decision):
+                    contradiction(
+                        "non_fish_decision",
+                        "Food that was outside the safe range for more than four hours, or where the duration is uncertain, cannot be kept. It must be discarded.",
+                    )
+        else:
+            if state.food_decision is None:
+                missing(
+                    "food_decision",
+                    "Confirm whether the food was discarded or moved to another compliant fridge.",
+                )
+            elif requires_discard(state.food_decision):
+                contradiction(
+                    "food_decision",
+                    "Food that was outside the safe range for more than four hours, or where the duration is uncertain, cannot be kept. It must be discarded.",
+                )
 
-        # Optional volunteered detail only.
-        # Do not require the destination fridge temperature.
-        # But if the user states it and it is not compliant, flag it.
-        if (
-            state.food_decision == "kept_moved_to_compliant_fridge"
-            and state.destination_fridge_temperature_c is not None
-            and state.destination_fridge_temperature_c
-            > COMPLIANT_DESTINATION_FRIDGE_THRESHOLD_C
-        ):
-            contradiction(
-                "destination_fridge_temperature_c",
-                "The food was described as moved to a fridge above 5°C. Food can only be moved to a compliant fridge.",
-            )
+    moved_to_another_fridge = (
+        state.food_decision == "kept_moved_to_compliant_fridge"
+        or state.fish_decision == "kept_moved_to_compliant_fridge"
+        or state.non_fish_decision == "kept_moved_to_compliant_fridge"
+    )
 
-    # 4. The faulty fridge itself must have a resolution path.
+    # Optional volunteered detail only.
+    # Do not require the destination fridge temperature.
+    # But if the user states it and it is not compliant, flag it.
+    if (
+        moved_to_another_fridge
+        and state.destination_fridge_temperature_c is not None
+        and state.destination_fridge_temperature_c > COMPLIANT_DESTINATION_FRIDGE_THRESHOLD_C
+    ):
+        contradiction(
+            "destination_fridge_temperature_c",
+            "The food was described as moved to a fridge above 5°C. Food can only be moved to a compliant fridge.",
+        )
+
+    # 5. The faulty fridge itself must have a resolution path.
     if state.fridge_issue_type is None:
         missing(
             "fridge_issue_type",
