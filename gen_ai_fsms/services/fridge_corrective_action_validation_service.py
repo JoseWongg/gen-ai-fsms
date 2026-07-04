@@ -3,14 +3,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-FoodType = Literal["fish", "other"]
 OutOfRangeDuration = Literal["le_4h", "gt_4h", "uncertain"]
 FoodDecision = Literal["discarded", "kept_moved_to_compliant_fridge"]
-CategoryFoodDecision = Literal[
-    "discarded",
-    "kept_moved_to_compliant_fridge",
-    "not_required",
-]
 FridgeIssueType = Literal["transient", "maintenance"]
 CorrectiveActionIssueKind = Literal["missing", "contradiction"]
 
@@ -206,7 +200,7 @@ def validate_fridge_corrective_action_state(
             elif requires_discard(state.non_fish_decision):
                 contradiction(
                     "non_fish_decision",
-                    "Food that was outside the safe range for more than four hours, or where the duration is uncertain, cannot be kept. It must be discarded.",
+                    "Other chilled food that was outside the safe range for more than four hours, or where the duration is uncertain, cannot be kept. It must be discarded.",
                 )
 
     moved_to_another_fridge = (
