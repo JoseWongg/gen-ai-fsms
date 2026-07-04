@@ -44,10 +44,12 @@ RELATED_ENTITY_TYPE_CHILLING_TEMPERATURE_INCIDENT = "chilling_temperature_incide
 
 CORRECTIVE_ACTION_STATE_FIELDS = {
     "food_probed",
-    "food_type",
+    "fish_present",
+    "non_fish_food_present",
     "food_temperature_c",
     "out_of_range_duration",
-    "food_decision",
+    "fish_decision",
+    "non_fish_decision",
     "destination_fridge_temperature_c",
     "fridge_issue_type",
     "transient_issue_description",
@@ -236,9 +238,10 @@ def _build_validator_issue_message(issue: dict[str, Any]) -> str | None:
 
     guidance_by_field = {
         "food_probed": 'Please confirm whether the food has now been probed with a thermometer, or correct the earlier information if it was already probed.',
-        "food_decision": 'Please confirm whether the food has now been discarded, or correct the earlier duration information if the food was not actually outside the safe range for more than four hours or for an uncertain duration.',
+        "fish_decision": 'Please confirm whether the fish has now been discarded, or correct the earlier duration or fish-presence information if it was not actually outside the safe range for more than four hours or for an uncertain duration.',
+        "non_fish_decision": 'Please confirm whether the other chilled food has now been discarded, or correct the earlier duration or food-presence information if it was not actually outside the safe range for more than four hours or for an uncertain duration.',
         "destination_fridge_temperature_c": 'Please correct the food decision or the destination fridge temperature. Food can only be moved to compliant fridge equipment.',
-        "fridge_issue_type": 'Please confirm whether the fridge has now been logged for maintenance or repair, or correct the follow-up temperature if the fridge was actually back within the safe range.'
+        "fridge_issue_type": 'Please confirm whether the fridge has now been logged for maintenance or repair, or correct the follow-up temperature if the fridge was actually back within the safe range.',
     }
 
     correction_guidance = guidance_by_field.get(

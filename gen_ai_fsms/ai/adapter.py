@@ -916,10 +916,12 @@ class LLMAdapter:
 
         empty_facts = {
             "food_probed": None,
-            "food_type": None,
+            "fish_present": None,
+            "non_fish_food_present": None,
             "food_temperature_c": None,
             "out_of_range_duration": None,
-            "food_decision": None,
+            "fish_decision": None,
+            "non_fish_decision": None,
             "destination_fridge_temperature_c": None,
             "fridge_issue_type": None,
             "transient_issue_description": None,
@@ -943,102 +945,119 @@ class LLMAdapter:
                 "role": "system",
                 "content": (
                     "You extract facts from a manager's corrective-action "
-                    "narrative for an open fridge-temperature incident.\n"
-                    "Return only a JSON object with exactly these fields:\n"
-                    "{\n"
-                    '  "food_probed": boolean or null,\n'
-                    '  "food_type": "fish" | "other" | null,\n'
-                    '  "food_temperature_c": number or null,\n'
-                    '  "out_of_range_duration": "le_4h" | "gt_4h" | "uncertain" | null,\n'
-                    '  "food_decision": "discarded" | "kept_moved_to_compliant_fridge" | null,\n'
-                    '  "destination_fridge_temperature_c": number or null,\n'
-                    '  "fridge_issue_type": "transient" | "maintenance" | null,\n'
-                    '  "transient_issue_description": string or null,\n'
-                    '  "corrective_action_taken": string or null,\n'
-                    '  "follow_up_temperature_c": number or null,\n'
-                    '  "food_returned_to_fridge": boolean or null,\n'
-                    '  "maintenance_logged": boolean or null,\n'
-                    '  "maintenance_reference": string or null,\n'
-                    '  "reason": string\n'
-                    "}\n"
-                    "Rules:\n"
+                    "narrative for an open fridge-temperature incident.\\n"
+                    "Return only a JSON object with exactly these fields:\\n"
+                    "{\\n"
+                    '  "food_probed": boolean or null,\\n'
+                    '  "fish_present": boolean or null,\\n'
+                    '  "non_fish_food_present": boolean or null,\\n'
+                    '  "food_temperature_c": number or null,\\n'
+                    '  "out_of_range_duration": "le_4h" | "gt_4h" | "uncertain" | null,\\n'
+                    '  "fish_decision": "discarded" | "kept_moved_to_compliant_fridge" | null,\\n'
+                    '  "non_fish_decision": "discarded" | "kept_moved_to_compliant_fridge" | null,\\n'
+                    '  "destination_fridge_temperature_c": number or null,\\n'
+                    '  "fridge_issue_type": "transient" | "maintenance" | null,\\n'
+                    '  "transient_issue_description": string or null,\\n'
+                    '  "corrective_action_taken": string or null,\\n'
+                    '  "follow_up_temperature_c": number or null,\\n'
+                    '  "food_returned_to_fridge": boolean or null,\\n'
+                    '  "maintenance_logged": boolean or null,\\n'
+                    '  "maintenance_reference": string or null,\\n'
+                    '  "reason": string\\n'
+                    "}\\n"
+                    "Rules:\\n"
                     "- Extract only facts explicitly stated or clearly implied "
-                    "by the user's message.\n"
+                    "by the user's message.\\n"
                     "- Do not decide whether the corrective action is compliant. "
-                    "A deterministic validator will decide that.\n"
-                    "- Do not invent missing facts.\n"
-                    "- Do not infer a destination fridge temperature from the "
-                    "phrase 'moved to a compliant fridge'.\n"
-                    "- Extract destination_fridge_temperature_c only when the "
-                    "user explicitly states the destination fridge temperature.\n"
-                    "- If the user says food was moved to a compliant fridge, "
-                    "set food_decision to kept_moved_to_compliant_fridge, but "
-                    "leave destination_fridge_temperature_c as null unless a "
-                    "temperature is explicitly stated.\n"
-                    "- For duration, use le_4h when the user clearly says no "
-                    "more than four hours, within four hours, about two hours, "
-                    "or similar.\n"
-                    "- Use gt_4h when the user clearly says more than four "
-                    "hours.\n"
-                    "- Use uncertain when the user says they do not know, are "
-                    "not sure, or cannot confirm the duration.\n"
-                    "- Use food_type fish only when the user says fish was "
-                    "affected or present in the affected fridge.\n"
-                    "- Use food_type other when the user says there was no "
-                    "fish in the affected fridge, or when the affected food "
-                    "was meat, chicken, dairy, cooked food, prepared food, "
-                    "or unspecified non-fish food.\n"
+                    "A deterministic validator will decide that.\\n"
+                    "- Do not invent missing facts.\\n"
+                    "- The food probe temperature is one shared temperature for "
+                    "the affected fridge incident. Do not ask for or infer separate "
+                    "fish and non-fish temperatures.\\n"
+                    "- The out-of-range duration is one shared duration for the "
+                    "affected fridge incident. Do not create category-specific "
+                    "duration values.\\n"
+                    "- Use fish_present true when the user says fish was present "
+                    "in the affected fridge. Use fish_present false when the "
+                    "user says there was no fish in the affected fridge.\\n"
+                    "- Use non_fish_food_present true when the user says other "
+                    "chilled food, meat, chicken, dairy, cooked food, prepared "
+                    "food, or non-fish food was present in the affected fridge.\\n"
+                    "- Use non_fish_food_present false only when the user clearly "
+                    "says there was no other chilled food or only fish was affected.\\n"
                     "- If the assistant asks whether there was any fish in "
                     "the affected fridge and the user answers yes, extract "
-                    "food_type as fish. If the user answers no, extract "
-                    "food_type as other.\n"
+                    "fish_present as true. If the user answers no, extract "
+                    "fish_present as false.\\n"
+                    "- If the assistant asks whether there was other chilled food "
+                    "and the user answers yes, extract non_fish_food_present as true. "
+                    "If the user answers no, extract non_fish_food_present as false.\\n"
+                    "- Use fish_decision only for what happened to fish.\\n"
+                    "- Use non_fish_decision only for what happened to other chilled food.\\n"
+                    "- If the user says all affected food was discarded, and both "
+                    "fish and other chilled food require a decision, extract both "
+                    "fish_decision and non_fish_decision as discarded.\\n"
+                    "- If the user says all affected food was moved to a compliant fridge, "
+                    "and both fish and other chilled food require a decision, extract both "
+                    "fish_decision and non_fish_decision as kept_moved_to_compliant_fridge.\\n"
+                    "- Do not infer a destination fridge temperature from the "
+                    "phrase 'moved to a compliant fridge'.\\n"
+                    "- Extract destination_fridge_temperature_c only when the "
+                    "user explicitly states the destination fridge temperature.\\n"
+                    "- For duration, use le_4h when the user clearly says no "
+                    "more than four hours, within four hours, about two hours, "
+                    "or similar.\\n"
+                    "- Use gt_4h when the user clearly says more than four "
+                    "hours.\\n"
+                    "- Use uncertain when the user says they do not know, are "
+                    "not sure, or cannot confirm the duration.\\n"
                     "- Use fridge_issue_type transient when the issue was "
                     "corrected without maintenance or repair, such as closing "
                     "a door, adjusting a setting, reducing loading, or restoring "
-                    "power.\n"
+                    "power.\\n"
                     "- Use fridge_issue_type maintenance when the fridge was "
                     "logged for repair, engineer callout, service, or "
-                    "maintenance.\n"
+                    "maintenance.\\n"
                     "- Preserve existing facts unless the latest user message "
-                    "clearly corrects them.\n"
+                    "clearly corrects them.\\n"
                     "- Use the active validator issues and previous assistant question "
                     "to interpret short contextual replies such as yes, no, "
-                    "yes it was, no it was not, I did, or we did.\n"
+                    "yes it was, no it was not, I did, or we did.\\n"
                     "- If the previous assistant question asked whether a specific "
                     "boolean fact is true, and the latest user message clearly "
-                    "confirms or denies it, extract that specific boolean fact.\n"
+                    "confirms or denies it, extract that specific boolean fact.\\n"
                     "- Do not use a short yes/no reply to fill open-ended fields "
-                    "such as temperatures, food decisions, issue type, or corrective "
-                    "action taken. Those require the user to state the actual fact.\n"
+                    "such as temperatures, category decisions, issue type, or corrective "
+                    "action taken. Those require the user to state the actual fact.\\n"
                     "- Extract facts across the full corrective-action schema, not only "
-                    "the field currently listed in the unresolved validator issue.\n"
+                    "the field currently listed in the unresolved validator issue.\\n"
                     "- The unresolved validator issues and previous assistant question "
                     "provide conversation context; they do not limit which fields can "
-                    "be extracted from the latest user response.\n"
+                    "be extracted from the latest user response.\\n"
                     "- If the latest user response clearly states information relevant "
                     "to any corrective-action field, extract it, even if the current "
-                    "assistant question was focused on a different field.\n"
+                    "assistant question was focused on a different field.\\n"
                     "- Keep cause and action separate. For example, if the user says "
                     "a fridge or freezer door was left open and then says they closed "
                     "it, extract the door-left-open detail as the issue description "
-                    "and extract closing the door as corrective_action_taken.\n"
+                    "and extract closing the door as corrective_action_taken.\\n"
                     "- If the user gives an equipment temperature after the corrective "
-                    "action, extract it as follow_up_temperature_c.\n"
+                    "action, extract it as follow_up_temperature_c.\\n"
                     "Return only valid JSON."
                 ),
             },
             {
                 "role": "user",
                 "content": (
-                    "Existing extracted state:\n"
-                    f"{json.dumps(existing_state)}\n\n"
-                    "Current unresolved validator issues:\n"
-                    f"{json.dumps(current_issues)}\n\n"
-                    "Previous assistant question:\n"
-                    f"{last_assistant_message}\n\n"
-                    "Recent conversation history:\n"
-                    f"{json.dumps(recent_conversation_history)}\n\n"
-                    "Latest user message:\n"
+                    "Existing extracted state:\\n"
+                    f"{json.dumps(existing_state)}\\n\\n"
+                    "Current unresolved validator issues:\\n"
+                    f"{json.dumps(current_issues)}\\n\\n"
+                    "Previous assistant question:\\n"
+                    f"{last_assistant_message}\\n\\n"
+                    "Recent conversation history:\\n"
+                    f"{json.dumps(recent_conversation_history)}\\n\\n"
+                    "Latest user message:\\n"
                     f"{user_message}"
                 ),
             },
@@ -1060,7 +1079,6 @@ class LLMAdapter:
 
             result = json.loads(content)
 
-            allowed_food_types = {"fish", "other"}
             allowed_durations = {"le_4h", "gt_4h", "uncertain"}
             allowed_food_decisions = {
                 "discarded",
@@ -1090,9 +1108,9 @@ class LLMAdapter:
 
             return {
                 "food_probed": clean_bool(result.get("food_probed")),
-                "food_type": clean_enum(
-                    result.get("food_type"),
-                    allowed_food_types,
+                "fish_present": clean_bool(result.get("fish_present")),
+                "non_fish_food_present": clean_bool(
+                    result.get("non_fish_food_present")
                 ),
                 "food_temperature_c": clean_float(
                     result.get("food_temperature_c")
@@ -1101,8 +1119,12 @@ class LLMAdapter:
                     result.get("out_of_range_duration"),
                     allowed_durations,
                 ),
-                "food_decision": clean_enum(
-                    result.get("food_decision"),
+                "fish_decision": clean_enum(
+                    result.get("fish_decision"),
+                    allowed_food_decisions,
+                ),
+                "non_fish_decision": clean_enum(
+                    result.get("non_fish_decision"),
                     allowed_food_decisions,
                 ),
                 "destination_fridge_temperature_c": clean_float(
@@ -1158,7 +1180,10 @@ class LLMAdapter:
             "food_probed": (
                 "Was the food inside the fridge probed with a thermometer?"
             ),
-            "food_type": "Was there any fish in the affected fridge?",
+            "fish_present": "Was there any fish in the affected fridge?",
+            "non_fish_food_present": (
+                "Was there any other chilled food in the affected fridge?"
+            ),
             "food_temperature_c": (
                 "What temperature was recorded when the food was probed?"
             ),
@@ -1166,12 +1191,16 @@ class LLMAdapter:
                 "Was the food outside the safe range for no more than four "
                 "hours, more than four hours, or is the duration uncertain?"
             ),
-            "food_decision": (
-                "Was the food discarded, or was it moved to another compliant "
+            "fish_decision": (
+                "Was the fish discarded, or was it moved to another compliant "
                 "fridge?"
             ),
+            "non_fish_decision": (
+                "Was the other chilled food discarded, or was it moved to "
+                "another compliant fridge?"
+            ),
             "fridge_issue_type": (
-                "Was the fridge issue corrected as a transient issue, or was "
+                "Was the fridge issue corrected as a temporary issue, or was "
                 "it logged for maintenance or repair?"
             ),
             "corrective_action_taken": (
@@ -1200,28 +1229,30 @@ class LLMAdapter:
                 "role": "system",
                 "content": (
                     "You phrase one concise clarification question for a food "
-                    "safety corrective-action workflow.\n"
+                    "safety corrective-action workflow.\\n"
                     "The deterministic validator has already decided what is "
                     "missing or contradictory. You must not add any extra "
-                    "requirements.\n"
-                    "Return only a JSON object with exactly this field:\n"
-                    '{ "question": string }\n'
-                    "Rules:\n"
-                    "- Ask only about the validator issue provided.\n"
-                    "- Do not ask for destination fridge name.\n"
-                    "- Do not ask for destination fridge temperature.\n"
-                    "- Do not ask for evidence beyond the validator issue.\n"
-                    "- Keep the question short and practical.\n"
-                    "- In user-facing wording, say temporary issue rather than transient issue.\n"
+                    "requirements.\\n"
+                    "Return only a JSON object with exactly this field:\\n"
+                    '{ "question": string }\\n'
+                    "Rules:\\n"
+                    "- Ask only about the validator issue provided.\\n"
+                    "- Ask one shared duration question for the fridge incident; "
+                    "do not ask category-specific duration questions.\\n"
+                    "- Do not ask for destination fridge name.\\n"
+                    "- Do not ask for destination fridge temperature.\\n"
+                    "- Do not ask for evidence beyond the validator issue.\\n"
+                    "- Keep the question short and practical.\\n"
+                    "- In user-facing wording, say temporary issue rather than transient issue.\\n"
                     "Return only valid JSON."
                 ),
             },
             {
                 "role": "user",
                 "content": (
-                    "Validator issue:\n"
-                    f"{json.dumps(issue)}\n\n"
-                    "Current extracted state:\n"
+                    "Validator issue:\\n"
+                    f"{json.dumps(issue)}\\n\\n"
+                    "Current extracted state:\\n"
                     f"{json.dumps(current_state or {})}"
                 ),
             },
@@ -1274,34 +1305,45 @@ class LLMAdapter:
                 "role": "system",
                 "content": (
                     "You draft a concise final corrective-action summary for a "
-                    "food safety shift diary.\n"
+                    "food safety shift diary.\\n"
                     "The deterministic validator has already approved the "
-                    "facts. Do not decide compliance.\n"
-                    "Return only a JSON object with exactly this field:\n"
-                    '{ "summary": string }\n'
-                    "Rules:\n"
-                    "- Use only facts present in the provided state.\n"
+                    "facts. Do not decide compliance.\\n"
+                    "Return only a JSON object with exactly this field:\\n"
+                    '{ "summary": string }\\n'
+                    "Rules:\\n"
+                    "- Use only facts present in the provided state.\\n"
                     "- Do not invent destination fridge name or destination "
-                    "fridge temperature.\n"
+                    "fridge temperature.\\n"
                     "- Mention destination fridge temperature only if it is "
-                    "present in the state.\n"
+                    "present in the state.\\n"
                     "- Mention maintenance reference only if it is present in "
-                    "the state.\n"
-                    "- Write in clear audit-style English.\n"
-                    "- Use temporary issue instead of transient issue in user-facing text.\n"
-                    "- Do not expose internal categories such as food_type other.\n"
-                    "- If food_type is other, say no fish was reported in the affected fridge.\n"
-                    "- If food_type is fish, say fish was reported in the affected fridge.\n"
-                    "- food_temperature_c is the probed food temperature.\n"
-                    "- follow_up_temperature_c is the fridge temperature after corrective action, not the food temperature.\n"
-                    "- Do not include bullet points.\n"
+                    "the state.\\n"
+                    "- Write in clear audit-style English.\\n"
+                    "- Use temporary issue instead of transient issue in user-facing text.\\n"
+                    "- Do not expose internal field names such as fish_present, "
+                    "non_fish_food_present, fish_decision, or non_fish_decision.\\n"
+                    "- food_temperature_c is one shared probed food temperature "
+                    "for the affected fridge incident.\\n"
+                    "- out_of_range_duration is one shared duration for the "
+                    "affected fridge incident.\\n"
+                    "- follow_up_temperature_c is the fridge temperature after "
+                    "corrective action, not the food temperature.\\n"
+                    "- If fish_present is true, say fish was present in the affected fridge.\\n"
+                    "- If fish_present is false, say no fish was reported in the affected fridge.\\n"
+                    "- If non_fish_food_present is true, say other chilled food was present in the affected fridge.\\n"
+                    "- If fish_decision and non_fish_decision are both present, "
+                    "distinguish the action taken for fish from the action taken "
+                    "for other chilled food.\\n"
+                    "- If a category did not require action because it was within "
+                    "its threshold, say that plainly and do not imply it was discarded.\\n"
+                    "- Do not include bullet points.\\n"
                     "Return only valid JSON."
                 ),
             },
             {
                 "role": "user",
                 "content": (
-                    "Validator-approved corrective-action state:\n"
+                    "Validator-approved corrective-action state:\\n"
                     f"{json.dumps(state)}"
                 ),
             },

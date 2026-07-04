@@ -26,16 +26,16 @@ class FridgeCorrectiveActionState(BaseModel):
 
     All fields are optional because the workflow collects information over
     several turns. The validator decides which fields are required based on the
-    branch of the corrective-action narrative already established.
+    corrective-action facts already established.
 
-    Backwards compatibility:
-    - food_type and food_decision are the original single-category fields.
-    - fish_present, non_fish_food_present, fish_decision, and
-      non_fish_decision support mixed fridge contents.
-    - food_temperature_c and out_of_range_duration remain shared across the
-      affected fridge incident.
-
-    Important:
+    Canonical fridge food-risk model:
+    - fish_present and non_fish_food_present describe the affected fridge
+      contents.
+    - food_temperature_c is one shared food probe temperature for the affected
+      fridge incident.
+    - out_of_range_duration is one shared duration for the affected fridge
+      incident.
+    - fish_decision and non_fish_decision are category-specific actions.
     - destination_fridge_temperature_c is optional.
     - food_returned_to_fridge is optional.
     - Optional details are only validated if the user volunteers them.
@@ -43,18 +43,12 @@ class FridgeCorrectiveActionState(BaseModel):
 
     food_probed: bool | None = None
 
-    # Original single-category fields.
-    food_type: FoodType | None = None
-    food_temperature_c: float | None = None
-    out_of_range_duration: OutOfRangeDuration | None = None
-    food_decision: FoodDecision | None = None
-
-    # Mixed-food fields. These are additive and do not replace the original
-    # fields yet.
     fish_present: bool | None = None
     non_fish_food_present: bool | None = None
-    fish_decision: CategoryFoodDecision | None = None
-    non_fish_decision: CategoryFoodDecision | None = None
+    food_temperature_c: float | None = None
+    out_of_range_duration: OutOfRangeDuration | None = None
+    fish_decision: FoodDecision | None = None
+    non_fish_decision: FoodDecision | None = None
 
     destination_fridge_temperature_c: float | None = None
 
@@ -68,32 +62,6 @@ class FridgeCorrectiveActionState(BaseModel):
 
     maintenance_logged: bool | None = None
     maintenance_reference: str | None = None
-
-    @property
-    def food_threshold_c(self) -> float | None:
-        if self.food_type == "fish":
-            return FOOD_THRESHOLD_FISH_C
-
-        if self.food_type == "other":
-            return FOOD_THRESHOLD_OTHER_C
-
-        return None
-
-    @property
-    def food_in_safe_range(self) -> bool | None:
-        if self.food_temperature_c is None or self.food_threshold_c is None:
-            return None
-
-        return self.food_temperature_c <= self.food_threshold_c
-
-    @property
-    def uses_mixed_food_fields(self) -> bool:
-        return (
-            self.fish_present is not None
-            or self.non_fish_food_present is not None
-            or self.fish_decision is not None
-            or self.non_fish_decision is not None
-        )
 
 
 class FridgeCorrectiveActionIssue(BaseModel):
@@ -172,24 +140,18 @@ def validate_fridge_corrective_action_state(
         )
         return FridgeCorrectiveActionValidationResult(issues=issues)
 
-    # 2. Food category/presence and probe temperature are needed before food
-    # risk can be assessed.
-    if state.uses_mixed_food_fields:
-        if state.fish_present is None:
-            missing(
-                "fish_present",
-                "Confirm whether there was any fish in the affected fridge.",
-            )
-
-        if state.non_fish_food_present is None:
-            missing(
-                "non_fish_food_present",
-                "Confirm whether there was any other chilled food in the affected fridge.",
-            )
-    elif state.food_type is None:
+    # 2. Food presence and probe temperature are needed before food risk can be
+    # assessed.
+    if state.fish_present is None:
         missing(
-            "food_type",
+            "fish_present",
             "Confirm whether there was any fish in the affected fridge.",
+        )
+
+    if state.non_fish_food_present is None:
+        missing(
+            "non_fish_food_present",
+            "Confirm whether there was any other chilled food in the affected fridge.",
         )
 
     if state.food_temperature_c is None:
@@ -201,29 +163,20 @@ def validate_fridge_corrective_action_state(
     if issues:
         return FridgeCorrectiveActionValidationResult(issues=issues)
 
-    # 3. Derive the relevant food categories. If the new mixed-food fields are
-    # absent, preserve the original food_type behaviour.
-    if state.uses_mixed_food_fields:
-        fish_present = state.fish_present is True
-        non_fish_food_present = state.non_fish_food_present is True
-    else:
-        fish_present = state.food_type == "fish"
-        non_fish_food_present = state.food_type == "other"
-
     fish_out_of_range = (
-        fish_present
+        state.fish_present is True
         and state.food_temperature_c is not None
         and state.food_temperature_c > FOOD_THRESHOLD_FISH_C
     )
     non_fish_out_of_range = (
-        non_fish_food_present
+        state.non_fish_food_present is True
         and state.food_temperature_c is not None
         and state.food_temperature_c > FOOD_THRESHOLD_OTHER_C
     )
 
     any_food_out_of_range = fish_out_of_range or non_fish_out_of_range
 
-    # 4. If no relevant category is outside its threshold, no duration or food
+    # 3. If no relevant category is outside its threshold, no duration or food
     # decision is required.
     if any_food_out_of_range:
         if state.out_of_range_duration is None:
@@ -232,45 +185,32 @@ def validate_fridge_corrective_action_state(
                 "Confirm whether the food was outside the safe range for no more than four hours, more than four hours, or whether the duration was uncertain.",
             )
 
-        if state.uses_mixed_food_fields:
-            if fish_out_of_range:
-                if state.fish_decision is None:
-                    missing(
-                        "fish_decision",
-                        "Confirm whether the fish was discarded or moved to another compliant fridge.",
-                    )
-                elif requires_discard(state.fish_decision):
-                    contradiction(
-                        "fish_decision",
-                        "Fish that was outside the safe range for more than four hours, or where the duration is uncertain, cannot be kept. It must be discarded.",
-                    )
-
-            if non_fish_out_of_range:
-                if state.non_fish_decision is None:
-                    missing(
-                        "non_fish_decision",
-                        "Confirm whether the other chilled food was discarded or moved to another compliant fridge.",
-                    )
-                elif requires_discard(state.non_fish_decision):
-                    contradiction(
-                        "non_fish_decision",
-                        "Food that was outside the safe range for more than four hours, or where the duration is uncertain, cannot be kept. It must be discarded.",
-                    )
-        else:
-            if state.food_decision is None:
+        if fish_out_of_range:
+            if state.fish_decision is None:
                 missing(
-                    "food_decision",
-                    "Confirm whether the food was discarded or moved to another compliant fridge.",
+                    "fish_decision",
+                    "Confirm whether the fish was discarded or moved to another compliant fridge.",
                 )
-            elif requires_discard(state.food_decision):
+            elif requires_discard(state.fish_decision):
                 contradiction(
-                    "food_decision",
+                    "fish_decision",
+                    "Fish that was outside the safe range for more than four hours, or where the duration is uncertain, cannot be kept. It must be discarded.",
+                )
+
+        if non_fish_out_of_range:
+            if state.non_fish_decision is None:
+                missing(
+                    "non_fish_decision",
+                    "Confirm whether the other chilled food was discarded or moved to another compliant fridge.",
+                )
+            elif requires_discard(state.non_fish_decision):
+                contradiction(
+                    "non_fish_decision",
                     "Food that was outside the safe range for more than four hours, or where the duration is uncertain, cannot be kept. It must be discarded.",
                 )
 
     moved_to_another_fridge = (
-        state.food_decision == "kept_moved_to_compliant_fridge"
-        or state.fish_decision == "kept_moved_to_compliant_fridge"
+        state.fish_decision == "kept_moved_to_compliant_fridge"
         or state.non_fish_decision == "kept_moved_to_compliant_fridge"
     )
 
@@ -287,7 +227,7 @@ def validate_fridge_corrective_action_state(
             "The food was described as moved to a fridge above 5°C. Food can only be moved to a compliant fridge.",
         )
 
-    # 5. The faulty fridge itself must have a resolution path.
+    # 4. The faulty fridge itself must have a resolution path.
     if state.fridge_issue_type is None:
         missing(
             "fridge_issue_type",
