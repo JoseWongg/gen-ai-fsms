@@ -126,6 +126,95 @@ def _build_initial_message(user_display_name: str | None) -> str:
     return "Describe the corrective action taken for this fridge temperature incident."
 
 
+def _has_extracted_corrective_action_facts(
+    extracted_facts: Any,
+    current_state: dict[str, Any],
+) -> bool:
+    if isinstance(extracted_facts, dict):
+        data = extracted_facts
+    else:
+        data = _model_to_dict(extracted_facts)
+
+    for field in CORRECTIVE_ACTION_STATE_FIELDS:
+        extracted_value = data.get(field)
+
+        if extracted_value is None:
+            continue
+
+        if current_state.get(field) == extracted_value:
+            continue
+
+        return True
+
+    return False
+
+
+def _build_initial_repeat_message() -> str:
+    return "Please describe the corrective action taken for this fridge temperature incident."
+
+
+UNUSABLE_ANSWER_PREFIXES = (
+    "I could not understand that. ",
+    "I still could not understand that. ",
+    "I still do not have enough information from that answer. ",
+    "I still cannot identify the corrective-action details from that response. ",
+)
+
+
+def _strip_unusable_answer_prefix(message: str) -> str:
+    for prefix in UNUSABLE_ANSWER_PREFIXES:
+        if message.startswith(prefix):
+            return message[len(prefix):].strip()
+
+    return message.strip()
+
+
+def _is_unusable_answer_message(message: str) -> bool:
+    return any(
+        message.startswith(prefix)
+        for prefix in UNUSABLE_ANSWER_PREFIXES
+    )
+
+
+def _count_recent_unusable_answer_repeats(
+    conversation_history: list[dict[str, Any]],
+    base_question: str,
+) -> int:
+    repeat_count = 0
+
+    for message in reversed(conversation_history):
+        if message.get("role") != "assistant":
+            continue
+
+        content = message.get("content")
+        if not isinstance(content, str) or not content.strip():
+            continue
+
+        if not _is_unusable_answer_message(content):
+            break
+
+        if _strip_unusable_answer_prefix(content) != base_question:
+            break
+
+        repeat_count += 1
+
+    return repeat_count
+
+
+def _build_unusable_answer_message(
+    previous_assistant_message: str,
+    conversation_history: list[dict[str, Any]],
+) -> str:
+    base_question = _strip_unusable_answer_prefix(previous_assistant_message)
+    repeat_count = _count_recent_unusable_answer_repeats(
+        conversation_history=conversation_history,
+        base_question=base_question,
+    )
+
+    prefix_index = min(repeat_count, len(UNUSABLE_ANSWER_PREFIXES) - 1)
+    return f"{UNUSABLE_ANSWER_PREFIXES[prefix_index]}{base_question}"
+
+
 def _model_to_dict(model) -> dict[str, Any]:
     if hasattr(model, "model_dump"):
         return model.model_dump()
@@ -759,6 +848,34 @@ def process_user_message(
         last_assistant_message=last_assistant_message,
         recent_conversation_history=recent_conversation_history,
     )
+
+    if not _has_extracted_corrective_action_facts(
+        extracted_facts=extracted_facts,
+        current_state=current_state,
+    ):
+        if last_assistant_message is None:
+            last_assistant_message = _build_initial_repeat_message()
+
+        assistant_message = _build_unusable_answer_message(
+            previous_assistant_message=last_assistant_message,
+            conversation_history=conversation_history,
+        )
+        conversation_history = _append_conversation_message(
+            conversation_history=conversation_history,
+            role="assistant",
+            content=assistant_message,
+        )
+        session.conversation_history_json = _write_json(
+            conversation_history
+        )
+
+        db.commit()
+        db.refresh(session)
+
+        return _build_workflow_response(
+            session=session,
+            message=assistant_message,
+        )
 
     merged_state = _merge_extracted_facts(
         current_state=current_state,
