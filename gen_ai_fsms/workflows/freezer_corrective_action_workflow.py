@@ -134,25 +134,143 @@ def _get_last_assistant_message(
     return None
 
 
+def _get_last_user_message(
+    conversation_history: list[dict[str, Any]],
+) -> str | None:
+    for message in reversed(conversation_history):
+        if message.get("role") == "user":
+            content = message.get("content")
+            if isinstance(content, str) and content.strip():
+                return content.strip()
+
+    return None
+
+
 def _get_recent_conversation_history(
     conversation_history: list[dict[str, Any]],
     max_messages: int = 6,
 ) -> list[dict[str, Any]]:
-    return conversation_history[-max_messages:]
+    return [
+        {
+            key: value
+            for key, value in message.items()
+            if key != "metadata"
+        }
+        for message in conversation_history[-max_messages:]
+    ]
+
+def _get_issue_retry_context(
+    conversation_history: list[dict[str, Any]],
+    current_issue: dict[str, Any],
+) -> dict[str, Any]:
+    current_kind = current_issue.get("kind")
+    current_field = current_issue.get("field")
+
+    for message in reversed(conversation_history):
+        if message.get("role") != "assistant":
+            continue
+
+        metadata = message.get("metadata")
+        if not isinstance(metadata, dict):
+            continue
+
+        previous_kind = metadata.get("issue_kind")
+        previous_field = metadata.get("issue_field")
+        previous_retry_count = metadata.get("retry_count", 0)
+
+        same_issue = (
+            previous_kind == current_kind
+            and previous_field == current_field
+        )
+
+        if not same_issue:
+            return {
+                "is_retry": False,
+                "retry_count": 0,
+            }
+
+        if not isinstance(previous_retry_count, int):
+            previous_retry_count = 0
+
+        return {
+            "is_retry": True,
+            "retry_count": previous_retry_count + 1,
+        }
+
+    return {
+        "is_retry": False,
+        "retry_count": 0,
+    }
+
+
+def _build_issue_message_metadata(
+    issue: dict[str, Any],
+    retry_context: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "issue_kind": issue.get("kind"),
+        "issue_field": issue.get("field"),
+        "retry_count": retry_context["retry_count"],
+    }
+
+
+def _get_stored_issue_retry_context(
+    conversation_history: list[dict[str, Any]],
+    current_issue: dict[str, Any],
+) -> dict[str, Any]:
+    current_kind = current_issue.get("kind")
+    current_field = current_issue.get("field")
+
+    for message in reversed(conversation_history):
+        if message.get("role") != "assistant":
+            continue
+
+        metadata = message.get("metadata")
+        if not isinstance(metadata, dict):
+            continue
+
+        same_issue = (
+            metadata.get("issue_kind") == current_kind
+            and metadata.get("issue_field") == current_field
+        )
+
+        if not same_issue:
+            return {
+                "is_retry": False,
+                "retry_count": 0,
+            }
+
+        retry_count = metadata.get("retry_count", 0)
+        if not isinstance(retry_count, int):
+            retry_count = 0
+
+        return {
+            "is_retry": retry_count > 0,
+            "retry_count": retry_count,
+        }
+
+    return {
+        "is_retry": False,
+        "retry_count": 0,
+    }
+
 
 def _append_conversation_message(
     conversation_history: list[dict[str, Any]],
     role: str,
     content: str,
+    metadata: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     updated_history = list(conversation_history)
-    updated_history.append(
-        {
-            "role": role,
-            "content": content,
-            "created_at": _now().isoformat(),
-        }
-    )
+    message = {
+        "role": role,
+        "content": content,
+        "created_at": _now().isoformat(),
+    }
+    if metadata:
+        message["metadata"] = metadata
+
+    updated_history.append(message)
     return updated_history
 
 
@@ -271,21 +389,41 @@ def _validate_state_and_update_session(
         session.final_summary = None
 
         first_issue = issue_data[0]
+        conversation_history = _read_json_list(
+            session.conversation_history_json
+        )
+        retry_context = _get_issue_retry_context(
+            conversation_history=conversation_history,
+            current_issue=first_issue,
+        )
+        last_user_message = _get_last_user_message(conversation_history)
+        last_assistant_message = _get_last_assistant_message(
+            conversation_history
+        )
+        recent_conversation_history = _get_recent_conversation_history(
+            conversation_history
+        )
+
         question = _build_validator_issue_message(first_issue)
 
         if question is None:
             question = adapter.generate_freezer_corrective_action_question(
                 issue=first_issue,
                 current_state=state_data,
+                recent_conversation_history=recent_conversation_history,
+                last_user_message=last_user_message,
+                last_assistant_message=last_assistant_message,
+                is_retry=retry_context["is_retry"],
+                retry_count=retry_context["retry_count"],
             )
-
-        conversation_history = _read_json_list(
-            session.conversation_history_json
-        )
         conversation_history = _append_conversation_message(
             conversation_history=conversation_history,
             role="assistant",
             content=question,
+            metadata=_build_issue_message_metadata(
+                issue=first_issue,
+                retry_context=retry_context,
+            ),
         )
         session.conversation_history_json = _write_json(conversation_history)
 
@@ -343,9 +481,25 @@ def start_or_resume_session(
         issues = _read_json_list(session.issues_json)
         if issues:
             adapter = get_llm_adapter()
+            conversation_history = _read_json_list(
+                session.conversation_history_json
+            )
+            retry_context = _get_stored_issue_retry_context(
+                conversation_history=conversation_history,
+                current_issue=issues[0],
+            )
             question = adapter.generate_freezer_corrective_action_question(
                 issue=issues[0],
                 current_state=_read_json_object(session.state_json),
+                recent_conversation_history=_get_recent_conversation_history(
+                    conversation_history
+                ),
+                last_user_message=_get_last_user_message(conversation_history),
+                last_assistant_message=_get_last_assistant_message(
+                    conversation_history
+                ),
+                is_retry=retry_context["is_retry"],
+                retry_count=retry_context["retry_count"],
             )
             return _build_workflow_response(
                 session=session,
