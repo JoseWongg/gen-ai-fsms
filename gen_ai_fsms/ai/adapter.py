@@ -1240,6 +1240,12 @@ class LLMAdapter:
         self,
         issue: Dict[str, Any],
         current_state: Optional[Dict[str, Any]] = None,
+        recent_conversation_history: Optional[List[Dict[str, Any]]] = None,
+        last_user_message: Optional[str] = None,
+        last_assistant_message: Optional[str] = None,
+        user_display_name: Optional[str] = None,
+        is_retry: bool = False,
+        retry_count: int = 0,
     ) -> str:
         """
         Generate a natural-language question for one validator issue.
@@ -1293,6 +1299,19 @@ class LLMAdapter:
             issue.get("message", "Please provide the missing information."),
         )
 
+        if is_retry:
+            fallback_question = (
+                "I could not tell that from your answer. "
+                f"{fallback_question}"
+            )
+
+            if retry_count > 1:
+                fallback_question = fallback_question.replace(
+                    "I could not tell",
+                    "I still could not tell",
+                    1,
+                )
+
         if not self.client:
             return fallback_question
 
@@ -1316,6 +1335,16 @@ class LLMAdapter:
                     "- Do not ask for evidence beyond the validator issue.\n"
                     "- Keep the question short and practical.\n"
                     "- In user-facing wording, say temporary issue rather than transient issue.\n"
+                    "- Use recent conversation context only to avoid repeating the "
+                    "same wording or to acknowledge that the user's last answer "
+                    "was unclear.\n"
+                    "- Do not infer or invent facts from the conversation history.\n"
+                    "- If is_retry is true, acknowledge briefly that the previous "
+                    "answer was unclear, then ask for the same validator issue "
+                    "again in clearer wording.\n"
+                    "- Do not mention retry_count to the user.\n"
+                    "- If user_display_name is provided, you may use it sparingly "
+                    "where it feels natural. Do not use the name in every question.\n"
                     "Return only valid JSON."
                 ),
             },
@@ -1325,7 +1354,17 @@ class LLMAdapter:
                     "Validator issue:\n"
                     f"{json.dumps(issue)}\n\n"
                     "Current extracted state:\n"
-                    f"{json.dumps(current_state or {})}"
+                    f"{json.dumps(current_state or {})}\n\n"
+                    "Recent conversation history:\n"
+                    f"{json.dumps(recent_conversation_history or [])}\n\n"
+                    "Last assistant question:\n"
+                    f"{json.dumps(last_assistant_message)}\n\n"
+                    "Last user message:\n"
+                    f"{json.dumps(last_user_message)}\n\n"
+                    "Retry context:\n"
+                    f"{json.dumps({'is_retry': is_retry, 'retry_count': retry_count})}\n\n"
+                    "User display name:\n"
+                    f"{json.dumps(user_display_name)}"
                 ),
             },
         ]
@@ -1706,6 +1745,12 @@ class LLMAdapter:
         self,
         issue: Dict[str, Any],
         current_state: Optional[Dict[str, Any]] = None,
+        recent_conversation_history: Optional[List[Dict[str, Any]]] = None,
+        last_user_message: Optional[str] = None,
+        last_assistant_message: Optional[str] = None,
+        user_display_name: Optional[str] = None,
+        is_retry: bool = False,
+        retry_count: int = 0,
     ) -> str:
         """
         Generate a natural-language question for one freezer validator issue.
@@ -1749,6 +1794,19 @@ class LLMAdapter:
             issue.get("message", "Please provide the missing information."),
         )
 
+        if is_retry:
+            fallback_question = (
+                "I could not tell that from your answer. "
+                f"{fallback_question}"
+            )
+
+            if retry_count > 1:
+                fallback_question = fallback_question.replace(
+                    "I could not tell",
+                    "I still could not tell",
+                    1,
+                )
+
         if not self.client:
             return fallback_question
 
@@ -1772,6 +1830,16 @@ class LLMAdapter:
                     "- Do not ask for evidence beyond the validator issue.\n"
                     "- Keep the question short and practical.\n"
                     "- In user-facing wording, say temporary issue rather than transient issue.\n"
+                    "- Use recent conversation context only to avoid repeating the "
+                    "same wording or to acknowledge that the user's last answer "
+                    "was unclear.\n"
+                    "- Do not infer or invent facts from the conversation history.\n"
+                    "- If is_retry is true, acknowledge briefly that the previous "
+                    "answer was unclear, then ask for the same validator issue "
+                    "again in clearer wording.\n"
+                    "- Do not mention retry_count to the user.\n"
+                    "- If user_display_name is provided, you may use it sparingly "
+                    "where it feels natural. Do not use the name in every question.\n"
                     "Return only valid JSON."
                 ),
             },
@@ -1781,7 +1849,17 @@ class LLMAdapter:
                     "Validator issue:\n"
                     f"{json.dumps(issue)}\n\n"
                     "Current extracted state:\n"
-                    f"{json.dumps(current_state or {})}"
+                    f"{json.dumps(current_state or {})}\n\n"
+                    "Recent conversation history:\n"
+                    f"{json.dumps(recent_conversation_history or [])}\n\n"
+                    "Last assistant question:\n"
+                    f"{json.dumps(last_assistant_message)}\n\n"
+                    "Last user message:\n"
+                    f"{json.dumps(last_user_message)}\n\n"
+                    "Retry context:\n"
+                    f"{json.dumps({'is_retry': is_retry, 'retry_count': retry_count})}\n\n"
+                    "User display name:\n"
+                    f"{json.dumps(user_display_name)}"
                 ),
             },
         ]

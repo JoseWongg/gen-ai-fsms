@@ -7,6 +7,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from gen_ai_fsms.ai.adapter import get_llm_adapter
+from gen_ai_fsms.db.models.auth.user import User
 from gen_ai_fsms.db.models.chilling_temperature_corrective_action import (
     ChillingTemperatureCorrectiveAction,
 )
@@ -99,6 +100,117 @@ def _write_json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+def _get_user_display_name(db: Session, user_id: int) -> str | None:
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        return None
+
+    first_name = getattr(user, "first_name", None)
+    if isinstance(first_name, str) and first_name.strip():
+        return first_name.strip()
+
+    return None
+
+
+def _build_initial_message(user_display_name: str | None) -> str:
+    if user_display_name:
+        return (
+            f"Hello {user_display_name}. Please describe the corrective "
+            "action taken for this freezer temperature incident."
+        )
+
+    return "Describe the corrective action taken for this freezer temperature incident."
+
+
+def _has_extracted_corrective_action_facts(
+    extracted_facts: Any,
+    current_state: dict[str, Any],
+) -> bool:
+    if isinstance(extracted_facts, dict):
+        data = extracted_facts
+    else:
+        data = _model_to_dict(extracted_facts)
+
+    for field in CORRECTIVE_ACTION_STATE_FIELDS:
+        extracted_value = data.get(field)
+
+        if extracted_value is None:
+            continue
+
+        if current_state.get(field) == extracted_value:
+            continue
+
+        return True
+
+    return False
+
+
+def _build_initial_repeat_message() -> str:
+    return "Please describe the corrective action taken for this freezer temperature incident."
+
+
+UNUSABLE_ANSWER_PREFIXES = (
+    "I could not understand that. ",
+    "I still could not understand that. ",
+    "I still do not have enough information from that answer. ",
+    "I still cannot identify the corrective-action details from that response. ",
+)
+
+
+def _strip_unusable_answer_prefix(message: str) -> str:
+    for prefix in UNUSABLE_ANSWER_PREFIXES:
+        if message.startswith(prefix):
+            return message[len(prefix):].strip()
+
+    return message.strip()
+
+
+def _is_unusable_answer_message(message: str) -> bool:
+    return any(
+        message.startswith(prefix)
+        for prefix in UNUSABLE_ANSWER_PREFIXES
+    )
+
+
+def _count_recent_unusable_answer_repeats(
+    conversation_history: list[dict[str, Any]],
+    base_question: str,
+) -> int:
+    repeat_count = 0
+
+    for message in reversed(conversation_history):
+        if message.get("role") != "assistant":
+            continue
+
+        content = message.get("content")
+        if not isinstance(content, str) or not content.strip():
+            continue
+
+        if not _is_unusable_answer_message(content):
+            break
+
+        if _strip_unusable_answer_prefix(content) != base_question:
+            break
+
+        repeat_count += 1
+
+    return repeat_count
+
+
+def _build_unusable_answer_message(
+    previous_assistant_message: str,
+    conversation_history: list[dict[str, Any]],
+) -> str:
+    base_question = _strip_unusable_answer_prefix(previous_assistant_message)
+    repeat_count = _count_recent_unusable_answer_repeats(
+        conversation_history=conversation_history,
+        base_question=base_question,
+    )
+
+    prefix_index = min(repeat_count, len(UNUSABLE_ANSWER_PREFIXES) - 1)
+    return f"{UNUSABLE_ANSWER_PREFIXES[prefix_index]}{base_question}"
+
+
 def _model_to_dict(model) -> dict[str, Any]:
     if hasattr(model, "model_dump"):
         return model.model_dump()
@@ -134,25 +246,143 @@ def _get_last_assistant_message(
     return None
 
 
+def _get_last_user_message(
+    conversation_history: list[dict[str, Any]],
+) -> str | None:
+    for message in reversed(conversation_history):
+        if message.get("role") == "user":
+            content = message.get("content")
+            if isinstance(content, str) and content.strip():
+                return content.strip()
+
+    return None
+
+
 def _get_recent_conversation_history(
     conversation_history: list[dict[str, Any]],
     max_messages: int = 6,
 ) -> list[dict[str, Any]]:
-    return conversation_history[-max_messages:]
+    return [
+        {
+            key: value
+            for key, value in message.items()
+            if key != "metadata"
+        }
+        for message in conversation_history[-max_messages:]
+    ]
+
+def _get_issue_retry_context(
+    conversation_history: list[dict[str, Any]],
+    current_issue: dict[str, Any],
+) -> dict[str, Any]:
+    current_kind = current_issue.get("kind")
+    current_field = current_issue.get("field")
+
+    for message in reversed(conversation_history):
+        if message.get("role") != "assistant":
+            continue
+
+        metadata = message.get("metadata")
+        if not isinstance(metadata, dict):
+            continue
+
+        previous_kind = metadata.get("issue_kind")
+        previous_field = metadata.get("issue_field")
+        previous_retry_count = metadata.get("retry_count", 0)
+
+        same_issue = (
+            previous_kind == current_kind
+            and previous_field == current_field
+        )
+
+        if not same_issue:
+            return {
+                "is_retry": False,
+                "retry_count": 0,
+            }
+
+        if not isinstance(previous_retry_count, int):
+            previous_retry_count = 0
+
+        return {
+            "is_retry": True,
+            "retry_count": previous_retry_count + 1,
+        }
+
+    return {
+        "is_retry": False,
+        "retry_count": 0,
+    }
+
+
+def _build_issue_message_metadata(
+    issue: dict[str, Any],
+    retry_context: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "issue_kind": issue.get("kind"),
+        "issue_field": issue.get("field"),
+        "retry_count": retry_context["retry_count"],
+    }
+
+
+def _get_stored_issue_retry_context(
+    conversation_history: list[dict[str, Any]],
+    current_issue: dict[str, Any],
+) -> dict[str, Any]:
+    current_kind = current_issue.get("kind")
+    current_field = current_issue.get("field")
+
+    for message in reversed(conversation_history):
+        if message.get("role") != "assistant":
+            continue
+
+        metadata = message.get("metadata")
+        if not isinstance(metadata, dict):
+            continue
+
+        same_issue = (
+            metadata.get("issue_kind") == current_kind
+            and metadata.get("issue_field") == current_field
+        )
+
+        if not same_issue:
+            return {
+                "is_retry": False,
+                "retry_count": 0,
+            }
+
+        retry_count = metadata.get("retry_count", 0)
+        if not isinstance(retry_count, int):
+            retry_count = 0
+
+        return {
+            "is_retry": retry_count > 0,
+            "retry_count": retry_count,
+        }
+
+    return {
+        "is_retry": False,
+        "retry_count": 0,
+    }
+
 
 def _append_conversation_message(
     conversation_history: list[dict[str, Any]],
     role: str,
     content: str,
+    metadata: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     updated_history = list(conversation_history)
-    updated_history.append(
-        {
-            "role": role,
-            "content": content,
-            "created_at": _now().isoformat(),
-        }
-    )
+    message = {
+        "role": role,
+        "content": content,
+        "created_at": _now().isoformat(),
+    }
+    if metadata:
+        message["metadata"] = metadata
+
+    updated_history.append(message)
     return updated_history
 
 
@@ -228,15 +458,29 @@ def _build_validator_issue_message(issue: dict[str, Any]) -> str | None:
         return None
 
     issue_message = issue.get("message") or (
-        "The corrective-action information is inconsistent with the "
-        "freezer safety rules."
+        "That answer does not match the freezer safety rules."
     )
 
     guidance_by_field = {
-        "food_checked_for_thawing_signs": 'Please confirm whether the frozen food has now been checked for signs of thawing, or correct the earlier information if it was already checked.',
-        "food_decision": 'Please confirm whether the food has now been discarded, or correct the earlier information if it did not actually show signs of thawing.',
-        "destination_freezer_temperature_c": 'Please correct the food decision or the destination freezer temperature. Food can only be moved to compliant freezer equipment.',
-        "freezer_issue_type": 'Please confirm whether the freezer has now been logged for maintenance or repair, or correct the follow-up temperature if the freezer was actually back within the safe range.'
+        "food_checked_for_thawing_signs": (
+            "Please confirm whether the frozen food has now been checked for "
+            "signs of thawing. If it was already checked, correct the earlier "
+            "answer."
+        ),
+        "food_decision": (
+            "Based on the information given, the food cannot be kept. Please "
+            "confirm whether it has now been discarded, or correct the earlier "
+            "information if it did not actually show signs of thawing."
+        ),
+        "destination_freezer_temperature_c": (
+            "Food can only be moved to compliant freezer equipment. Please "
+            "correct the food decision or the destination freezer temperature."
+        ),
+        "freezer_issue_type": (
+            "Please confirm whether the freezer has now been logged for "
+            "maintenance or repair. If the freezer was actually back within the "
+            "safe range, correct the follow-up temperature."
+        ),
     }
 
     correction_guidance = guidance_by_field.get(
@@ -247,10 +491,15 @@ def _build_validator_issue_message(issue: dict[str, Any]) -> str | None:
         ),
     )
 
-    return f"{issue_message}\n\n{correction_guidance}"
+    return (
+        "There is a problem with that answer.\n\n"
+        f"{issue_message}\n\n"
+        f"{correction_guidance}"
+    )
 
 def _validate_state_and_update_session(
     session: ChillingTemperatureCorrectiveActionSession,
+    user_display_name: str | None = None,
 ) -> dict[str, Any]:
     adapter = get_llm_adapter()
 
@@ -271,21 +520,42 @@ def _validate_state_and_update_session(
         session.final_summary = None
 
         first_issue = issue_data[0]
+        conversation_history = _read_json_list(
+            session.conversation_history_json
+        )
+        retry_context = _get_issue_retry_context(
+            conversation_history=conversation_history,
+            current_issue=first_issue,
+        )
+        last_user_message = _get_last_user_message(conversation_history)
+        last_assistant_message = _get_last_assistant_message(
+            conversation_history
+        )
+        recent_conversation_history = _get_recent_conversation_history(
+            conversation_history
+        )
+
         question = _build_validator_issue_message(first_issue)
 
         if question is None:
             question = adapter.generate_freezer_corrective_action_question(
                 issue=first_issue,
                 current_state=state_data,
+                recent_conversation_history=recent_conversation_history,
+                last_user_message=last_user_message,
+                last_assistant_message=last_assistant_message,
+                user_display_name=user_display_name,
+                is_retry=retry_context["is_retry"],
+                retry_count=retry_context["retry_count"],
             )
-
-        conversation_history = _read_json_list(
-            session.conversation_history_json
-        )
         conversation_history = _append_conversation_message(
             conversation_history=conversation_history,
             role="assistant",
             content=question,
+            metadata=_build_issue_message_metadata(
+                issue=first_issue,
+                retry_context=retry_context,
+            ),
         )
         session.conversation_history_json = _write_json(conversation_history)
 
@@ -343,9 +613,30 @@ def start_or_resume_session(
         issues = _read_json_list(session.issues_json)
         if issues:
             adapter = get_llm_adapter()
+            conversation_history = _read_json_list(
+                session.conversation_history_json
+            )
+            retry_context = _get_stored_issue_retry_context(
+                conversation_history=conversation_history,
+                current_issue=issues[0],
+            )
+            user_display_name = _get_user_display_name(
+                db=db,
+                user_id=user_id,
+            )
             question = adapter.generate_freezer_corrective_action_question(
                 issue=issues[0],
                 current_state=_read_json_object(session.state_json),
+                recent_conversation_history=_get_recent_conversation_history(
+                    conversation_history
+                ),
+                last_user_message=_get_last_user_message(conversation_history),
+                last_assistant_message=_get_last_assistant_message(
+                    conversation_history
+                ),
+                user_display_name=user_display_name,
+                is_retry=retry_context["is_retry"],
+                retry_count=retry_context["retry_count"],
             )
             return _build_workflow_response(
                 session=session,
@@ -354,7 +645,12 @@ def start_or_resume_session(
 
         return _build_workflow_response(
             session=session,
-            message="Describe the corrective action taken for this freezer temperature incident.",
+            message=_build_initial_message(
+                _get_user_display_name(
+                    db=db,
+                    user_id=user_id,
+                )
+            ),
         )
 
     incident = _get_open_incident_or_raise(
@@ -380,7 +676,12 @@ def start_or_resume_session(
 
     return _build_workflow_response(
         session=session,
-        message="Describe the corrective action taken for this freezer temperature incident.",
+        message=_build_initial_message(
+                _get_user_display_name(
+                    db=db,
+                    user_id=user_id,
+                )
+            ),
     )
 
 
@@ -539,6 +840,34 @@ def process_user_message(
         recent_conversation_history=recent_conversation_history,
     )
 
+    if not _has_extracted_corrective_action_facts(
+        extracted_facts=extracted_facts,
+        current_state=current_state,
+    ):
+        if last_assistant_message is None:
+            last_assistant_message = _build_initial_repeat_message()
+
+        assistant_message = _build_unusable_answer_message(
+            previous_assistant_message=last_assistant_message,
+            conversation_history=conversation_history,
+        )
+        conversation_history = _append_conversation_message(
+            conversation_history=conversation_history,
+            role="assistant",
+            content=assistant_message,
+        )
+        session.conversation_history_json = _write_json(
+            conversation_history
+        )
+
+        db.commit()
+        db.refresh(session)
+
+        return _build_workflow_response(
+            session=session,
+            message=assistant_message,
+        )
+
     merged_state = _merge_extracted_facts(
         current_state=current_state,
         extracted_facts=extracted_facts,
@@ -547,7 +876,14 @@ def process_user_message(
     session.state_json = _write_json(merged_state)
     session.conversation_history_json = _write_json(conversation_history)
 
-    response = _validate_state_and_update_session(session)
+    user_display_name = _get_user_display_name(
+        db=db,
+        user_id=user_id,
+    )
+    response = _validate_state_and_update_session(
+        session,
+        user_display_name=user_display_name,
+    )
 
     db.commit()
     db.refresh(session)
