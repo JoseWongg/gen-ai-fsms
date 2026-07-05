@@ -350,16 +350,34 @@ def _build_validator_issue_message(issue: dict[str, Any]) -> str | None:
         return None
 
     issue_message = issue.get("message") or (
-        "The corrective-action information is inconsistent with the "
-        "fridge safety rules."
+        "That answer does not match the fridge safety rules."
     )
 
     guidance_by_field = {
-        "food_probed": 'Please confirm whether the food has now been probed with a thermometer, or correct the earlier information if it was already probed.',
-        "fish_decision": 'Please confirm whether the fish has now been discarded, or correct the earlier duration or fish-presence information if it was not actually outside the safe range for more than four hours or for an uncertain duration.',
-        "non_fish_decision": 'Please confirm whether the other chilled food has now been discarded, or correct the earlier duration or food-presence information if it was not actually outside the safe range for more than four hours or for an uncertain duration.',
-        "destination_fridge_temperature_c": 'Please correct the food decision or the destination fridge temperature. Food can only be moved to compliant fridge equipment.',
-        "fridge_issue_type": 'Please confirm whether the fridge has now been logged for maintenance or repair, or correct the follow-up temperature if the fridge was actually back within the safe range.',
+        "food_probed": (
+            "Please confirm whether the food has now been probed with a "
+            "thermometer. If it was already probed, correct the earlier answer."
+        ),
+        "fish_decision": (
+            "Based on the information given, the fish cannot be kept. Please "
+            "confirm whether it has now been discarded, or correct the earlier "
+            "duration or fish-presence information if it was entered wrongly."
+        ),
+        "non_fish_decision": (
+            "Based on the information given, the other chilled food cannot be "
+            "kept. Please confirm whether it has now been discarded, or correct "
+            "the earlier duration or food-presence information if it was entered "
+            "wrongly."
+        ),
+        "destination_fridge_temperature_c": (
+            "Food can only be moved to a compliant fridge. Please correct the "
+            "food decision or the destination fridge temperature."
+        ),
+        "fridge_issue_type": (
+            "Please confirm whether the fridge has now been logged for "
+            "maintenance or repair. If the fridge was actually back within the "
+            "safe range, correct the follow-up temperature."
+        ),
     }
 
     correction_guidance = guidance_by_field.get(
@@ -370,7 +388,11 @@ def _build_validator_issue_message(issue: dict[str, Any]) -> str | None:
         ),
     )
 
-    return f"{issue_message}\n\n{correction_guidance}"
+    return (
+        "There is a problem with that answer.\n\n"
+        f"{issue_message}\n\n"
+        f"{correction_guidance}"
+    )
 
 def _validate_state_and_update_session(
     session: ChillingTemperatureCorrectiveActionSession,

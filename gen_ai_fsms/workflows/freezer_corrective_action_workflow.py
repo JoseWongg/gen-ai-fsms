@@ -346,15 +346,29 @@ def _build_validator_issue_message(issue: dict[str, Any]) -> str | None:
         return None
 
     issue_message = issue.get("message") or (
-        "The corrective-action information is inconsistent with the "
-        "freezer safety rules."
+        "That answer does not match the freezer safety rules."
     )
 
     guidance_by_field = {
-        "food_checked_for_thawing_signs": 'Please confirm whether the frozen food has now been checked for signs of thawing, or correct the earlier information if it was already checked.',
-        "food_decision": 'Please confirm whether the food has now been discarded, or correct the earlier information if it did not actually show signs of thawing.',
-        "destination_freezer_temperature_c": 'Please correct the food decision or the destination freezer temperature. Food can only be moved to compliant freezer equipment.',
-        "freezer_issue_type": 'Please confirm whether the freezer has now been logged for maintenance or repair, or correct the follow-up temperature if the freezer was actually back within the safe range.'
+        "food_checked_for_thawing_signs": (
+            "Please confirm whether the frozen food has now been checked for "
+            "signs of thawing. If it was already checked, correct the earlier "
+            "answer."
+        ),
+        "food_decision": (
+            "Based on the information given, the food cannot be kept. Please "
+            "confirm whether it has now been discarded, or correct the earlier "
+            "information if it did not actually show signs of thawing."
+        ),
+        "destination_freezer_temperature_c": (
+            "Food can only be moved to compliant freezer equipment. Please "
+            "correct the food decision or the destination freezer temperature."
+        ),
+        "freezer_issue_type": (
+            "Please confirm whether the freezer has now been logged for "
+            "maintenance or repair. If the freezer was actually back within the "
+            "safe range, correct the follow-up temperature."
+        ),
     }
 
     correction_guidance = guidance_by_field.get(
@@ -365,7 +379,11 @@ def _build_validator_issue_message(issue: dict[str, Any]) -> str | None:
         ),
     )
 
-    return f"{issue_message}\n\n{correction_guidance}"
+    return (
+        "There is a problem with that answer.\n\n"
+        f"{issue_message}\n\n"
+        f"{correction_guidance}"
+    )
 
 def _validate_state_and_update_session(
     session: ChillingTemperatureCorrectiveActionSession,
