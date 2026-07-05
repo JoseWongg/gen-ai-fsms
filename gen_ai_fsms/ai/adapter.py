@@ -994,6 +994,19 @@ class LLMAdapter:
                     "If the user answers no, extract non_fish_food_present as false.\n"
                     "- Use fish_decision only for what happened to fish.\n"
                     "- Use non_fish_decision only for what happened to other chilled food.\n"
+                    "- If the previous assistant question asked only about fish, "
+                    "and the user gives a short contextual answer such as discarded, "
+                    "it was discarded, moved it, or it was moved, extract only "
+                    "fish_decision and leave non_fish_decision as null.\n"
+                    "- If the previous assistant question asked only about other "
+                    "chilled food, and the user gives a short contextual answer "
+                    "such as discarded, it was discarded, moved it, or it was moved, "
+                    "extract only non_fish_decision and leave fish_decision as null.\n"
+                    "- Do not fill both fish_decision and non_fish_decision from "
+                    "a short pronoun answer such as it was discarded.\n"
+                    "- Fill both category decisions only when the user explicitly "
+                    "says both, all affected food, fish and other chilled food, "
+                    "or equivalent wording.\n"
                     "- If the user says all affected food was discarded, and both "
                     "fish and other chilled food require a decision, extract both "
                     "fish_decision and non_fish_decision as discarded.\n"
@@ -1106,7 +1119,7 @@ class LLMAdapter:
                 cleaned = value.strip()
                 return cleaned or None
 
-            return {
+            cleaned_facts = {
                 "food_probed": clean_bool(result.get("food_probed")),
                 "fish_present": clean_bool(result.get("fish_present")),
                 "non_fish_food_present": clean_bool(
@@ -1154,6 +1167,65 @@ class LLMAdapter:
                 ),
                 "reason": result.get("reason", ""),
             }
+
+            latest_message = user_message.lower().strip()
+            latest_words = latest_message.replace(".", "").replace(",", "").split()
+            previous_question = (last_assistant_message or "").lower()
+            current_issue_fields = {
+                issue.get("field")
+                for issue in current_issues
+                if isinstance(issue, dict)
+            }
+
+            explicit_multi_category_decision = any(
+                phrase in latest_message
+                for phrase in (
+                    "both",
+                    "all affected food",
+                    "all the affected food",
+                    "fish and other chilled food",
+                    "fish and the other chilled food",
+                    "fish and non-fish",
+                    "fish and non fish",
+                    "fish and the non-fish",
+                    "fish and the non fish",
+                )
+            )
+
+            short_contextual_decision_reply = (
+                len(latest_words) <= 5
+                and not explicit_multi_category_decision
+                and (
+                    cleaned_facts.get("fish_decision") is not None
+                    or cleaned_facts.get("non_fish_decision") is not None
+                )
+            )
+
+            focused_on_fish_decision = (
+                "fish_decision" in current_issue_fields
+                and "fish" in previous_question
+                and "other chilled" not in previous_question
+                and "non-fish" not in previous_question
+                and "non fish" not in previous_question
+            )
+
+            focused_on_non_fish_decision = (
+                "non_fish_decision" in current_issue_fields
+                and (
+                    "other chilled" in previous_question
+                    or "non-fish" in previous_question
+                    or "non fish" in previous_question
+                )
+            )
+
+            if short_contextual_decision_reply:
+                if focused_on_fish_decision:
+                    cleaned_facts["non_fish_decision"] = None
+
+                if focused_on_non_fish_decision:
+                    cleaned_facts["fish_decision"] = None
+
+            return cleaned_facts
         except Exception as e:
             logger.error(
                 "LLM error in extract_fridge_corrective_action_facts: %s",
@@ -1312,6 +1384,15 @@ class LLMAdapter:
                     '{ "summary": string }\n'
                     "Rules:\n"
                     "- Use only facts present in the provided state.\n"
+                    "- Always mention food_temperature_c when it is present in "
+                    "the state.\n"
+                    "- Do not state that fish was discarded or moved unless "
+                    "fish_decision is present in the state.\n"
+                    "- Do not state that other chilled food was discarded or "
+                    "moved unless non_fish_decision is present in the state.\n"
+                    "- If other chilled food was present but non_fish_decision "
+                    "is absent, do not imply that any action was taken for that "
+                    "category.\n"
                     "- Do not invent destination fridge name or destination "
                     "fridge temperature.\n"
                     "- Mention destination fridge temperature only if it is "
@@ -1326,6 +1407,8 @@ class LLMAdapter:
                     "for the affected fridge incident.\n"
                     "- out_of_range_duration is one shared duration for the "
                     "affected fridge incident.\n"
+                    "- Always mention out_of_range_duration when it is present "
+                    "in the state. If it is uncertain, say the duration was uncertain.\n"
                     "- follow_up_temperature_c is the fridge temperature after "
                     "corrective action, not the food temperature.\n"
                     "- If fish_present is true, say fish was present in the affected fridge.\n"
