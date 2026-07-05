@@ -1243,6 +1243,7 @@ class LLMAdapter:
         recent_conversation_history: Optional[List[Dict[str, Any]]] = None,
         last_user_message: Optional[str] = None,
         last_assistant_message: Optional[str] = None,
+        user_display_name: Optional[str] = None,
         is_retry: bool = False,
         retry_count: int = 0,
     ) -> str:
@@ -1342,6 +1343,8 @@ class LLMAdapter:
                     "answer was unclear, then ask for the same validator issue "
                     "again in clearer wording.\n"
                     "- Do not mention retry_count to the user.\n"
+                    "- If user_display_name is provided, you may use it sparingly "
+                    "where it feels natural. Do not use the name in every question.\n"
                     "Return only valid JSON."
                 ),
             },
@@ -1359,7 +1362,9 @@ class LLMAdapter:
                     "Last user message:\n"
                     f"{json.dumps(last_user_message)}\n\n"
                     "Retry context:\n"
-                    f"{json.dumps({'is_retry': is_retry, 'retry_count': retry_count})}"
+                    f"{json.dumps({'is_retry': is_retry, 'retry_count': retry_count})}\n\n"
+                    "User display name:\n"
+                    f"{json.dumps(user_display_name)}"
                 ),
             },
         ]
@@ -1743,6 +1748,7 @@ class LLMAdapter:
         recent_conversation_history: Optional[List[Dict[str, Any]]] = None,
         last_user_message: Optional[str] = None,
         last_assistant_message: Optional[str] = None,
+        user_display_name: Optional[str] = None,
         is_retry: bool = False,
         retry_count: int = 0,
     ) -> str:
@@ -1832,6 +1838,8 @@ class LLMAdapter:
                     "answer was unclear, then ask for the same validator issue "
                     "again in clearer wording.\n"
                     "- Do not mention retry_count to the user.\n"
+                    "- If user_display_name is provided, you may use it sparingly "
+                    "where it feels natural. Do not use the name in every question.\n"
                     "Return only valid JSON."
                 ),
             },
@@ -1849,7 +1857,9 @@ class LLMAdapter:
                     "Last user message:\n"
                     f"{json.dumps(last_user_message)}\n\n"
                     "Retry context:\n"
-                    f"{json.dumps({'is_retry': is_retry, 'retry_count': retry_count})}"
+                    f"{json.dumps({'is_retry': is_retry, 'retry_count': retry_count})}\n\n"
+                    "User display name:\n"
+                    f"{json.dumps(user_display_name)}"
                 ),
             },
         ]

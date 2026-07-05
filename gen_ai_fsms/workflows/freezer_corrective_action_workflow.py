@@ -7,6 +7,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from gen_ai_fsms.ai.adapter import get_llm_adapter
+from gen_ai_fsms.db.models.auth.user import User
 from gen_ai_fsms.db.models.chilling_temperature_corrective_action import (
     ChillingTemperatureCorrectiveAction,
 )
@@ -97,6 +98,18 @@ def _read_json_list(value: str | None) -> list[dict[str, Any]]:
 
 def _write_json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
+
+
+def _get_user_display_name(db: Session, user_id: int) -> str | None:
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        return None
+
+    first_name = getattr(user, "first_name", None)
+    if isinstance(first_name, str) and first_name.strip():
+        return first_name.strip()
+
+    return None
 
 
 def _model_to_dict(model) -> dict[str, Any]:
@@ -387,6 +400,7 @@ def _build_validator_issue_message(issue: dict[str, Any]) -> str | None:
 
 def _validate_state_and_update_session(
     session: ChillingTemperatureCorrectiveActionSession,
+    user_display_name: str | None = None,
 ) -> dict[str, Any]:
     adapter = get_llm_adapter()
 
@@ -431,6 +445,7 @@ def _validate_state_and_update_session(
                 recent_conversation_history=recent_conversation_history,
                 last_user_message=last_user_message,
                 last_assistant_message=last_assistant_message,
+                user_display_name=user_display_name,
                 is_retry=retry_context["is_retry"],
                 retry_count=retry_context["retry_count"],
             )
@@ -506,6 +521,10 @@ def start_or_resume_session(
                 conversation_history=conversation_history,
                 current_issue=issues[0],
             )
+            user_display_name = _get_user_display_name(
+                db=db,
+                user_id=user_id,
+            )
             question = adapter.generate_freezer_corrective_action_question(
                 issue=issues[0],
                 current_state=_read_json_object(session.state_json),
@@ -516,6 +535,7 @@ def start_or_resume_session(
                 last_assistant_message=_get_last_assistant_message(
                     conversation_history
                 ),
+                user_display_name=user_display_name,
                 is_retry=retry_context["is_retry"],
                 retry_count=retry_context["retry_count"],
             )
@@ -719,7 +739,14 @@ def process_user_message(
     session.state_json = _write_json(merged_state)
     session.conversation_history_json = _write_json(conversation_history)
 
-    response = _validate_state_and_update_session(session)
+    user_display_name = _get_user_display_name(
+        db=db,
+        user_id=user_id,
+    )
+    response = _validate_state_and_update_session(
+        session,
+        user_display_name=user_display_name,
+    )
 
     db.commit()
     db.refresh(session)
