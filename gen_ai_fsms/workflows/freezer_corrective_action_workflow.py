@@ -112,6 +112,16 @@ def _get_user_display_name(db: Session, user_id: int) -> str | None:
     return None
 
 
+def _build_initial_message(user_display_name: str | None) -> str:
+    if user_display_name:
+        return (
+            f"Hello {user_display_name}. Please describe the corrective "
+            "action taken for this freezer temperature incident."
+        )
+
+    return "Describe the corrective action taken for this freezer temperature incident."
+
+
 def _model_to_dict(model) -> dict[str, Any]:
     if hasattr(model, "model_dump"):
         return model.model_dump()
@@ -546,7 +556,12 @@ def start_or_resume_session(
 
         return _build_workflow_response(
             session=session,
-            message="Describe the corrective action taken for this freezer temperature incident.",
+            message=_build_initial_message(
+                _get_user_display_name(
+                    db=db,
+                    user_id=user_id,
+                )
+            ),
         )
 
     incident = _get_open_incident_or_raise(
@@ -572,7 +587,12 @@ def start_or_resume_session(
 
     return _build_workflow_response(
         session=session,
-        message="Describe the corrective action taken for this freezer temperature incident.",
+        message=_build_initial_message(
+                _get_user_display_name(
+                    db=db,
+                    user_id=user_id,
+                )
+            ),
     )
 
 
