@@ -812,16 +812,41 @@ def get_screening_condition_values(
         if values_by_condition_id.get(condition_id) in ("true", "false")
     }
 
+    business_context_items = {
+        "business_type": profile.business_type,
+        "business_description": profile.business_description,
+    }
+
+    active_business_context_count = len(business_context_items)
+    completed_business_context_count = sum(
+        1
+        for value in business_context_items.values()
+        if isinstance(value, str) and value.strip()
+    )
+
+    active_profile_item_count = (
+        len(active_condition_ids)
+        + active_business_context_count
+    )
+    completed_profile_item_count = (
+        len(completed_active_conditions)
+        + completed_business_context_count
+    )
+
     is_complete = (
-        len(active_condition_ids) > 0
-        and completed_active_conditions == active_condition_ids
+        active_profile_item_count > 0
+        and completed_profile_item_count == active_profile_item_count
     )
 
     return {
         "business_profile_id": profile.id,
         "is_complete": is_complete,
-        "active_condition_count": len(active_condition_ids),
-        "completed_active_condition_count": len(completed_active_conditions),
+        "active_condition_count": active_profile_item_count,
+        "completed_active_condition_count": completed_profile_item_count,
+        "business_context_count": active_business_context_count,
+        "completed_business_context_count": completed_business_context_count,
+        "condition_count": len(active_condition_ids),
+        "completed_condition_count": len(completed_active_conditions),
         "condition_values": condition_values,
     }
 
