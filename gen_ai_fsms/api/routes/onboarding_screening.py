@@ -46,6 +46,110 @@ class AnswerRequest(BaseModel):
     answer: str
 
 
+BUSINESS_TYPE_OPTIONS = [
+    {"value": "restaurant", "label": "Restaurant"},
+    {"value": "cafe", "label": "Cafe"},
+    {"value": "bakery", "label": "Bakery"},
+    {"value": "takeaway", "label": "Takeaway"},
+    {"value": "sandwich_shop", "label": "Sandwich shop"},
+    {"value": "pub_or_bar", "label": "Pub or bar"},
+    {"value": "mobile_caterer", "label": "Mobile caterer"},
+    {"value": "care_home_kitchen", "label": "Care home kitchen"},
+    {"value": "school_or_college_kitchen", "label": "School or college kitchen"},
+    {"value": "hotel_or_guesthouse", "label": "Hotel or guesthouse"},
+    {"value": "retail_food_shop", "label": "Retail food shop"},
+    {"value": "other", "label": "Other"},
+]
+
+BUSINESS_TYPE_LABELS = {
+    option["value"]: option["label"]
+    for option in BUSINESS_TYPE_OPTIONS
+}
+
+BUSINESS_TYPE_VALUES_BY_NORMALISED_LABEL = {
+    option["label"].strip().lower(): option["value"]
+    for option in BUSINESS_TYPE_OPTIONS
+}
+
+BUSINESS_DESCRIPTION_MAX_LENGTH = 500
+
+
+def get_business_context_question(question_id: str) -> dict:
+    if question_id == "business_type":
+        return {
+            "question_id": "business_type",
+            "text": "What type of food business is this?",
+            "question_type": "business_context",
+            "input_type": "select",
+            "options": BUSINESS_TYPE_OPTIONS,
+            "sets_conditions": [],
+        }
+
+    if question_id == "business_description":
+        return {
+            "question_id": "business_description",
+            "text": "Briefly, what does the business make or serve?",
+            "question_type": "business_context",
+            "input_type": "textarea",
+            "options": [],
+            "sets_conditions": [],
+        }
+
+    raise ValueError(f"Unknown business context question_id: {question_id}")
+
+
+def set_current_question_from_payload(state: dict, question: dict) -> None:
+    state["current_question_id"] = question["question_id"]
+    state["current_question_text"] = question["text"]
+    state["conditions_to_set"] = question.get("sets_conditions", [])
+    state["current_question_type"] = question.get("question_type", "screening")
+    state["current_question_input_type"] = question.get("input_type", "chat")
+    state["current_question_options"] = question.get("options", [])
+
+
+def build_question_response_fields(state: dict) -> dict:
+    return {
+        "question_type": state.get("current_question_type", "screening"),
+        "question_input_type": state.get("current_question_input_type", "chat"),
+        "question_options": state.get("current_question_options", []),
+    }
+
+
+def normalise_business_type(answer: str) -> str | None:
+    cleaned = (answer or "").strip()
+    if not cleaned:
+        return None
+
+    value_candidate = cleaned.lower().replace(" ", "_").replace("-", "_")
+    if value_candidate in BUSINESS_TYPE_LABELS:
+        return value_candidate
+
+    return BUSINESS_TYPE_VALUES_BY_NORMALISED_LABEL.get(cleaned.lower())
+
+
+def start_first_screening_question(state: dict) -> dict:
+    first_q = get_next_question({}, set())
+
+    if not first_q:
+        raise HTTPException(status_code=500, detail="No screening questions defined")
+
+    state["screening_stage"] = "screening"
+
+    question = {
+        "question_id": first_q["question_id"],
+        "text": first_q["text"],
+        "sets_conditions": first_q["sets_conditions"],
+        "question_type": "screening",
+        "input_type": "chat",
+        "options": [],
+    }
+
+    set_current_question_from_payload(state, question)
+    state["next_action"] = "next_question"
+
+    return question
+
+
 def get_current_user_profile(db: Session, current_user: User) -> BusinessProfile:
     """
     Return the venue workspace linked to the authenticated user.
@@ -163,20 +267,23 @@ def start_screening(
             "question_text": state.get("current_question_text"),
             "progress": state.get("answered_question_ids", []),
             "display_messages": display_messages or [],
+            **build_question_response_fields(state),
         }
 
 
     session_obj = create_session(db, profile.id, current_user.id, "screening")
-    first_q = get_next_question({}, set())
-
-    if not first_q:
-        raise HTTPException(status_code=500, detail="No screening questions defined")
+    first_q = get_business_context_question("business_type")
 
     state = {
+        "screening_stage": "business_context",
         "current_question_id": first_q["question_id"],
         "current_question_text": first_q["text"],
         "conditions_to_set": first_q["sets_conditions"],
+        "current_question_type": first_q["question_type"],
+        "current_question_input_type": first_q["input_type"],
+        "current_question_options": first_q["options"],
         "answered_question_ids": [],
+        "answered_business_context_question_ids": [],
         "condition_values": {},
         "conversation_history": [],
         "display_messages": [
@@ -198,6 +305,7 @@ def start_screening(
         "question_text": first_q["text"],
         "progress": [],
         "display_messages": state["display_messages"],
+        **build_question_response_fields(state),
     }
 
 
@@ -230,6 +338,7 @@ def current_screening(
         "question_text": state.get("current_question_text"),
         "progress": state.get("answered_question_ids", []),
         "display_messages": display_messages or [],
+        **build_question_response_fields(state),
     }
 
 
@@ -257,6 +366,131 @@ def submit_answer(
 
     add_display_message(state, "user", answer)
     conversation.append({"role": "user", "content": answer})
+
+    if state.get("screening_stage") == "business_context":
+        current_question_id = state.get("current_question_id")
+
+        if current_question_id == "business_type":
+            business_type = normalise_business_type(answer)
+
+            if business_type is None:
+                ask_again_message = (
+                    "Please select one of the listed business types before continuing."
+                )
+
+                add_display_message(state, "assistant", ask_again_message)
+                update_session(db, session_obj.id, json.dumps(state), "in_progress")
+
+                return {
+                    "action": "ask_again",
+                    "message": ask_again_message,
+                    "session_id": session_obj.id,
+                    **build_question_response_fields(state),
+                }
+
+            profile.business_type = business_type
+            db.commit()
+
+            answered_business_context = state.get(
+                "answered_business_context_question_ids",
+                [],
+            )
+            if "business_type" not in answered_business_context:
+                answered_business_context.append("business_type")
+                state["answered_business_context_question_ids"] = answered_business_context
+
+            recorded_message = (
+                f"Thank you. I have recorded the business type as "
+                f"{BUSINESS_TYPE_LABELS[business_type]}."
+            )
+
+            add_display_message(state, "assistant", recorded_message)
+
+            next_question = get_business_context_question("business_description")
+            set_current_question_from_payload(state, next_question)
+            add_display_message(state, "assistant", next_question["text"])
+
+            update_session(db, session_obj.id, json.dumps(state), "in_progress")
+
+            return {
+                "action": "next_question",
+                "question_id": next_question["question_id"],
+                "question_text": next_question["text"],
+                "message": recorded_message,
+                "session_id": session_obj.id,
+                **build_question_response_fields(state),
+            }
+
+        if current_question_id == "business_description":
+            description = " ".join((answer or "").split())
+
+            if not description:
+                ask_again_message = (
+                    "Please briefly describe what the business makes or serves "
+                    "before continuing."
+                )
+
+                add_display_message(state, "assistant", ask_again_message)
+                update_session(db, session_obj.id, json.dumps(state), "in_progress")
+
+                return {
+                    "action": "ask_again",
+                    "message": ask_again_message,
+                    "session_id": session_obj.id,
+                    **build_question_response_fields(state),
+                }
+
+            if len(description) > BUSINESS_DESCRIPTION_MAX_LENGTH:
+                ask_again_message = (
+                    f"Please keep the description under "
+                    f"{BUSINESS_DESCRIPTION_MAX_LENGTH} characters."
+                )
+
+                add_display_message(state, "assistant", ask_again_message)
+                update_session(db, session_obj.id, json.dumps(state), "in_progress")
+
+                return {
+                    "action": "ask_again",
+                    "message": ask_again_message,
+                    "session_id": session_obj.id,
+                    **build_question_response_fields(state),
+                }
+
+            profile.business_description = description
+            db.commit()
+
+            answered_business_context = state.get(
+                "answered_business_context_question_ids",
+                [],
+            )
+            if "business_description" not in answered_business_context:
+                answered_business_context.append("business_description")
+                state["answered_business_context_question_ids"] = answered_business_context
+
+            recorded_message = (
+                "Thank you. I have recorded this business description."
+            )
+
+            add_display_message(state, "assistant", recorded_message)
+
+            next_question = start_first_screening_question(state)
+            add_display_message(state, "assistant", next_question["text"])
+
+            update_session(db, session_obj.id, json.dumps(state), "in_progress")
+
+            return {
+                "action": "next_question",
+                "question_id": next_question["question_id"],
+                "question_text": next_question["text"],
+                "message": recorded_message,
+                "session_id": session_obj.id,
+                **build_question_response_fields(state),
+            }
+
+        raise HTTPException(
+            status_code=400,
+            detail="Unknown business context question state",
+        )
 
     adapter = get_llm_adapter()
     result = adapter.interpret_screening_answer(question_text, answer, conversation)
@@ -367,9 +601,15 @@ def submit_answer(
         return None, "complete"
 
     def set_current_question(next_question):
-        state["current_question_id"] = next_question["question_id"]
-        state["current_question_text"] = next_question["text"]
-        state["conditions_to_set"] = next_question["sets_conditions"]
+        question = {
+            "question_id": next_question["question_id"],
+            "text": next_question["text"],
+            "sets_conditions": next_question["sets_conditions"],
+            "question_type": "screening",
+            "input_type": "chat",
+            "options": [],
+        }
+        set_current_question_from_payload(state, question)
         state["next_action"] = "next_question"
 
     if action == "clear":
@@ -414,6 +654,7 @@ def submit_answer(
                 "question_text": next_question["text"],
                 "message": message,
                 "session_id": session_obj.id,
+                **build_question_response_fields(state),
             }
 
         completion_message = (
@@ -449,6 +690,7 @@ def submit_answer(
                 "action": "ask_again",
                 "message": ask_again_message,
                 "session_id": session_obj.id,
+                **build_question_response_fields(state),
             }
 
         values_to_set = {cond: "unknown" for cond in conditions_to_set}
@@ -494,6 +736,7 @@ def submit_answer(
                 "question_text": next_question["text"],
                 "message": message,
                 "session_id": session_obj.id,
+                **build_question_response_fields(state),
             }
 
         completion_message = (
@@ -615,6 +858,9 @@ def reset_screening(
 
     for session in approval_sessions:
         db.delete(session)
+
+    profile.business_type = None
+    profile.business_description = None
 
     deleted_condition_value_count = (
         db.query(ConditionValue)
