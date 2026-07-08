@@ -25,6 +25,17 @@ from gen_ai_fsms.db.models.daily_shift import DailyShift
 from gen_ai_fsms.db.models.daily_shift_chilling_temperature_check import (
     DailyShiftChillingTemperatureCheck,
 )
+from gen_ai_fsms.db.models.chilling_temperature_corrective_action import (
+    ChillingTemperatureCorrectiveAction,
+)
+from gen_ai_fsms.db.models.chilling_temperature_corrective_action_session import (
+    ChillingTemperatureCorrectiveActionSession,
+)
+from gen_ai_fsms.db.models.chilling_temperature_incident import (
+    ChillingTemperatureIncident,
+)
+from gen_ai_fsms.db.models.notification import Notification
+from gen_ai_fsms.db.models.shift_diary_entry import ShiftDiaryEntry
 from gen_ai_fsms.db.models.business_chilling_equipment import BusinessChillingEquipment
 from gen_ai_fsms.services.chilling_equipment_service import (
     TRACKED_EQUIPMENT_FIELDS,
@@ -356,15 +367,91 @@ def reset_approved_methods_for_profile(
     ]
 
     if active_shift_ids:
-        (
-            db.query(DailyShiftChillingTemperatureCheck)
-            .filter(
-                DailyShiftChillingTemperatureCheck.daily_shift_id.in_(
-                    active_shift_ids
+        active_temperature_check_ids = [
+            check.id
+            for check in (
+                db.query(DailyShiftChillingTemperatureCheck)
+                .filter(
+                    DailyShiftChillingTemperatureCheck.daily_shift_id.in_(
+                        active_shift_ids
+                    )
                 )
+                .all()
             )
-            .delete(synchronize_session=False)
-        )
+        ]
+
+        if active_temperature_check_ids:
+            active_incident_ids = [
+                incident.id
+                for incident in (
+                    db.query(ChillingTemperatureIncident)
+                    .filter(
+                        ChillingTemperatureIncident.chilling_temperature_check_id.in_(
+                            active_temperature_check_ids
+                        )
+                    )
+                    .all()
+                )
+            ]
+
+            if active_incident_ids:
+                (
+                    db.query(ChillingTemperatureCorrectiveActionSession)
+                    .filter(
+                        ChillingTemperatureCorrectiveActionSession.incident_id.in_(
+                            active_incident_ids
+                        )
+                    )
+                    .delete(synchronize_session=False)
+                )
+
+                (
+                    db.query(ChillingTemperatureCorrectiveAction)
+                    .filter(
+                        ChillingTemperatureCorrectiveAction.incident_id.in_(
+                            active_incident_ids
+                        )
+                    )
+                    .delete(synchronize_session=False)
+                )
+
+                (
+                    db.query(Notification)
+                    .filter(
+                        Notification.business_profile_id == business_profile_id,
+                        Notification.related_entity_type
+                        == "chilling_temperature_incident",
+                        Notification.related_entity_id.in_(active_incident_ids),
+                    )
+                    .delete(synchronize_session=False)
+                )
+
+                (
+                    db.query(ShiftDiaryEntry)
+                    .filter(
+                        ShiftDiaryEntry.business_profile_id == business_profile_id,
+                        ShiftDiaryEntry.related_entity_type
+                        == "chilling_temperature_incident",
+                        ShiftDiaryEntry.related_entity_id.in_(active_incident_ids),
+                    )
+                    .delete(synchronize_session=False)
+                )
+
+                (
+                    db.query(ChillingTemperatureIncident)
+                    .filter(ChillingTemperatureIncident.id.in_(active_incident_ids))
+                    .delete(synchronize_session=False)
+                )
+
+            (
+                db.query(DailyShiftChillingTemperatureCheck)
+                .filter(
+                    DailyShiftChillingTemperatureCheck.id.in_(
+                        active_temperature_check_ids
+                    )
+                )
+                .delete(synchronize_session=False)
+            )
 
     active_chilling_equipment = (
         db.query(BusinessChillingEquipment)

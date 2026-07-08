@@ -72,6 +72,8 @@ def show():
         st.session_state.screening_ephemeral_status = None
         st.session_state.screening_ephemeral_after_index = None
         st.session_state.screening_reset_confirmation_requested = False
+        st.session_state.screening_business_type_select = None
+        st.session_state.screening_business_description_text = ""
 
         st.session_state.approval_session = None
         st.session_state.approval_messages = []
@@ -93,8 +95,16 @@ def show():
         st.warning(
             "Resetting the Food Safety Profile will also reset the FSMS Builder "
             "workflow and remove the currently approved food safety methods for "
-            "this business profile. This is because the approved methods depend "
-            "on the screening answers."
+            "this business profile.\n\n"
+            "This will also set existing fridge/chilling equipment records to "
+            "inactive. If there is an active shift, its fridge temperature "
+            "checklist will be cleared and will contain no chilling equipment "
+            "until equipment is added again or reactivated.\n\n"
+            "Any active-shift temperature incidents, corrective actions, and "
+            "related notifications will also be deleted.\n\n"
+            "This is because the approved methods, equipment setup, and "
+            "active-shift temperature checks depend on the screening/profile "
+            "answers."
         )
 
         col_confirm, col_cancel = st.columns(2)
@@ -186,6 +196,12 @@ def show():
     if "screening_reset_confirmation_requested" not in st.session_state:
         st.session_state.screening_reset_confirmation_requested = False
 
+    if "screening_business_type_select" not in st.session_state:
+        st.session_state.screening_business_type_select = None
+
+    if "screening_business_description_text" not in st.session_state:
+        st.session_state.screening_business_description_text = ""
+
     current = load_current_session()
     condition_values_response = load_condition_values()
 
@@ -243,10 +259,17 @@ def show():
                     st.session_state.screening_ephemeral_status = None
                     st.session_state.screening_ephemeral_after_index = None
                     st.session_state.screening_session = new_session
-                    st.session_state.screening_messages.append({
-                        "role": "assistant",
-                        "content": new_session["question_text"]
-                    })
+                    st.session_state.screening_messages = new_session.get(
+                        "display_messages",
+                        [
+                            {
+                                "role": "assistant",
+                                "content": new_session["question_text"],
+                            }
+                        ],
+                    )
+                    st.session_state.screening_business_type_select = None
+                    st.session_state.screening_business_description_text = ""
                     st.rerun()
 
             return
@@ -281,15 +304,13 @@ def show():
     if current:
         render_progress_indicator(condition_values_response)
 
-    def submit_screening_answer():
+    def queue_screening_answer(submitted_answer):
         if (
             st.session_state.get("screening_complete", False)
             or st.session_state.get("screening_processing", False)
             or st.session_state.get("pending_screening_answer") is not None
         ):
             return
-
-        submitted_answer = st.session_state.get("screening_chat_input")
 
         if not submitted_answer:
             return
@@ -302,15 +323,81 @@ def show():
         st.session_state.pending_screening_answer = submitted_answer
         st.session_state.screening_processing = True
 
-    st.chat_input(
-        "Type your answer here...",
-        key="screening_chat_input",
-        disabled=(
-            st.session_state.get("screening_complete", False)
-            or st.session_state.get("screening_processing", False)
-        ),
-        on_submit=submit_screening_answer
-    )
+    def submit_screening_answer():
+        submitted_answer = st.session_state.get("screening_chat_input")
+        queue_screening_answer(submitted_answer)
+
+    def render_business_type_input(current_session):
+        options = current_session.get("question_options") or []
+        labels_by_value = {
+            option.get("value"): option.get("label")
+            for option in options
+        }
+
+        option_values = [
+            option.get("value")
+            for option in options
+            if option.get("value")
+        ]
+
+        selected_value = st.selectbox(
+            "Business type",
+            options=option_values,
+            format_func=lambda value: labels_by_value.get(value, value),
+            index=None,
+            placeholder="Select the type of food business",
+            key="screening_business_type_select",
+            disabled=st.session_state.get("screening_processing", False),
+        )
+
+        if st.button(
+            "Continue",
+            use_container_width=True,
+            disabled=(
+                st.session_state.get("screening_processing", False)
+                or selected_value is None
+            ),
+        ):
+            queue_screening_answer(selected_value)
+            st.rerun()
+
+    def render_business_description_input():
+        description = st.text_area(
+            "Business description",
+            placeholder="For example: celebration cakes, cupcakes, sandwiches, hot meals, or takeaway pizzas.",
+            max_chars=500,
+            key="screening_business_description_text",
+            disabled=st.session_state.get("screening_processing", False),
+        )
+
+        if st.button(
+            "Continue",
+            use_container_width=True,
+            disabled=(
+                st.session_state.get("screening_processing", False)
+                or not description.strip()
+            ),
+        ):
+            queue_screening_answer(description.strip())
+            st.rerun()
+
+    current_session_for_input = st.session_state.get("screening_session") or {}
+    question_input_type = current_session_for_input.get("question_input_type", "chat")
+
+    if question_input_type == "select":
+        render_business_type_input(current_session_for_input)
+    elif question_input_type == "textarea":
+        render_business_description_input()
+    else:
+        st.chat_input(
+            "Type your answer here...",
+            key="screening_chat_input",
+            disabled=(
+                st.session_state.get("screening_complete", False)
+                or st.session_state.get("screening_processing", False)
+            ),
+            on_submit=submit_screening_answer
+        )
 
     if (
         st.session_state.get("screening_processing", False)
@@ -350,6 +437,21 @@ def show():
 
                 st.session_state.screening_session["question_text"] = question_text
                 st.session_state.screening_session["question_id"] = data["question_id"]
+                st.session_state.screening_session["question_type"] = data.get(
+                    "question_type",
+                    "screening",
+                )
+                st.session_state.screening_session["question_input_type"] = data.get(
+                    "question_input_type",
+                    "chat",
+                )
+                st.session_state.screening_session["question_options"] = data.get(
+                    "question_options",
+                    [],
+                )
+
+                if data.get("question_input_type") == "textarea":
+                    st.session_state.screening_business_description_text = ""
 
             elif action == "ask_again":
                 ask_again_message = data["message"]
