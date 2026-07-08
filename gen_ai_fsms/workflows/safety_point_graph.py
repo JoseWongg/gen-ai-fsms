@@ -14,6 +14,7 @@ from langgraph.graph import END, StateGraph
 from gen_ai_fsms.ai.adapter import get_llm_adapter
 from gen_ai_fsms.db.session import SessionLocal
 
+from gen_ai_fsms.services.business_context_service import get_business_context
 from gen_ai_fsms.services.safety_point_approval_service import (
     get_condition_values_for_profile,
     get_relevant_safety_points_for_profile,
@@ -141,6 +142,9 @@ class SafetyPointApprovalState(TypedDict, total=False):
     current_additional_question: Optional[Dict[str, Any]]
     awaiting_additional_answers: bool
     condition_values: Dict[str, str]
+    business_context: Dict[str, Any]
+    last_review_message: Optional[str]
+    last_confirmation_message: Optional[str]
     active_condition_count: int
     completed_active_condition_count: int
     relevant_safety_point_count: int
@@ -728,10 +732,16 @@ def create_safety_point_graph():
                 db,
                 business_profile_id,
             )
+            business_context = get_business_context(
+                db=db,
+                business_profile_id=business_profile_id,
+                user_id=state.get("user_id"),
+            )
         finally:
             db.close()
 
         state["condition_values"] = condition_values
+        state["business_context"] = business_context
         state["safety_points_list"] = relevant_safety_points
         state["relevant_safety_point_count"] = len(relevant_safety_points)
         state.setdefault("current_safety_point_index", 0)
@@ -743,6 +753,8 @@ def create_safety_point_graph():
         state.setdefault("awaiting_additional_answers", False)
         state.setdefault("last_safety_point_prompt_intro_index", None)
         state.setdefault("last_safety_point_prompt_verb_index", None)
+        state.setdefault("last_review_message", None)
+        state.setdefault("last_confirmation_message", None)
 
         if not relevant_safety_points:
             state["status"] = "completed"
