@@ -7,6 +7,7 @@ workflow: the LLM may classify free-text responses and answer clarification
 questions, but it must not approve safety points or assess alternative methods.
 """
 
+import logging
 import random
 from typing import Any, Dict, List, Optional, TypedDict
 from langgraph.graph import END, StateGraph
@@ -16,6 +17,7 @@ from gen_ai_fsms.ai.safety_point_message_composer import SafetyPointMessageCompo
 from gen_ai_fsms.db.session import SessionLocal
 
 from gen_ai_fsms.services.business_context_service import get_business_context
+from gen_ai_fsms.services.business_context_fact_service import create_business_context_fact
 from gen_ai_fsms.services.context_relevance_service import build_relevant_prompt_context
 from gen_ai_fsms.services.safety_point_approval_service import (
     get_condition_values_for_profile,
@@ -29,6 +31,8 @@ from gen_ai_fsms.services.safety_point_approval_service import (
 MAX_CLARIFICATION_TURNS_PER_SAFETY_POINT = 3
 CHILLING_EQUIPMENT_QUESTION_KEY = "chilling_equipment_temperature_checks"
 CHILLING_EQUIPMENT_SOURCE_SAFETY_POINT_ID = "4.1.1.3"
+
+logger = logging.getLogger(__name__)
 MAX_CHILLING_EQUIPMENT_NAME_ATTEMPTS = 3
 MAX_CHILLING_EQUIPMENT_DETAIL_ATTEMPTS = 3
 
@@ -378,6 +382,61 @@ def _append_approval_chat_message(
 
     history.append(entry)
     state["approval_chat_history"] = history
+
+
+def _persist_business_context_facts_from_message(
+    state: SafetyPointApprovalState,
+    user_message: Optional[str],
+    current_safety_point: Optional[Dict[str, Any]],
+) -> None:
+    """Persist extracted user-stated business facts for later personalisation."""
+    business_profile_id = state.get("business_profile_id")
+
+    if not business_profile_id or not user_message or current_safety_point is None:
+        return
+
+    try:
+        extracted_payload = (
+            SafetyPointMessageComposer()
+            .extract_business_context_facts(
+                user_message=user_message,
+                safety_point=current_safety_point,
+            )
+        )
+    except Exception as exc:
+        logger.error("Business context fact extraction failed: %s", exc)
+        return
+
+    extracted_facts = extracted_payload.get("facts", [])
+    if not extracted_facts:
+        return
+
+    db = SessionLocal()
+
+    try:
+        for fact in extracted_facts:
+            create_business_context_fact(
+                db=db,
+                business_profile_id=business_profile_id,
+                fact_type=fact.get("fact_type", ""),
+                fact_text=fact.get("fact_text", ""),
+                source_safety_point_id=current_safety_point.get(
+                    "safety_point_id"
+                ),
+                source_user_message=user_message,
+                normalised_fact=fact.get("normalised_fact"),
+                confidence=fact.get("confidence"),
+                created_by_user_id=state.get("user_id"),
+                commit=False,
+                refresh=False,
+            )
+
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.error("Business context fact persistence failed: %s", exc)
+    finally:
+        db.close()
 
 def _is_chilling_equipment_question(
     question: Optional[Dict[str, Any]],
@@ -901,6 +960,12 @@ def create_safety_point_graph():
         state["current_response_intent"] = intent
         state["next_action"] = intent
         state["assistant_message"] = result.get("assistant_message")
+
+        _persist_business_context_facts_from_message(
+            state=state,
+            user_message=user_message,
+            current_safety_point=current_safety_point,
+        )
 
         if intent == "different_method_declared":
             state["different_method_declared_message"] = user_message

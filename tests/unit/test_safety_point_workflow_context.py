@@ -139,3 +139,96 @@ def test_workflow_loads_business_context_without_changing_initial_routing(
 
 
     assert approval_record_called is False
+
+
+def test_persist_business_context_facts_from_user_message(monkeypatch):
+    recorded_facts = []
+
+    class FakeSessionWithTransaction:
+        def __init__(self):
+            self.committed = False
+            self.rolled_back = False
+            self.closed = False
+
+        def commit(self):
+            self.committed = True
+
+        def rollback(self):
+            self.rolled_back = True
+
+        def close(self):
+            self.closed = True
+
+    db = FakeSessionWithTransaction()
+
+    class FakeSafetyPointMessageComposer:
+        def extract_business_context_facts(
+            self,
+            *,
+            user_message,
+            safety_point,
+        ):
+            assert user_message == "We check fridge temperatures daily."
+            assert safety_point["safety_point_id"] == "4.1.1.1"
+            return {
+                "facts": [
+                    {
+                        "fact_type": "monitoring_or_recording_practice",
+                        "fact_text": "The business checks fridge temperatures daily.",
+                        "normalised_fact": "checks_fridge_temperatures_daily",
+                        "confidence": 0.95,
+                    }
+                ]
+            }
+
+    def fake_create_business_context_fact(**kwargs):
+        recorded_facts.append(kwargs)
+
+    monkeypatch.setattr(
+        workflow_module,
+        "SafetyPointMessageComposer",
+        lambda: FakeSafetyPointMessageComposer(),
+    )
+    monkeypatch.setattr(workflow_module, "SessionLocal", lambda: db)
+    monkeypatch.setattr(
+        workflow_module,
+        "create_business_context_fact",
+        fake_create_business_context_fact,
+    )
+
+    workflow_module._persist_business_context_facts_from_message(
+        state={
+            "business_profile_id": 1,
+            "user_id": 10,
+        },
+        user_message="We check fridge temperatures daily.",
+        current_safety_point={
+            "safety_point_id": "4.1.1.1",
+            "section_name": "Chilling",
+            "safe_method_name": "Chilled storage",
+        },
+    )
+
+    assert len(recorded_facts) == 1
+    recorded_fact = recorded_facts[0]
+
+    assert recorded_fact["business_profile_id"] == 1
+    assert recorded_fact["fact_type"] == "monitoring_or_recording_practice"
+    assert (
+        recorded_fact["fact_text"]
+        == "The business checks fridge temperatures daily."
+    )
+    assert recorded_fact["source_safety_point_id"] == "4.1.1.1"
+    assert (
+        recorded_fact["source_user_message"]
+        == "We check fridge temperatures daily."
+    )
+    assert recorded_fact["normalised_fact"] == "checks_fridge_temperatures_daily"
+    assert recorded_fact["confidence"] == 0.95
+    assert recorded_fact["created_by_user_id"] == 10
+    assert recorded_fact["commit"] is False
+    assert recorded_fact["refresh"] is False
+
+    assert db.committed is True
+    assert db.rolled_back is False
+    assert db.closed is True
