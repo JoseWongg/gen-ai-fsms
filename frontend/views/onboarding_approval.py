@@ -108,9 +108,20 @@ def show():
     def render_safety_point_card(safety_point_view, expanded, key_suffix):
         current_safety_point = safety_point_view or {}
         safety_point_id = current_safety_point.get("safety_point_id") or "Unknown"
-        safety_point_text = (
-            current_safety_point.get("safety_point_text")
+        original_safety_point_text = (
+            current_safety_point.get("original_safety_point_text")
+            or current_safety_point.get("safety_point_text")
             or current_safety_point.get("text")
+            or ""
+        )
+        safety_point_instruction = (
+            current_safety_point.get("safety_point_instruction")
+            or current_safety_point.get("instruction")
+            or original_safety_point_text
+        )
+        safety_point_rationale = (
+            current_safety_point.get("safety_point_rationale")
+            or current_safety_point.get("rationale")
             or ""
         )
 
@@ -118,14 +129,26 @@ def show():
             st.markdown(f"**Section:** {current_safety_point.get('section_name') or 'Not available'}")
             st.markdown(f"**Safe method:** {current_safety_point.get('safe_method_name') or 'Not available'}")
 
+            st.markdown("**Rule to approve**")
             st.text_area(
-                label="Safety point text",
-                value=safety_point_text,
-                height=180,
+                label="Rule to approve",
+                value=safety_point_instruction,
+                height=160,
                 disabled=True,
                 label_visibility="collapsed",
-                key=f"approval_safety_point_text_{safety_point_id}_{key_suffix}",
+                key=f"approval_safety_point_instruction_{safety_point_id}_{key_suffix}",
             )
+
+            if safety_point_rationale:
+                st.markdown("**Why this matters**")
+                st.text_area(
+                    label="Why this matters",
+                    value=safety_point_rationale,
+                    height=120,
+                    disabled=True,
+                    label_visibility="collapsed",
+                    key=f"approval_safety_point_rationale_{safety_point_id}_{key_suffix}",
+                )
 
             provenance_references = current_safety_point.get("provenance_references", [])
             source_references = current_safety_point.get("source_references", [])
