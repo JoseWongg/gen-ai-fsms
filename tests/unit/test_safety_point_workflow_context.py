@@ -45,6 +45,25 @@ def test_workflow_loads_business_context_without_changing_initial_routing(
         approval_record_called = True
         return {}
 
+    class FakeSafetyPointMessageComposer:
+        def compose_safety_point_review_message(
+            self,
+            *,
+            business_context,
+            safety_point,
+            relevant_facts=None,
+        ):
+            assert business_context["business_name"] == "Test Bakery"
+            assert safety_point["safety_point_id"] == "4.1.1.1"
+            assert relevant_facts == []
+            return "Review this chilled storage safety point."
+
+    monkeypatch.setattr(
+        workflow_module,
+        "SafetyPointMessageComposer",
+        lambda: FakeSafetyPointMessageComposer(),
+    )
+
     monkeypatch.setattr(
         workflow_module,
         "SessionLocal",
@@ -114,12 +133,9 @@ def test_workflow_loads_business_context_without_changing_initial_routing(
         == "Keeping chilled food cold helps prevent harmful bacteria from growing."
     )
 
-    assert result["last_review_message"] is None
+    assert result["assistant_message"] == "Review this chilled storage safety point."
+    assert result["last_review_message"] == "Review this chilled storage safety point."
     assert result["last_confirmation_message"] is None
 
-    assert "the business" in result["assistant_message"]
-    assert "Alternatively, you can ask clarification questions." in (
-        result["assistant_message"]
-    )
 
     assert approval_record_called is False

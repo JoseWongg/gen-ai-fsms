@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, TypedDict
 from langgraph.graph import END, StateGraph
 
 from gen_ai_fsms.ai.adapter import get_llm_adapter
+from gen_ai_fsms.ai.safety_point_message_composer import SafetyPointMessageComposer
 from gen_ai_fsms.db.session import SessionLocal
 
 from gen_ai_fsms.services.business_context_service import get_business_context
@@ -809,9 +810,24 @@ def create_safety_point_graph():
         )
 
         if not state.get("last_user_message"):
-            safety_point_prompt = _build_safety_point_prompt(state)
+            relevant_business_context = build_relevant_prompt_context(
+                state.get("business_context", {}),
+                current_safety_point,
+            )
+            safety_point_prompt = (
+                SafetyPointMessageComposer()
+                .compose_safety_point_review_message(
+                    business_context=relevant_business_context,
+                    safety_point=current_safety_point,
+                    relevant_facts=relevant_business_context.get(
+                        "relevant_facts",
+                        [],
+                    ),
+                )
+            )
 
             state["assistant_message"] = safety_point_prompt
+            state["last_review_message"] = safety_point_prompt
 
             _append_approval_chat_message(
                 state=state,
