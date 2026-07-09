@@ -1,6 +1,6 @@
 {
   "_comment": "SFBB compiled content – Chilling and Cooking sections only. Inheritance rule: a safety point inherits the condition_id of its parent safe method unless it explicitly provides its own condition_id. Section condition_id applies to all safe methods under it, but each safe method can override.",
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "sections": [
     {
       "section_id": "chilling",
@@ -16,6 +16,8 @@
             {
               "safety_point_id": "4.1.1.1",
               "text": "Certain foods need to be kept chilled to keep them safe, for example: food with a 'use by' date, food that says 'keep refrigerated' on the label, food you have cooked and will not serve immediately such as cooked rice and pasta, ready-to-eat food such as salads, cooked meats, sandwiches and cream-based desserts. If these types of food are not kept cold enough, harmful bacteria could grow.",
+              "instruction": "Certain foods are kept chilled, including food with a 'use by' date, food that says 'keep refrigerated' on the label, food that has been cooked and will not be served immediately such as cooked rice and pasta, and ready-to-eat food such as salads, cooked meats, sandwiches and cream-based desserts.",
+              "rationale": "Chilled foods such as use-by-date foods, foods labelled 'keep refrigerated', cooked foods that will not be served immediately, and ready-to-eat foods must be kept cold enough to remain safe and prevent harmful bacteria from growing.",
               "source_references": [
                 "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
               ],
@@ -24,6 +26,8 @@
             {
               "safety_point_id": "4.1.1.2",
               "text": "Make sure you use food before its 'use by' date. Food with 'use by' dates, cooked dishes and other ready-to-eat food have a limited shelf life. Food cannot be supplied or served after its 'use by date'. For dishes you have prepared or cooked, use stickers or another method of labelling to keep track of when food should be used or thrown away. For guidance on how long to keep food, follow the manufacturer’s storage instructions on the product label. High-risk ready-to-eat foods should be kept for a maximum of 3 days in total (day of cook/opening + 2) unless you have evidence that it is safe to keep them for longer.",
+              "instruction": "Food is used before its 'use by' date. Food is not supplied or served after its 'use by date'. For prepared or cooked dishes, stickers or another method of labelling are used to keep track of when food is to be used or thrown away. Manufacturer’s storage instructions on the product label are followed for guidance on how long to keep food. High-risk ready-to-eat foods are kept for a maximum of 3 days in total (day of cook/opening + 2) unless there is evidence supporting a longer shelf life.",
+              "rationale": "Food with 'use by' dates, cooked dishes and other ready-to-eat food have a limited shelf life.",
               "source_references": [
                 "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
               ],
@@ -32,6 +36,8 @@
             {
               "safety_point_id": "4.1.1.3",
               "text": "Follow the manufacturer's instructions on how to use fridges and chilled display equipment. It is important to use equipment properly to make sure food is kept cold enough. It is recommended that fridges and chilled display equipment should be set at 5°C or below. This is to make sure that chilled food is kept at 8°C or below. You should check the temperature of your fridges and chilled display equipment at least once a day, starting with your opening checks. To check that chilling equipment is working effectively, you can use a disinfected temperature probe to check that the food is kept at a safe temperature.To make sure equipment is working properly, check temperatures in-between packs of chilled food using a clean, disinfected probe thermometer.Some equipment will have a digital display or dial to show what temperature it is set at. You can use this to check the temperature of your equipment.If you do this, you should check regularly that the temperature shown on the display matches the temperature of a fridge thermometer or probe thermometer.",
+              "instruction": "Manufacturer's instructions are followed when fridges and chilled display equipment are used. Fridges and chilled display equipment are set at 5°C or below. This is used to make sure chilled food is kept at 8°C or below. The temperature of fridges and chilled display equipment is checked at least once a day, starting with opening checks. A disinfected temperature probe is used to check the temperature of chilled food. Temperatures are checked in-between packs of chilled food using a clean, disinfected probe thermometer. Where equipment has a digital display or dial, it is used to check the temperature of the equipment. Where the display or dial is used, the temperature shown on the display is checked regularly against a fridge thermometer or probe thermometer.",
+              "rationale": "Using fridges and chilled display equipment properly helps make sure food is kept cold enough. Setting fridges and chilled display equipment at 5°C or below helps make sure chilled food is kept at 8°C or below. Regular temperature checks help confirm that the equipment is working effectively and that chilled food is being kept at a safe temperature.",
               "source_references": [
                 "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
               ],
@@ -50,6 +56,8 @@
               "safety_point_id": "4.1.1.4",
               "condition_id": "displays_chilled_food",
               "text": "It is important to keep chilled food cold while it is on display to prevent harmful bacteria from growing in the food. Pre-cool the display unit before you put chilled food in it. Only display as much food as you think you will need. Display food for the shortest time possible. You could also use a 'dummy' portion for display (which will not be eaten) or use photographs to show customers what the food looks like. When you display cold food (e.g. on a buffet), you should use suitable chilled display equipment to keep it at 8°C or below. If this is not possible, there is a 4-hour rule exception: You can display food out of chilled storage for up to four hours, but you can only do this once. Make sure you know how long food has been on display or kept out of chilled storage. It is a good idea to label foods with the time they were taken out of the fridge or write this information in your diary so you can check the time easily. Food which has been displayed for less than four hours can be put back in the fridge and kept at 8°C or below until it is used. If it has been used for more than four hours, it must be thrown away.",
+              "instruction": "The display unit is pre-cooled before chilled food is placed in it. Only the amount of food expected to be needed is displayed. Food is displayed for the shortest time possible. A 'dummy' portion, which will not be eaten, or photographs can be used to show customers what the food looks like. When cold food is displayed, for example on a buffet, suitable chilled display equipment is used to keep it at 8°C or below. Where this is not possible, food is displayed out of chilled storage for up to four hours only once. The length of time food has been on display or kept out of chilled storage is known. Foods are labelled with the time they were taken out of the fridge or this information is written in the diary so the time can be checked easily. Food which has been displayed for less than four hours is put back in the fridge and kept at 8°C or below until it is used. Food that has been displayed for more than four hours is thrown away.",
+              "rationale": "Chilled food on display must be kept cold to help keep it safe and prevent harmful bacteria from growing in the food.",
               "source_references": [
                 "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
               ],
@@ -58,6 +66,8 @@
             {
               "safety_point_id": "4.1.1.5",
               "text": "Some foods require storage at temperatures lower than 8°C to keep them safe, so always follow the manufacturer's storage guidance.",
+              "instruction": "Manufacturer's storage guidance is followed for foods that require storage at temperatures lower than 8°C.",
+              "rationale": "Some foods require storage at temperatures lower than 8°C to keep them safe.",
               "source_references": [
                 "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
               ],
@@ -66,6 +76,8 @@
             {
               "safety_point_id": "4.1.1.6",
               "text": "Minimise the time chilled foods are kept out at room temperature during preparation. You can help do this by only preparing small batches one at a time.",
+              "instruction": "The time chilled foods are kept out at room temperature during preparation is minimised. Only small batches are prepared one at a time.",
+              "rationale": "",
               "source_references": [
                 "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
               ],
@@ -75,6 +87,8 @@
               "safety_point_id": "4.1.1.7",
               "condition_id": "handles_raw_fish",
               "text": "\"Food that needs extra care\" guidance: If you buy fresh fish make sure you store it between 0°C and 4°C",
+              "instruction": "Fresh fish is stored between 0°C and 4°C when it is bought.",
+              "rationale": "",
               "source_references": [
                 "SFBB Pack > Chilling > Chilled Storage and Displaying Chilled Food"
               ],
@@ -90,6 +104,8 @@
             {
               "safety_point_id": "4.2.1.1",
               "text": "Harmful bacteria can grow in food that is left to chill slowly rather than chilled as quickly as possible. If you have cooked food that you will not serve immediately, chill it as quickly as possible, then put it in the fridge. Chilling food is a prerequisite for freezing. Freeze hot food as soon as it has been properly chilled.",
+              "instruction": "Cooked food that will not be served immediately is chilled as quickly as possible and then put in the fridge. Hot food is chilled before freezing. Hot food is frozen as soon as it has been properly chilled.",
+              "rationale": "Harmful bacteria can grow in food that is left to chill slowly rather than chilled as quickly as possible.",
               "source_references": [
                 "SFBB Pack > Chilling > Chilling Down Hot Food"
               ],
@@ -100,6 +116,8 @@
             {
               "safety_point_id": "4.2.1.2",
               "text": "Options for chilling down food you can use are: divide food into smaller portions because Smaller amounts of food chill down more quickly. Cut joints of meat in half because Smaller pieces of meat will cool more quickly. Cover pans of hot food and move them to a colder area, stand them in cold water or use ice to speed up chilling to make the food chill more quickly. Stir food regularly while it is chilling down as doing this helps food chill more evenly. Spread food, such as rice, out on a tray as it will help it to cool more quickly. If you have a 'cool' setting on your oven use it to chill down food as it increases the air flow around it (The oven should be cold first). Consider using a blast chiller, which is specially designed to chill down hot foods quickly and safely.",
+              "instruction": "Suitable options are used for chilling down food: food is divided into smaller portions; joints of meat are cut in half; pans of hot food are covered and moved to a colder area, stood in cold water or chilled using ice; food is stirred regularly while it is chilling down; food such as rice is spread out on a tray; where a 'cool' setting is available on the oven, it is used to chill down food once the oven is cold; a blast chiller is considered where available.",
+              "rationale": "Smaller amounts of food chill down more quickly. Smaller pieces of meat cool more quickly. Moving covered pans of hot food to a colder area, standing them in cold water, or using ice helps the food chill more quickly. Stirring food regularly helps food chill more evenly. Spreading food such as rice out on a tray helps it to cool more quickly. Using a 'cool' setting on a cold oven increases the air flow around the food. A blast chiller is specially designed to chill down hot foods quickly and safely.",
               "source_references": [
                 "SFBB Pack > Chilling > Chilling Down Hot Food"
               ],
@@ -108,6 +126,8 @@
             {
               "safety_point_id": "4.2.1.3",
               "text": "Avoid cooking large quantities of food in advance, unless you need to. Large quantities of food are more difficult to chill down quickly, especially solid food.",
+              "instruction": "Large quantities of food are not cooked in advance unless needed.",
+              "rationale": "Large quantities of food are more difficult to chill down quickly, especially solid food.",
               "source_references": [
                 "SFBB Pack > Chilling > Chilling Down Hot Food"
               ],
@@ -116,6 +136,8 @@
             {
               "safety_point_id": "4.2.1.4",
               "text": "When you have just cooked the food, use a probe to test its temperature. Then test the temperature again at regular intervals to find out how fast the food is being chilled down. Remember to use a clean probe each time you check the food.",
+              "instruction": "When food has just been cooked, a probe is used to test its temperature. The temperature is tested again at regular intervals. A clean probe is used each time the food is checked.",
+              "rationale": "Testing the temperature at regular intervals shows how fast the food is being chilled down.",
               "source_references": [
                 "SFBB Pack > Chilling > Chilling Down Hot Food"
               ],
@@ -127,6 +149,8 @@
               "safety_point_id": "4.2.1.5",
               "condition_id": "cooks_rice",
               "text": "\"Food that needs extra care\" guidance: When you have cooked rice, make sure you keep it hot until serving or chill it down as quickly as possible and then keep it in the fridge. You can chill down more quickly by dividing it into smaller portions, spreading it out on a clean tray, or running it under cold water (make sure the water is clean and drinking quality).",
+              "instruction": "Cooked rice is kept hot until serving or chilled down as quickly as possible and then kept in the fridge. To chill cooked rice, it is divided into smaller portions, spread out on a clean tray, or run under cold water, making sure the water is clean and drinking quality.",
+              "rationale": "Dividing cooked rice into smaller portions, spreading it out on a clean tray, or running it under clean drinking-quality cold water helps rice chill down more quickly.",
               "source_references": [
                 "SFBB Pack > Chilling > Chilling Down Hot Food"
               ],
@@ -142,6 +166,8 @@
             {
               "safety_point_id": "4.3.1.1",
               "text": "Food should be thoroughly defrosted before cooking (unless the manufacturer's instructions tell you to cook from frozen or you have a proven safe method). If food is still frozen or partially frozen, it will take longer to cook. The outside of the food could be cooked, but the centre might not be, which means it could contain harmful bacteria.\n\nThe options to defrost food are:\n- Ideally, plan ahead to leave enough time and space to defrost small amounts of food in the fridge. Putting food in the fridge will keep it at a safe temperature while it is defrosting.\n- If you cannot defrost food in the fridge, you could put it in a container and then place it under cold running water. Cold water will help to speed up defrosting without allowing the outside of the food to get too warm. Raw meat and poultry (including large joints and whole birds) should not be defrosted under cold running water unless they are in a sealed container. For more information visit the FSA website.\n- Defrost food in the microwave on the 'defrost' setting. This is a fast way to defrost food.\n- If necessary, you could defrost food at room temperature. Follow the manufacturer's defrosting instructions. Food should be left out at room temperature for the shortest time possible. Ideally, defrost these foods in the fridge. Foods will defrost quite quickly at room temperature, but harmful bacteria could grow in food if it gets too warm while defrosting.",
+              "instruction": "Food is thoroughly defrosted before cooking, unless the manufacturer's instructions say to cook from frozen or there is a proven safe method. Defrosting options are used as appropriate: small amounts of food are ideally defrosted in the fridge with enough time and space planned ahead; where food cannot be defrosted in the fridge, it is placed in a container and then put under cold running water; raw meat and poultry, including large joints and whole birds, are not defrosted under cold running water unless they are in a sealed container; food is defrosted in the microwave on the 'defrost' setting; where necessary, food is defrosted at room temperature in line with the manufacturer's defrosting instructions and for the shortest time possible. These foods are ideally defrosted in the fridge.",
+              "rationale": "If food is still frozen or partially frozen, it will take longer to cook. Partially defrosted food could be cooked on the outside while the centre remains undercooked, which means the centre could contain harmful bacteria. Defrosting food in the fridge keeps it at a safe temperature while it is defrosting. Cold running water helps speed up defrosting without allowing the outside of the food to get too warm. Defrosting food in the microwave is a fast way to defrost food. Defrosting food at room temperature can allow harmful bacteria to grow if the food gets too warm while defrosting.",
               "source_references": [
                 "SFBB Pack > Chilling > Defrosting"
               ],
@@ -168,6 +194,8 @@
               "safety_point_id": "4.3.1.2",
               "condition_id": "handles_raw_meat_or_poultry",
               "text": "Keep meat/poultry separate from other food when it is defrosting, to prevent cross-contamination.",
+              "instruction": "Meat/poultry is kept separate from other food when it is defrosting.",
+              "rationale": "Keeping meat/poultry separate during defrosting helps prevent cross-contamination.",
               "source_references": [
                 "SFBB Pack > Chilling > Defrosting"
               ],
@@ -176,6 +204,8 @@
             {
               "safety_point_id": "4.3.1.3",
               "text": "Once food has been defrosted, you should cook it until it is piping hot all the way through. After cooking, use the food immediately or chill or freeze it safely straight away.",
+              "instruction": "Once food has been defrosted, it is cooked until it is piping hot all the way through. After cooking, the food is used immediately or chilled or frozen straight away.",
+              "rationale": "",
               "source_references": [
                 "SFBB Pack > Chilling > Defrosting"
               ],
@@ -185,6 +215,8 @@
               "safety_point_id": "4.3.1.4",
               "condition_id": "uses_sink_to_defrost_food",
               "text": "Harmful bacteria could be spread, contaminating sinks, taps and surfaces. If you use the sink to defrost some food, make sure the sink is clean and empty. The sink should be cleaned and then disinfected after being used for defrosting. Cold running water will help speed up defrosting.",
+              "instruction": "Where the sink is used to defrost food, the sink is clean and empty. The sink is cleaned and disinfected after it has been used for defrosting. Cold running water is used to speed up defrosting.",
+              "rationale": "Defrosting food in a sink can spread harmful bacteria and contaminate sinks, taps and surfaces. Cold running water helps speed up defrosting.",
               "source_references": [
                 "SFBB Pack > Chilling > Defrosting"
               ],
@@ -200,6 +232,8 @@
             {
               "safety_point_id": "4.3.1.5",
               "text": "When you think food has defrosted, it is important to check to make sure. The outside may look defrosted, but the inside could still be frozen. Check for ice crystals in the food using your hand or a skewer. With birds, check the joints are flexible.",
+              "instruction": "When food appears to have defrosted, it is checked for ice crystals using a hand or a skewer. With birds, the joints are checked to confirm they are flexible.",
+              "rationale": "The outside of food may look defrosted, but the inside could still be frozen.",
               "source_references": [
                 "SFBB Pack > Chilling > Defrosting"
               ],
@@ -209,6 +243,8 @@
               "safety_point_id": "4.3.1.6",
               "condition_id": "stores_food_that_must_be_kept_frozen",
               "text": "Food that must be kept frozen (e.g., ice cream) cannot be refrozen once it has started to defrost. You will have to use it immediately or throw it away.",
+              "instruction": "Food requiring frozen storage, such as ice cream, is not refrozen once it has started to defrost. It is used immediately or thrown away.",
+              "rationale": "",
               "source_references": [
                 "SFBB Pack > Chilling > Defrosting"
               ],
@@ -217,6 +253,8 @@
             {
               "safety_point_id": "4.3.1.7",
               "text": "Once the food is defrosted, its shelf life depends on the number of days left until expiry when it was frozen.",
+              "instruction": "Once food is defrosted, its shelf life is based on the number of days left until expiry when it was frozen.",
+              "rationale": "",
               "source_references": [
                 "SFBB Pack > Chilling > Defrosting"
               ],
@@ -233,6 +271,8 @@
               "safety_point_id": "4.4.1.1",
               "condition_id": "buys_frozen_food",
               "text": "It is important to take care when freezing food and handle frozen food safely. Put frozen food in the freezer as soon as it is delivered. If frozen food starts to defrost, harmful bacteria could grow.",
+              "instruction": "Frozen food is handled carefully. Frozen food is put in the freezer as soon as it is delivered.",
+              "rationale": "If frozen food starts to defrost, harmful bacteria could grow.",
               "source_references": [
                 "SFBB Pack > Chilling > Freezing"
               ],
@@ -241,6 +281,8 @@
             {
               "safety_point_id": "4.4.1.2",
               "text": "If you are freezing fresh food, freeze it as soon as it has been delivered or prepared. Freeze hot food as soon as it has been properly chilled. The longer you wait before freezing food, the greater the chance of harmful bacteria growing.",
+              "instruction": "Fresh food that is being frozen is frozen as soon as it has been delivered or prepared. Hot food is frozen as soon as it has been properly chilled.",
+              "rationale": "The longer you wait before freezing food, the greater the chance of harmful bacteria growing.",
               "source_references": [
                 "SFBB Pack > Chilling > Freezing"
               ],
@@ -249,6 +291,8 @@
             {
               "safety_point_id": "4.4.1.3",
               "text": "Divide food into smaller portions and put it in containers or freezer bags before freezing. Smaller portions will freeze (and defrost) more quickly. The centre of larger portions takes longer to freeze, allowing harmful bacteria to grow. Using containers and freezer bags prevents cross-contamination.",
+              "instruction": "Food is divided into smaller portions and put in containers or freezer bags before freezing.",
+              "rationale": "Smaller portions will freeze and defrost more quickly. The centre of larger portions takes longer to freeze, allowing harmful bacteria to grow. Using containers and freezer bags prevents cross-contamination.",
               "source_references": [
                 "SFBB Pack > Chilling > Freezing"
               ],
@@ -257,6 +301,8 @@
             {
               "safety_point_id": "4.4.1.4",
               "text": "Food that must be kept frozen (e.g., ice cream) cannot be refrozen once it has started to defrost. You will have to use it immediately or throw it away.",
+              "instruction": "Food requiring frozen storage, such as ice cream, is not refrozen once it has started to defrost. It is used immediately or thrown away.",
+              "rationale": "",
               "source_references": [
                 "SFBB Pack > Chilling > Freezing"
               ],
@@ -266,6 +312,8 @@
               "safety_point_id": "4.4.1.5",
               "condition_id": "handles_eggs",
               "text": "'Food that needs extra care' guidance: Eggs, you can freeze them for later use if required.",
+              "instruction": "Eggs are frozen for later use if required.",
+              "rationale": "",
               "source_references": [
                 "SFBB Pack > Chilling > Freezing"
               ],
@@ -275,6 +323,8 @@
               "safety_point_id": "4.4.1.6",
               "condition_id": "handles_raw_fish",
               "text": "'Food that needs extra care' guidance: If you buy frozen fish, then keep it frozen until you are ready to use it.",
+              "instruction": "Frozen fish is kept frozen until it is ready to be used.",
+              "rationale": "",
               "source_references": [
                 "SFBB Pack > Chilling > Freezing"
               ],
@@ -283,6 +333,8 @@
             {
               "safety_point_id": "4.4.1.7",
               "text": "You can use the digital display, a dial thermometer or a probe thermometer to check that your freezer is keeping food at a safe temperature.",
+              "instruction": "The digital display, a dial thermometer or a probe thermometer is used to check the freezer temperature.",
+              "rationale": "Checking the freezer temperature confirms that the freezer is keeping food at a safe temperature.",
               "source_references": [
                 "SFBB Pack > Chilling > Freezing"
               ],
@@ -307,6 +359,8 @@
             {
               "safety_point_id": "5.1.1.1",
               "text": "It is essential to cook food properly to kill any harmful bacteria. If it is not cooked properly, it might not be safe for your customers to eat.\n\nDo not forget that cooking does not remove allergens from food, so you need to handle food that contains allergens carefully.\n\nIt is also very important to handle ready-to-eat food carefully to prevent contamination with harmful bacteria. This is because it will not be cooked or reheated before serving.",
+              "instruction": "Food is cooked properly. Food that contains allergens is handled carefully. Ready-to-eat food is handled carefully.",
+              "rationale": "Cooking food properly kills harmful bacteria. Food that is not cooked properly might not be safe for customers to eat. Cooking does not remove allergens from food. Ready-to-eat food must be handled carefully because it will not be cooked or reheated before serving, so careful handling helps prevent contamination with harmful bacteria.",
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
@@ -317,6 +371,8 @@
             {
               "safety_point_id": "5.1.1.2",
               "text": "Where appropriate, follow the manufacturer's cooking instructions for food products. The manufacturer has tried and tested safe cooking methods specifically for its products.",
+              "instruction": "Manufacturer's cooking instructions are followed for food products where appropriate.",
+              "rationale": "Manufacturers have tried and tested safe cooking methods specifically for their food products.",
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
@@ -325,6 +381,8 @@
             {
               "safety_point_id": "5.1.1.3",
               "text": "Preheat equipment such as ovens and grills before cooking as per the manufacturer's instructions, if available. If you use equipment before it has preheated, food will take longer to cook. This means that recommended cooking times in recipes or manufacturers' instructions might not be long enough.",
+              "instruction": "Equipment such as ovens and grills is preheated before cooking in line with the manufacturer's instructions, where available.",
+              "rationale": "If ovens and grills are used before they have preheated, food will take longer to cook and recommended cooking times in recipes or manufacturers' instructions might not be long enough.",
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
@@ -334,6 +392,8 @@
               "safety_point_id": "5.1.1.4",
               "condition_id": "handles_ready_to_eat_food",
               "text": "Do not let raw food touch or drip onto cooked food, e.g. when adding food to a grill/barbecue. Never use the same utensils, plates or containers for raw and cooked or ready-to-eat food.\n\nRaw food can carry harmful bacteria, which could spread onto cooked food and make it unsafe.",
+              "instruction": "Raw food is not allowed to touch or drip onto cooked food, for example when food is added to a grill or barbecue. The same utensils, plates or containers are not used for raw and cooked or ready-to-eat food.",
+              "rationale": "Raw food can carry harmful bacteria, which could spread onto cooked food and make it unsafe.",
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
@@ -343,6 +403,8 @@
               "safety_point_id": "5.1.1.5",
               "condition_id": "handles_raw_meat_or_poultry",
               "text": "It is a good idea to fully cook poultry in an oven first, then finish it on the barbecue. This will make sure that the poultry is cooked thoroughly. The meat should be cooked to the safest temperature, and not be pink or red. Juices should be clear, with no pink in red meat.\n\nCheck that whole birds are cooked to a safe temperature in the thickest area, which is between the leg and breast. The meat should not be pink or red, and the juices should be clear.",
+              "instruction": "Poultry is fully cooked in an oven first, then finished on the barbecue. Meat is cooked to the safest temperature, with no pink or red meat. Juices are clear, with no pink in red meat. Whole birds are checked in the thickest area, between the leg and breast, to confirm they are cooked to a safe temperature. Whole-bird meat is not pink or red, and the juices are clear.",
+              "rationale": "Fully cooking poultry in an oven before finishing it on the barbecue helps make sure the poultry is cooked thoroughly.",
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
@@ -361,6 +423,8 @@
               "safety_point_id": "5.1.1.6",
               "condition_id": "handles_raw_meat_or_poultry",
               "text": "If you are using leftover marinade as a sauce, make sure it is cooked until steaming hot. Marinades can carry bacteria from the raw meat or poultry if not cooked thoroughly.",
+              "instruction": "Leftover marinade used as a sauce is cooked until steaming hot.",
+              "rationale": "Marinades can carry bacteria from the raw meat or poultry if they are not cooked thoroughly.",
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
@@ -369,6 +433,8 @@
             {
               "safety_point_id": "5.1.1.7",
               "text": "Make sure liquid dishes, e.g. gravy, soups, sauces and stews, are simmering and stir them frequently. Check that they bubble rapidly and reach a safe temperature in several places in case of cold spots before serving.\n\nThis is to make sure the food is hot enough to kill bacteria. Stirring will help ensure the food is the same temperature throughout.",
+              "instruction": "Liquid dishes, for example gravy, soups, sauces and stews, are simmering and stirred frequently. They are checked before serving to confirm that they bubble rapidly and reach a safe temperature in several places in case of cold spots.",
+              "rationale": "Liquid dishes must be hot enough to kill bacteria. Stirring liquid dishes helps ensure the food is the same temperature throughout.",
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
@@ -387,6 +453,8 @@
               "safety_point_id": "5.1.1.8",
               "condition_id": "handles_raw_meat_or_poultry",
               "text": "If you serve beef or lamb rare (whole cuts such as steaks and whole joints only), make sure all of the outside surfaces are fully cooked, e.g. by sealing in a pan.\n\nThis will kill harmful bacteria on the outside of the meat.\n\nWhole cuts of meat, such as steaks and joints, only ever have bacteria on the outside surface of the meat.",
+              "instruction": "Where beef or lamb is served rare, limited to whole cuts such as steaks and whole joints only, all of the outside surfaces are fully cooked, for example by sealing in a pan.",
+              "rationale": "Fully cooking the outside surfaces of rare beef or lamb whole cuts kills harmful bacteria on the outside of the meat. Whole cuts of meat, such as steaks and joints, only ever have bacteria on the outside surface of the meat.",
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
@@ -403,6 +471,8 @@
               "safety_point_id": "5.1.1.9",
               "condition_id": "handles_raw_meat_or_poultry",
               "text": "Pork, any rolled joints of meat and processed meat products, such as sausages and burgers, should not be served rare. They should be cooked to a safe temperature in the centre with no pink or red in them or their juices.",
+              "instruction": "Pork, any rolled joints of meat and processed meat products, such as sausages and burgers, are not served rare. They are cooked to a safe temperature in the centre with no pink or red in them or their juices.",
+              "rationale": "",
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
@@ -431,6 +501,8 @@
               "safety_point_id": "5.1.1.10",
               "condition_id": "handles_raw_meat_or_poultry",
               "text": "Liver and offal, including dishes such as liver pate or parfait, must be cooked to a safe temperature in the centre of the meat and until there is no pink meat left.\n\nHarmful bacteria can be found in the centre of the liver as well as the outside.",
+              "instruction": "Liver and offal, including dishes such as liver pate or parfait, are cooked to a safe temperature in the centre of the meat and until there is no pink meat left.",
+              "rationale": "Harmful bacteria can be found in the centre of the liver as well as the outside.",
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
@@ -447,6 +519,8 @@
               "safety_point_id": "5.1.1.11",
               "condition_id": "handles_raw_meat_or_poultry",
               "text": "Turn the meat during cooking. This helps it cook more evenly and thoroughly.",
+              "instruction": "Meat is turned during cooking.",
+              "rationale": "Turning meat during cooking helps it cook more evenly and thoroughly.",
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
@@ -455,6 +529,8 @@
             {
               "safety_point_id": "5.1.1.12",
               "text": "Use a disinfected temperature probe to check that dishes are properly cooked or reheated.\n\nExamples of safe time/temperature combinations for cooking include:\n- 80°C for at least 6 seconds\n- 75°C for at least 30 seconds\n- 70°C for at least 2 minutes\n- 65°C for at least 10 minutes\n- 60°C for at least 45 minutes",
+              "instruction": "A disinfected temperature probe is used to check that dishes are properly cooked or reheated. Safe time/temperature combinations for cooking include:\n- 80°C for at least 6 seconds\n- 75°C for at least 30 seconds\n- 70°C for at least 2 minutes\n- 65°C for at least 10 minutes\n- 60°C for at least 45 minutes",
+              "rationale": "Using a disinfected temperature probe helps confirm that dishes are properly cooked or reheated.",
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
@@ -466,6 +542,8 @@
               "safety_point_id": "5.1.1.13",
               "condition_id": "handles_raw_meat_or_poultry",
               "text": "The largest piece of meat in stews, curries, etc., should be cooked to a safe temperature in the centre with no pink or red.",
+              "instruction": "The largest piece of meat in stews, curries, etc., is cooked to a safe temperature in the centre with no pink or red.",
+              "rationale": "",
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
@@ -484,6 +562,8 @@
               "safety_point_id": "5.1.1.14",
               "condition_id": "handles_raw_meat_or_poultry",
               "text": "Check that combination dishes (e.g., containing meat and vegetables) are cooked to a safe temperature in the centre. If you are cooking a large dish or batch, check in several places.",
+              "instruction": "Combination dishes, for example dishes containing meat and vegetables, are checked to confirm they are cooked to a safe temperature in the centre. Large dishes or batches are checked in several places.",
+              "rationale": "",
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
@@ -502,6 +582,8 @@
               "safety_point_id": "5.1.1.15",
               "condition_id": "handles_raw_fish",
               "text": "Check the fish is cooked to a safe temperature in the centre and the colour and texture have changed.\n\nSome fish (e.g. tuna) may be served 'rare' as long as they have been correctly frozen beforehand to kill any parasites which may be present and are fully seared on the outside to kill any harmful bacteria that may be present. Further guidance is available at the FSA website.",
+              "instruction": "Fish is checked to confirm it is cooked to a safe temperature in the centre and that the colour and texture have changed. Some fish, for example tuna, is served rare only where it has been correctly frozen beforehand and is fully seared on the outside. Further guidance is available at the FSA website.",
+              "rationale": "Correctly freezing fish that may be served rare kills any parasites which may be present. Fully searing the outside of fish that may be served rare kills any harmful bacteria that may be present on the outside.",
               "source_references": [
                 "SFBB Pack > Cooking > Cooking Safely"
               ],
@@ -532,6 +614,8 @@
               "safety_point_id": "5.2.1.1",
               "condition_id": "handles_eggs",
               "text": "Cook eggs and foods containing eggs thoroughly until they are steaming hot, or if serving eggs or egg dishes lightly cooked (e.g. soft-boiled or in fresh mayonnaise or mousse), either use:\n• Pasteurised egg, or\n• British Lion code or equivalent assurance scheme\n\nMake sure you rotate stock and use the oldest eggs first. Use eggs within the 'best before' date. You can freeze them for use later if required.\n\nBuy eggs from a reputable supplier. Store eggs in a cool, dry place.\n\nEggs can contain harmful bacteria. If you cook them thoroughly, this kills any bacteria.\n\nThe British Lion code or equivalent assurance schemes demonstrate that eggs have been produced in a safe manner and can therefore be eaten less than thoroughly cooked. Pasteurisation also kills harmful bacteria.\n\nHarmful bacteria can grow in eggs that are not handled or stored correctly.",
+              "instruction": "Eggs and foods containing eggs are cooked thoroughly until they are steaming hot. Where eggs or egg dishes are served lightly cooked, for example soft-boiled or in fresh mayonnaise or mousse, pasteurised egg or British Lion code eggs or an equivalent assurance scheme are used.\n\nStock is rotated and the oldest eggs are used first. Eggs are used within the 'best before' date. Eggs are frozen for later use if required.\n\nEggs are bought from a reputable supplier. Eggs are stored in a cool, dry place.",
+              "rationale": "Eggs can contain harmful bacteria. Thorough cooking kills harmful bacteria in eggs. The British Lion code or equivalent assurance schemes demonstrate that eggs have been produced in a safe manner and can therefore be eaten less than thoroughly cooked. Pasteurisation also kills harmful bacteria. Harmful bacteria can grow in eggs that are not handled or stored correctly.",
               "source_references": [
                 "SFBB Pack > Cooking > Foods That Need Extra Care"
               ],
@@ -548,6 +632,8 @@
               "safety_point_id": "5.2.1.2",
               "condition_id": "cooks_rice",
               "text": "When you have cooked rice, make sure you keep it hot until serving or chill it down as quickly as possible and then keep it in the fridge.\n\nYou can make rice chill down more quickly by dividing it into smaller portions, spreading it out on a clean tray, or running it under cold water (make sure the water is clean and of drinking quality).\n\nRice can contain spores of a type of harmful bacteria that may not be killed by cooking or reheating.\n\nIf cooked rice is left at room temperature, spores can multiply and produce toxins that cause food poisoning. Reheating will not get rid of these.",
+              "instruction": "Cooked rice is kept hot until serving or chilled down as quickly as possible and then kept in the fridge.\n\nTo chill cooked rice, it is divided into smaller portions, spread out on a clean tray, or run under cold water, making sure the water is clean and of drinking quality.",
+              "rationale": "Rice can contain spores of a type of harmful bacteria that may not be killed by cooking or reheating. If cooked rice is left at room temperature, spores can multiply and produce toxins that cause food poisoning. Reheating cooked rice will not get rid of these toxins. Dividing cooked rice into smaller portions, spreading it out on a clean tray, or running it under clean drinking-quality cold water helps rice chill down more quickly.",
               "source_references": [
                 "SFBB Pack > Cooking > Foods That Need Extra Care"
               ],
@@ -557,6 +643,8 @@
               "safety_point_id": "5.2.1.3",
               "condition_id": "cooks_dried_pulses",
               "text": "Follow the instructions on the packaging on how to soak and cook dried pulses, such as beans.\n\nPulses can contain natural toxins that could make people ill unless they are destroyed by the proper method of soaking and cooking.\n\nTinned pulses will have been soaked and cooked already.",
+              "instruction": "The instructions on the packaging are followed for soaking and cooking dried pulses, such as beans. Tinned pulses are treated as already soaked and cooked.",
+              "rationale": "Dried pulses such as beans can contain natural toxins that could make people ill unless the toxins are destroyed by the proper method of soaking and cooking.",
               "source_references": [
                 "SFBB Pack > Cooking > Foods That Need Extra Care"
               ],
@@ -566,6 +654,8 @@
               "safety_point_id": "5.2.1.4",
               "condition_id": "handles_raw_molluscs_or_crustaceans",
               "text": "Make sure you buy shellfish (molluscs and crustaceans) from a reputable supplier. Keep the product label for 60 days after opening.\n\nIf you do not use a reputable supplier, you cannot be confident that shellfish have been caught and handled safely.\n\nIt is a legal requirement to keep labels for 60 days to trace suppliers, if needed.\n\nCrabs, crayfish, lobster and scallops should be prepared by someone with specialist knowledge.\n\nSome parts of these shellfish cannot be eaten, and some are poisonous, so it is important to know how to remove these parts safely.\n\nCrustaceans and molluscs, such as prawns and scallops, should change colour and texture when cooked.\n\nFor example, prawns turn from blue-grey to pink and scallops become milky white and firm.\n\nLangoustines (also called scampi or Dublin Bay prawns) are pink when raw, and the flesh becomes firm and pink-white when they are cooked.\n\nAlways follow the manufacturer's instructions for preparation and storage.\n\nBefore cooking mussels and clams, throw away any with open or damaged shells.\n\nIf the shell is damaged or open before cooking, the shellfish might not be safe to eat.\n\nTo check that a mussel or clam is cooked, make sure the shell is open and that the mussel or clam has shrunk inside the shell. If the shell has not opened during cooking, throw it away.\n\nIf the shell has not opened during cooking, the shellfish might not be safe to eat.",
+              "instruction": "Shellfish, including molluscs and crustaceans, are bought from a reputable supplier. The product label is kept for 60 days after opening.\n\nCrabs, crayfish, lobster and scallops are prepared by someone with specialist knowledge.\n\nCrustaceans and molluscs, such as prawns and scallops, are cooked until their colour and texture change. For example, prawns turn from blue-grey to pink and scallops become milky white and firm. Langoustines, also called scampi or Dublin Bay prawns, are pink when raw, and the flesh becomes firm and pink-white when they are cooked.\n\nManufacturer's instructions are followed for preparation and storage.\n\nBefore cooking mussels and clams, any with open or damaged shells are thrown away.\n\nCooked mussels and clams are checked to confirm that the shell is open and that the mussel or clam has shrunk inside the shell. Mussels or clams whose shells have not opened during cooking are thrown away.",
+              "rationale": "Using a reputable supplier helps provide confidence that shellfish have been caught and handled safely. Keeping shellfish labels for 60 days is a legal requirement and supports supplier traceability if needed. Some parts of crabs, crayfish, lobster and scallops cannot be eaten, and some parts are poisonous, so specialist knowledge is needed to remove those parts safely. Damaged or open mussel and clam shells before cooking can indicate that the shellfish might not be safe to eat. Mussels or clams that have not opened during cooking might not be safe to eat.",
               "source_references": [
                 "SFBB Pack > Cooking > Foods That Need Extra Care"
               ],
@@ -587,6 +677,8 @@
               "safety_point_id": "5.2.1.5",
               "condition_id": "handles_raw_fish",
               "text": "Make sure you buy fish from a reputable supplier.\n\nIf you buy fresh fish, make sure you store it between 0°C and 4°C. If you buy frozen fish, then keep it frozen until you are ready to use it.\n\nCertain types of fish, such as mackerel, tuna, anchovies and herrings, can cause food poisoning if not kept at the correct temperature.",
+              "instruction": "Fish is bought from a reputable supplier.\n\nFresh fish is stored between 0°C and 4°C when it is bought. Frozen fish is kept frozen until it is ready to be used.",
+              "rationale": "Certain types of fish, such as mackerel, tuna, anchovies and herrings, can cause food poisoning if they are not kept at the correct temperature.",
               "source_references": [
                 "SFBB Pack > Cooking > Foods That Need Extra Care"
               ],
@@ -602,6 +694,8 @@
             {
               "safety_point_id": "5.3.1.1",
               "text": "It is very important to reheat food properly to kill any harmful bacteria that may have grown since it was cooked. Remember, reheating means cooking again, not just warming up. Always reheat food thoroughly until it reaches a safe temperature in the centre.\n\nUse a disinfected temperature probe to check that dishes are properly reheated. Examples of safe time/temperature combinations include:\n- 80°C for at least 6 seconds\n- 75°C for at least 30 seconds\n- 70°C for at least 2 minutes\n- 65°C for at least 10 minutes\n- 60°C for at least 45 minutes",
+              "instruction": "Food is reheated properly. Reheating is treated as cooking again, not just warming up. Food is always reheated thoroughly until it reaches a safe temperature in the centre.\n\nA disinfected temperature probe is used to check that dishes are properly reheated. Safe time/temperature combinations include:\n- 80°C for at least 6 seconds\n- 75°C for at least 30 seconds\n- 70°C for at least 2 minutes\n- 65°C for at least 10 minutes\n- 60°C for at least 45 minutes",
+              "rationale": "Reheating food properly kills any harmful bacteria that may have grown since it was cooked.",
               "source_references": [
                 "SFBB Pack > Cooking > Reheating"
               ],
@@ -612,6 +706,8 @@
             {
               "safety_point_id": "5.3.1.2",
               "text": "Make sure you use equipment that reheats or cooks food effectively and follow the equipment manufacturer's instructions.\n\nCheck equipment regularly to make sure it is working properly.\n\nIf the equipment is not suitable for reheating or is not used properly, the food might not get hot enough to kill bacteria.",
+              "instruction": "Equipment that reheats or cooks food effectively is used and the equipment manufacturer's instructions are followed.\n\nEquipment is checked regularly.",
+              "rationale": "If reheating or cooking equipment is not suitable or is not used properly, the food might not get hot enough to kill bacteria. Regular equipment checks help make sure the equipment is working properly.",
               "source_references": [
                 "SFBB Pack > Cooking > Reheating"
               ],
@@ -620,6 +716,8 @@
             {
               "safety_point_id": "5.3.1.3",
               "text": "Preheat equipment such as ovens and grills before reheating.\n\nFood will take longer to reheat if you use the equipment before it has preheated. This means that recommended reheating times in recipes or the manufacturer's instructions might not be long enough.",
+              "instruction": "Equipment such as ovens and grills is preheated before reheating.",
+              "rationale": "Food will take longer to reheat if ovens and grills are used before they have preheated, so recommended reheating times in recipes or the manufacturer's instructions might not be long enough.",
               "source_references": [
                 "SFBB Pack > Cooking > Reheating"
               ],
@@ -629,6 +727,8 @@
               "safety_point_id": "5.3.1.4",
               "condition_id": "uses_microwave_reheating",
               "text": "If you are reheating food in a microwave, follow the product manufacturer's instructions, including advice on standing and stirring.\n\nIf you use a microwave to reheat food you have cooked, stir it while reheating.\n\nThe manufacturer has tested its instructions to make sure that products will be properly reheated. Standing and stirring are part of the process of cooking or reheating in a microwave and help make sure the food is the same temperature all the way through.\n\nWhen food is microwaved, it can be very hot at the edges and still be cold in the centre -- stirring helps to prevent this.\n\nWhen checking microwaved foods, test in a number of different areas in case of cold spots.",
+              "instruction": "Where food is reheated in a microwave, the product manufacturer's instructions are followed, including advice on standing and stirring.\n\nWhere a microwave is used to reheat food that has been cooked by the business, the food is stirred while reheating.\n\nWhen microwaved foods are checked, they are tested in a number of different areas in case of cold spots.",
+              "rationale": "Manufacturers have tested their instructions to make sure products will be properly reheated. Standing and stirring are part of the process of cooking or reheating in a microwave and help make sure the food is the same temperature all the way through. Microwaved food can be very hot at the edges and still be cold in the centre, so stirring helps prevent cold spots.",
               "source_references": [
                 "SFBB Pack > Cooking > Reheating"
               ],
@@ -639,6 +739,8 @@
             {
               "safety_point_id": "5.3.1.5",
               "text": "Serve reheated food immediately or put it straight into hot holding.\n\nIf food is not served immediately, the temperature will drop and harmful bacteria could grow.",
+              "instruction": "Reheated food is served immediately or put straight into hot holding.",
+              "rationale": "If reheated food is not served immediately, the temperature will drop and harmful bacteria could grow.",
               "source_references": [
                 "SFBB Pack > Cooking > Reheating"
               ],
@@ -647,6 +749,8 @@
             {
               "safety_point_id": "5.3.1.6",
               "text": "You should only reheat once.",
+              "instruction": "Food is reheated only once.",
+              "rationale": "",
               "source_references": [
                 "SFBB Pack > Cooking > Reheating"
               ],
@@ -656,6 +760,8 @@
               "safety_point_id": "5.3.1.7",
               "condition_id": "hot_holds_food",
               "text": "Do not put food into a hot holding without reheating it properly first.",
+              "instruction": "Food is not put into hot holding without being reheated properly first.",
+              "rationale": "",
               "source_references": [
                 "SFBB Pack > Cooking > Reheating"
               ],
@@ -671,6 +777,8 @@
             {
               "safety_point_id": "5.4.1.1",
               "text": "It is important not to overcook certain foods. Acrylamide is a chemical that forms naturally when some foods are cooked at high temperatures (above 120°C), such as by frying, roasting, baking, grilling, and toasting.\n\nLegislation is in place to reduce acrylamide levels in food, as it has the potential to cause cancer in humans.\n\nIf you cook the following types of foods, you must put in place practical steps to reduce acrylamide.\n- Raw potato products such as chips, French fries, other cut (deep-fried) and sliced potato crisps made from fresh potatoes, including potatoes that are deep-fried and finished in the oven.\n- Bread products such as loaves, bread rolls and baguettes, toast and toasted sandwiches.\n- Sweet bakery products such as cookies, biscuits, scones, gingerbread, wafers, crumpets.\n- Savoury bakery products such as crackers, crisp bread, breadsticks.",
+              "instruction": "Certain foods that form acrylamide when cooked above 120°C are not overcooked. Where the following types of foods are cooked, practical steps are put in place to reduce acrylamide:\n- Raw potato products such as chips, French fries, other cut (deep-fried) and sliced potato crisps made from fresh potatoes, including potatoes that are deep-fried and finished in the oven.\n- Bread products such as loaves, bread rolls and baguettes, toast and toasted sandwiches.\n- Sweet bakery products such as cookies, biscuits, scones, gingerbread, wafers, crumpets.\n- Savoury bakery products such as crackers, crisp bread, breadsticks.",
+              "rationale": "Acrylamide is a chemical that forms naturally when some foods are cooked at high temperatures above 120°C, such as by frying, roasting, baking, grilling, and toasting. Legislation is in place to reduce acrylamide levels in food because acrylamide has the potential to cause cancer in humans.",
               "source_references": [
                 "SFBB Pack > Cooking > Acrylamide"
               ],
@@ -679,6 +787,8 @@
             {
               "safety_point_id": "5.4.1.2",
               "text": "Cook foods that form acrylamide when cooked above 120°C, to a golden yellow or lighter colour. Overcooking or burning certain foods can make them higher in acrylamide.\n\nSome suppliers have produced colour charts to show which colour is best for certain foods to keep acrylamide levels low. You can ask your supplier whether they have these available. You do not have to use colour charts, but they can be useful for training your staff.",
+              "instruction": "Foods that form acrylamide when cooked above 120°C are cooked to a golden yellow or lighter colour. Suppliers are asked whether colour charts are available. Colour charts are used for staff training where useful.",
+              "rationale": "Overcooking or burning certain foods can make them higher in acrylamide. Supplier colour charts can show which colour is best for certain foods to keep acrylamide levels low.",
               "source_references": [
                 "SFBB Pack > Cooking > Acrylamide"
               ],
@@ -687,6 +797,8 @@
             {
               "safety_point_id": "5.4.1.3",
               "text": "Where possible, set a timer to mark the cooking time. This could be on the oven or fryer, or you can use a separate timer.\n\nThis will remind you to remove foods at the right time to prevent them from overcooking or burning.",
+              "instruction": "Where possible, a timer is set to mark the cooking time. The timer can be on the oven or fryer, or a separate timer can be used.",
+              "rationale": "Setting a timer will remind you to remove foods at the right time to prevent them from overcooking or burning.",
               "source_references": [
                 "SFBB Pack > Cooking > Acrylamide"
               ],
@@ -695,6 +807,8 @@
             {
               "safety_point_id": "5.4.1.4",
               "text": "When buying raw potatoes, ask your supplier for advice on the best variety to use for the type of cooking you are doing.\n\nCertain potato varieties are lower in natural sugars, and using these will help to keep acrylamide levels lower.\n\nStore raw, unpeeled potatoes for frying, baking, or roasting in the fridge or a cool, dark place.\n\nStorage of potatoes in the fridge doesn't increase acrylamide-forming potential when compared to storage in a cool, dark place. So, you can choose to store either in the fridge or in a cool, dark place.",
+              "instruction": "When raw potatoes are bought, the supplier is asked for advice on the best variety to use for the type of cooking being done.\n\nRaw, unpeeled potatoes for frying, baking, or roasting are stored in the fridge or a cool, dark place. They are stored either in the fridge or in a cool, dark place.",
+              "rationale": "Certain potato varieties are lower in natural sugars, and using lower-sugar varieties helps keep acrylamide levels lower. Storage of potatoes in the fridge does not increase acrylamide-forming potential when compared to storage in a cool, dark place.",
               "source_references": [
                 "SFBB Pack > Cooking > Acrylamide"
               ],
@@ -703,6 +817,8 @@
             {
               "safety_point_id": "5.4.1.5",
               "text": "When buying acrylamide-forming cooked products from a supplier, tell them you will not accept over-baked or burnt products.\n\nCheck deliveries and reject products that are over-baked or burnt, as these will have higher levels of acrylamide.",
+              "instruction": "When acrylamide-forming cooked products are bought from a supplier, the supplier is told that over-baked or burnt products will not be accepted.\n\nDeliveries are checked and products that are over-baked or burnt are rejected.",
+              "rationale": "Over-baked or burnt products will have higher levels of acrylamide.",
               "source_references": [
                 "SFBB Pack > Cooking > Acrylamide"
               ],
@@ -711,6 +827,8 @@
             {
               "safety_point_id": "5.4.1.6",
               "text": "Ask your cooking oil supplier for advice on the best oil to use for the type of cooking you are doing.\n\nCooking foods in the right oil for the type of cooking will help foods to fry quicker and keep acrylamide levels lower.",
+              "instruction": "The cooking oil supplier is asked for advice on the best oil to use for the type of cooking being done.",
+              "rationale": "Cooking foods in the right oil for the type of cooking will help foods to fry quicker and keep acrylamide levels lower.",
               "source_references": [
                 "SFBB Pack > Cooking > Acrylamide"
               ],
@@ -719,6 +837,8 @@
             {
               "safety_point_id": "5.4.1.7",
               "text": "When preparing foods that form acrylamide when cooked above 120°C, such as potatoes, cut them to similar sizes.\n\nThis will help all foods to cook more evenly.",
+              "instruction": "When foods that form acrylamide when cooked above 120°C are prepared, such as potatoes, they are cut to similar sizes.",
+              "rationale": "Cutting foods to similar sizes will help all foods to cook more evenly.",
               "source_references": [
                 "SFBB Pack > Cooking > Acrylamide"
               ],
@@ -727,6 +847,8 @@
             {
               "safety_point_id": "5.4.1.8",
               "text": "These steps will remove excess sugars and help to keep acrylamide levels lower. Follow them where possible, when making home-made chips or cut potatoes that are going to be deep-fried:\n- Soak (for 30--180 mins) in cold water after cutting. Rinse with clean water and drain.\n- Soak for a few minutes in warm water. Rinse with clean water and drain.\n- Blanch potatoes before cooking.",
+              "instruction": "Where possible, the following steps are followed when home-made chips or cut potatoes are going to be deep-fried:\n- Potatoes are soaked for 30--180 mins in cold water after cutting, rinsed with clean water and drained.\n- Potatoes are soaked for a few minutes in warm water, rinsed with clean water and drained.\n- Potatoes are blanched before cooking.",
+              "rationale": "Soaking, rinsing, draining, or blanching potatoes removes excess sugars and helps keep acrylamide levels lower.",
               "source_references": [
                 "SFBB Pack > Cooking > Acrylamide"
               ],
@@ -735,6 +857,8 @@
             {
               "safety_point_id": "5.4.1.9",
               "text": "Where possible, and when the preparation process allows, when making bread or dough products, extend the yeast fermentation time. This will help to keep acrylamide levels lower in the finished product.",
+              "instruction": "Where possible, and where the preparation process allows, the yeast fermentation time is extended when bread or dough products are made.",
+              "rationale": "Extending the yeast fermentation time helps keep acrylamide levels lower in the finished product.",
               "source_references": [
                 "SFBB Pack > Cooking > Acrylamide"
               ],
@@ -743,6 +867,8 @@
             {
               "safety_point_id": "5.4.1.10",
               "text": "When baking bread and sweet or savoury bakery products cook to a golden yellow, or lighter colour. Use the lowest oven temperature possible for the food.\n\nBaking foods to a golden yellow, or lighter colour, and at lower oven temperatures will reduce acrylamide levels.",
+              "instruction": "When bread and sweet or savoury bakery products are baked, they are cooked to a golden yellow, or lighter colour. The lowest oven temperature possible for the food is used.",
+              "rationale": "Baking foods to a golden yellow, or lighter colour, and at lower oven temperatures will reduce acrylamide levels.",
               "source_references": [
                 "SFBB Pack > Cooking > Acrylamide"
               ],
@@ -751,6 +877,8 @@
             {
               "safety_point_id": "5.4.1.11",
               "text": "When cooking foods such as toast and toasted sandwiches, do not over-toast or burn.\n\nCooking bread to a golden colour, or lighter, will help to keep acrylamide levels lower.",
+              "instruction": "When foods such as toast and toasted sandwiches are cooked, they are not over-toasted or burnt.",
+              "rationale": "Cooking bread to a golden colour, or lighter, will help to keep acrylamide levels lower.",
               "source_references": [
                 "SFBB Pack > Cooking > Acrylamide"
               ],
@@ -759,6 +887,8 @@
             {
               "safety_point_id": "5.4.1.12",
               "text": "Where appropriate, follow the manufacturer's cooking instructions for food products.\n\nThe manufacturer has tried and tested cooking methods specifically for its products.",
+              "instruction": "Manufacturer's cooking instructions are followed for food products where appropriate.",
+              "rationale": "Manufacturers have tried and tested cooking methods specifically for their food products.",
               "source_references": [
                 "SFBB Pack > Cooking > Acrylamide"
               ],
@@ -767,6 +897,8 @@
             {
               "safety_point_id": "5.4.1.13",
               "text": "Deep-fry potato products, such as chips and French fries, to a golden yellow or lighter colour. The oil temperature for cooking should ideally be below 175°C.\n\nCooking to a golden yellow, or lighter colour, and deep-frying at lower temperatures will keep acrylamide levels low.\n\nWhen deep-frying, take care not to overfill baskets. Fill the basket only halfway.\n\nThis will help the food to cook more evenly.\n\nKeep cooking oil quality at its best by skimming often to remove crumbs and food particles left in the oil.\n\nThis will prevent crumbs and food particles left in the oil from burning and will keep the oil quality for longer.\n\nFilter, change oils and clean cooking equipment as often as needed or as recommended by suppliers.\n\nReusing old, dirty oil and cooking equipment will increase the levels of acrylamide in deep-fried foods.",
+              "instruction": "Potato products, such as chips and French fries, are deep-fried to a golden yellow or lighter colour. The oil temperature for cooking is ideally kept below 175°C.\n\nWhen deep-frying, baskets are not overfilled. Baskets are filled only halfway.\n\nCrumbs and food particles left in the oil are removed by skimming often.\n\nCooking oil is filtered or changed, and cooking equipment is cleaned, as often as needed or as recommended by suppliers.",
+              "rationale": "Cooking to a golden yellow, or lighter colour, and deep-frying at lower temperatures will keep acrylamide levels low. Filling the basket only halfway will help the food to cook more evenly. Skimming often will prevent crumbs and food particles left in the oil from burning and will keep the oil quality for longer. Reusing old, dirty oil and cooking equipment will increase the levels of acrylamide in deep-fried foods.",
               "source_references": [
                 "SFBB Pack > Cooking > Acrylamide"
               ],
@@ -782,6 +914,8 @@
             {
               "safety_point_id": "5.5.1.1",
               "text": "It is very important to keep food hot until serving to prevent harmful bacteria from growing.\n\nIf you need to keep food hot before serving, you should use suitable equipment.\n\nIt is difficult to hold food at a consistent, safe temperature without suitable equipment such as a Bain-marie or a Soup kettle.",
+              "instruction": "Food is kept hot until serving. Where food needs to be kept hot before serving, suitable equipment such as a Bain-marie or a Soup kettle is used.",
+              "rationale": "Keeping food hot until serving helps prevent harmful bacteria from growing. It is difficult to hold food at a consistent, safe temperature without suitable equipment such as a Bain-marie or a Soup kettle.",
               "source_references": [
                 "SFBB Pack > Cooking > Hot Holding"
               ],
@@ -797,6 +931,8 @@
             {
               "safety_point_id": "5.5.1.2",
               "text": "Preheat the hot holding equipment before you put any food in it.\n\nPutting food into cold equipment may not keep it hot enough to prevent harmful bacteria from growing.",
+              "instruction": "Hot holding equipment is preheated before any food is put in it.",
+              "rationale": "Putting food into cold equipment may not keep it hot enough to prevent harmful bacteria from growing.",
               "source_references": [
                 "SFBB Pack > Cooking > Hot Holding"
               ],
@@ -805,6 +941,8 @@
             {
               "safety_point_id": "5.5.1.3",
               "text": "Food must be cooked thoroughly and steaming hot before hot holding begins.\n\nHot holding equipment is for hot holding only. It should not be used to cook or reheat food.",
+              "instruction": "Food is cooked thoroughly and steaming hot before hot holding begins. Hot holding equipment is used for hot holding only. It is not used to cook or reheat food.",
+              "rationale": "",
               "source_references": [
                 "SFBB Pack > Cooking > Hot Holding"
               ],
@@ -814,6 +952,8 @@
               "safety_point_id": "5.5.1.4",
               "condition_id": "delivers_food",
               "text": "If you offer food deliveries, make sure the food is kept hot or cold until it is collected by the delivery driver or customer. Also, make sure food is kept hot or cold during delivery until it arrives at the customer's home. It is a good idea to use an insulated bag or box to transport food and to make sure it stays covered until it is delivered.\n\nIf food is not kept either hot or cold, harmful bacteria can grow in it.\n\nUsing an insulated bag or box to transport food will help keep it at the correct temperature and in its best condition.",
+              "instruction": "Where food deliveries are offered, the food is kept hot or cold until it is collected by the delivery driver or customer. Food is also kept hot or cold during delivery until it arrives at the customer's home. An insulated bag or box is used to transport food and the food is kept covered until it is delivered.",
+              "rationale": "If delivered food is not kept either hot or cold, harmful bacteria can grow in the food. Using an insulated bag or box to transport food helps keep the food at the correct temperature and in its best condition.",
               "source_references": [
                 "SFBB Pack > Cooking > Hot Holding"
               ],
@@ -822,6 +962,8 @@
             {
               "safety_point_id": "5.5.1.5",
               "text": "Hot food must be kept at 63°C or above, except for certain exceptions.\n\nRemember to keep the food at a safe temperature until it is used.\n\nUse a disinfected temperature probe to prove your method keeps food at a safe temperature of 63°C or above.",
+              "instruction": "Hot food is kept at 63°C or above, except for certain exceptions. Food is kept at a safe temperature until it is used. A disinfected temperature probe is used to prove that the method keeps food at a safe temperature of 63°C or above.",
+              "rationale": "Keeping hot food at 63°C or above helps make sure hot food is kept at a safe temperature until it is used.",
               "source_references": [
                 "SFBB Pack > Cooking > Hot Holding"
               ],
@@ -833,6 +975,8 @@
               "safety_point_id": "5.5.1.6",
               "condition_id": "displays_hot_food",
               "text": "When you display hot food, e.g., on a buffet, you should use suitable hot-holding equipment to keep it above 63°C.\n\nIt is possible to take food out of the hot holding to display it for up to two hours, but you can only do this once.\n\nFood that has not been used within 2 hours should either be reheated until steaming hot and returned to hot holding, or chilled down as quickly as possible to 8°C or below. If it has been out for more than two hours, throw it away.\n\nIf you do take food out of hot holding to display, remember not to mix new food with the food already on display. This could lead to the older food being left out for too long.",
+              "instruction": "When hot food is displayed, for example on a buffet, suitable hot-holding equipment is used to keep it above 63°C.\n\nFood can be taken out of hot holding to display for up to two hours only once.\n\nFood that has not been used within 2 hours is either reheated until steaming hot and returned to hot holding, or chilled down as quickly as possible to 8°C or below. Food that has been out for more than two hours is thrown away.\n\nWhere food is taken out of hot holding to display, new food is not mixed with the food already on display.",
+              "rationale": "Not mixing new food with the food already on display helps prevent the older food being left out for too long.",
               "source_references": [
                 "SFBB Pack > Cooking > Hot Holding"
               ],
@@ -848,6 +992,8 @@
             {
               "safety_point_id": "5.6.1.1",
               "text": "When preparing and handling food, you should:\n- Keep ready-to-eat food completely separate from raw meat, poultry, fish, eggs and unwashed vegetables.\n- Make sure work surfaces, chopping boards, knives, etc., are clean\n- Ideally, use separate colour-coded chopping boards and utensils for ready-to-eat food\n- Keep ready-to-eat food covered at all times during preparation and storage\n- If you are preparing both raw and ready-to-eat food, you should make sure, where possible, that this is done in separate clean and disinfected areas. If this is not possible, the surface and utensils used must be thoroughly cleaned and then disinfected between tasks.\n- Make sure staff wash their hands thoroughly between tasks, especially when working with raw and ready-to-eat food. This prevents bacteria and allergens from spreading onto foods, surfaces, and equipment.\n\nThis protects food from harmful bacteria and allergens. This is especially important for ready-to-eat foods, which are not cooked or reheated before serving.\n\nIt also helps keep allergens from spreading.",
+              "instruction": "When food is prepared and handled:\n- Ready-to-eat food is kept completely separate from raw meat, poultry, fish, eggs and unwashed vegetables.\n- Work surfaces, chopping boards, knives, etc., are kept clean.\n- Separate colour-coded chopping boards and utensils are used for ready-to-eat food where possible.\n- Ready-to-eat food is kept covered at all times during preparation and storage.\n- Where both raw and ready-to-eat food are prepared, this is done in separate clean and disinfected areas where possible. Where this is not possible, the surface and utensils used are thoroughly cleaned and then disinfected between tasks.\n- Staff wash their hands thoroughly between tasks, especially when working with raw and ready-to-eat food.",
+              "rationale": "Separating ready-to-eat food from raw meat, poultry, fish, eggs and unwashed vegetables helps prevent bacteria and allergens from spreading onto foods, surfaces and equipment. Clean work surfaces, chopping boards, knives and utensils protect food from harmful bacteria and allergens. Careful handling is especially important for ready-to-eat foods because ready-to-eat foods are not cooked or reheated before serving.",
               "source_references": [
                 "SFBB Pack > Cooking > Ready-to-Eat Food"
               ],
@@ -856,6 +1002,8 @@
             {
               "safety_point_id": "5.6.1.2",
               "text": "Follow the manufacturer's instructions for storing and preparing the food, if available.\n\nThe manufacturer's instructions are designed to keep the food safe.",
+              "instruction": "Manufacturer's instructions are followed for storing and preparing the food, where available.",
+              "rationale": "The manufacturer's instructions are designed to keep the food safe.",
               "source_references": [
                 "SFBB Pack > Cooking > Ready-to-Eat Food"
               ],
@@ -864,6 +1012,8 @@
             {
               "safety_point_id": "5.6.1.3",
               "text": "When preparing fruit, vegetables and salad ingredients:\n- Peel, trim, or remove the outer parts, as appropriate\n- Wash them thoroughly by rubbing vigorously in a bowl of clean water\n- Wash the cleanest ones first\n\nWash your hands before and after handling fruit and vegetables.\n\nIf you have prepared vegetables with dirt or soil on the outside, clean them, then disinfect the chopping boards and work surfaces before preparing other food.\n\nDirt on vegetables and salad ingredients can contain harmful bacteria. Peeling and washing help to remove the dirt and bacteria.",
+              "instruction": "When fruit, vegetables and salad ingredients are prepared:\n- The outer parts are peeled, trimmed, or removed, as appropriate.\n- They are washed thoroughly by rubbing vigorously in a bowl of clean water.\n- The cleanest ones are washed first.\n\nHands are washed before and after handling fruit and vegetables.\n\nWhere vegetables with dirt or soil on the outside have been prepared, the chopping boards and work surfaces are cleaned and then disinfected before other food is prepared.",
+              "rationale": "Dirt on vegetables and salad ingredients can contain harmful bacteria. Peeling and washing help to remove the dirt and bacteria.",
               "source_references": [
                 "SFBB Pack > Cooking > Ready-to-Eat Food"
               ],
@@ -872,6 +1022,8 @@
             {
               "safety_point_id": "5.6.1.4",
               "text": "Make sure you keep ready-to-eat food cold enough.\n\nIf these types of food are not kept cold enough, harmful bacteria could grow.",
+              "instruction": "Ready-to-eat food is kept cold enough.",
+              "rationale": "Ready-to-eat food must be kept cold enough to prevent harmful bacteria from growing.",
               "source_references": [
                 "SFBB Pack > Cooking > Ready-to-Eat Food"
               ],
@@ -880,6 +1032,8 @@
             {
               "safety_point_id": "5.6.1.5",
               "text": "Do not use ready-to-eat food after the use-by date, if there is one.\n\nYou should never use food that has passed its 'use by' date because it might not be safe to eat.",
+              "instruction": "Ready-to-eat food is not used after the use-by date, where there is one.",
+              "rationale": "Food that has passed its 'use by' date might not be safe to eat.",
               "source_references": [
                 "SFBB Pack > Cooking > Ready-to-Eat Food"
               ],
@@ -888,6 +1042,8 @@
             {
               "safety_point_id": "5.6.1.6",
               "text": "For food you have prepared, or removed from its original packaging, use stickers or another method to keep track of when food should be used by or thrown away.\n\nFor guidance on how long to keep food once prepared or opened, follow the manufacturer's storage instructions on the original product label.\n\nReady-to-eat foods should be kept for a maximum of 3 days in total (day of cook/opening +2) unless you have evidence that it is safe to keep them for longer.",
+              "instruction": "For food that has been prepared or removed from its original packaging, stickers or another method are used to keep track of when food is to be used by or thrown away.\n\nManufacturer's storage instructions on the original product label are followed for guidance on how long to keep food once prepared or opened.\n\nReady-to-eat foods are kept for a maximum of 3 days in total (day of cook/opening +2) unless there is evidence supporting a longer shelf life.",
+              "rationale": "Tracking when prepared or opened food should be used by or thrown away helps make sure the food is used within the correct time.",
               "source_references": [
                 "SFBB Pack > Cooking > Ready-to-Eat Food"
               ],
@@ -897,6 +1053,8 @@
               "safety_point_id": "5.6.1.7",
               "condition_id": "cooks_rice",
               "text": "Cooked rice should only be kept for 1 day once prepared.",
+              "instruction": "Cooked rice is kept for only 1 day once prepared.",
+              "rationale": "",
               "source_references": [
                 "SFBB Pack > Cooking > Ready-to-Eat Food"
               ],
@@ -906,6 +1064,8 @@
               "safety_point_id": "5.6.1.8",
               "condition_id": "uses_slicer",
               "text": "When slicing cooked meat, handle it as little as possible -- use clean tongs or slice it straight onto a plate. Hands can easily spread harmful bacteria onto food.\n\nFollow the manufacturer's instructions when you clean the slicer. Meat slicers need careful cleaning and disinfecting to prevent dirt buildup and the growth of harmful bacteria, particularly on the slicing blade.",
+              "instruction": "When cooked meat is sliced, it is handled as little as possible. Clean tongs are used or the meat is sliced straight onto a plate.\n\nManufacturer's instructions are followed when the slicer is cleaned.",
+              "rationale": "Hands can easily spread harmful bacteria onto food. Meat slicers need careful cleaning and disinfecting to prevent dirt buildup and the growth of harmful bacteria, particularly on the slicing blade.",
               "source_references": [
                 "SFBB Pack > Cooking > Ready-to-Eat Food"
               ],
@@ -914,6 +1074,8 @@
             {
               "safety_point_id": "5.6.1.9",
               "text": "You should not use the same equipment, such as vacuum packing machines, slicers and mincers, for both raw and ready-to-eat food. These are complex pieces of machinery with many moving parts, and it is very difficult to clean them thoroughly, so bacteria from raw food could easily be transferred to ready-to-eat food.",
+              "instruction": "The same equipment, such as vacuum packing machines, slicers and mincers, is not used for both raw and ready-to-eat food.",
+              "rationale": "Vacuum packing machines, slicers and mincers are complex pieces of machinery with many moving parts, and they are very difficult to clean thoroughly. If the same complex equipment is used for both raw and ready-to-eat food, bacteria from raw food could easily be transferred to ready-to-eat food.",
               "source_references": [
                 "SFBB Pack > Cooking > Ready-to-Eat Food"
               ],
