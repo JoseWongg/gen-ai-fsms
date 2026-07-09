@@ -15,6 +15,7 @@ from gen_ai_fsms.ai.adapter import get_llm_adapter
 from gen_ai_fsms.db.session import SessionLocal
 
 from gen_ai_fsms.services.business_context_service import get_business_context
+from gen_ai_fsms.services.context_relevance_service import build_relevant_prompt_context
 from gen_ai_fsms.services.safety_point_approval_service import (
     get_condition_values_for_profile,
     get_relevant_safety_points_for_profile,
@@ -1008,12 +1009,25 @@ def create_safety_point_graph():
                 user_question=user_message,
             )
         else:
+            safety_point_instruction = (
+                current_safety_point.get("instruction")
+                or safety_point_text
+            )
+            safety_point_rationale = current_safety_point.get("rationale", "")
+            business_context = build_relevant_prompt_context(
+                state.get("business_context", {}),
+                current_safety_point,
+            )
             answer = adapter.answer_safety_point_question(
                 safety_point_text=safety_point_text,
                 safe_method_name=current_safety_point.get("safe_method_name", ""),
                 section_name=current_safety_point.get("section_name", ""),
                 condition_values=state.get("condition_values", {}),
                 user_question=user_message,
+                safety_point_instruction=safety_point_instruction,
+                safety_point_rationale=safety_point_rationale,
+                business_context=business_context,
+                relevant_facts=business_context.get("relevant_facts", []),
             )
 
         messages = state.setdefault("current_q_and_a_messages", [])

@@ -4,6 +4,7 @@ import logging
 from typing import Dict, Any, Optional, List
 from openai import OpenAI
 from dotenv import load_dotenv
+from gen_ai_fsms.prompts.renderer import render_prompt
 
 load_dotenv()
 
@@ -330,39 +331,80 @@ class LLMAdapter:
         safe_method_name: str,
         section_name: str,
         condition_values: Dict[str, str],
-        user_question: str
+        user_question: str,
+        safety_point_instruction: Optional[str] = None,
+        safety_point_rationale: Optional[str] = None,
+        business_context: Optional[Dict[str, Any]] = None,
+        relevant_facts: Optional[List[Any]] = None,
     ) -> str:
-        """Answer an admin's question about a safety point."""
+        """Answer an admin's clarification question about a safety point."""
         if not self.client:
             return "LLM not configured. Please check OPENAI_API_KEY."
-        true_conditions = [k for k, v in condition_values.items() if v == "true"]
-        context = (
-            f"Section: {section_name}\n"
-            f"Safe Method: {safe_method_name}\n"
-            f"Safety Point: {safety_point_text}\n\n"
-            f"Restaurant context (true conditions): {', '.join(true_conditions)}"
+
+        business_context = business_context or {}
+
+        true_conditions = [
+            key
+            for key, value in condition_values.items()
+            if str(value).lower() == "true"
+        ]
+
+        fact_source = relevant_facts
+        if fact_source is None:
+            fact_source = business_context.get("relevant_facts")
+        if not fact_source:
+            fact_source = business_context.get("relevant_fact_texts", [])
+
+        relevant_fact_texts: List[str] = []
+        for fact in fact_source or []:
+            if isinstance(fact, dict):
+                fact_text = fact.get("fact_text")
+            else:
+                fact_text = str(fact)
+            if fact_text:
+                relevant_fact_texts.append(str(fact_text))
+
+        rendered_prompt = render_prompt(
+            "clarification_answer",
+            {
+                "question": user_question,
+                "business_name": business_context.get("business_name"),
+                "business_type_label": business_context.get(
+                    "business_type_label"
+                ),
+                "business_description": business_context.get(
+                    "business_description"
+                ),
+                "screening_activities": (
+                    business_context.get("screening_activities")
+                    or true_conditions
+                ),
+                "relevant_facts": relevant_fact_texts,
+                "section_name": section_name,
+                "safe_method_name": safe_method_name,
+                "instruction": (
+                    safety_point_instruction
+                    or safety_point_text
+                    or ""
+                ),
+                "rationale": safety_point_rationale or "",
+            },
         )
-        prompt = (
-            f"{context}\n\n"
-            f"User message: {user_question}\n\n"
-            "Respond as a food safety adviser for this safety point. "
-            "Answer concisely and accurately based on the guidance above. "
-            "If the user makes a relevant operational or implementation statement "
-            "rather than asking a direct question, explain the practical implication "
-            "of that statement. "
-            "If the statement suggests an action needed to follow the safety point, "
-            "state that action clearly and ask whether the user wants to approve the "
-            "safety point on the basis that the business will follow it. "
-            "When you ask this approval question, put it in a separate final paragraph "
-            "after a blank line. "
-            "Do not record approval yourself. "
-            "Do not formally assess alternative methods as safe, compliant, or equivalent."
-        )
+
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.5
+                messages=[
+                    {
+                        "role": "system",
+                        "content": rendered_prompt["system"],
+                    },
+                    {
+                        "role": "user",
+                        "content": rendered_prompt["user"],
+                    },
+                ],
+                temperature=0.5,
             )
             content = response.choices[0].message.content
             if content is None:
