@@ -8,7 +8,6 @@ questions, but it must not approve safety points or assess alternative methods.
 """
 
 import logging
-import random
 from typing import Any, Dict, List, Optional, TypedDict
 from langgraph.graph import END, StateGraph
 
@@ -37,66 +36,11 @@ MAX_CHILLING_EQUIPMENT_NAME_ATTEMPTS = 3
 MAX_CHILLING_EQUIPMENT_DETAIL_ATTEMPTS = 3
 
 
-SAFETY_POINT_PROMPT_INTROS = [
-    "Please now confirm if",
-    "State now whether",
-    "Let me know now if",
-    "I now need to know if",
-    "Now, indicate if",
-    "To continue, please respond whether",
-    "I now need you to tell me if",
-    "Now please confirm whether",
-    "Next, I need you to indicate whether",
-    "What I need next from you is to state if",
-]
-
-SAFETY_POINT_COMPLIANCE_VERBS = [
-    "follows",
-    "adheres to",
-    "observes",
-    "abides by",
-]
 
 
-def _select_non_repeating_index(
-    options: List[str],
-    previous_index: Optional[int],
-) -> int:
-    available_indexes = [
-        index
-        for index in range(len(options))
-        if index != previous_index
-    ]
-
-    return random.choice(
-        available_indexes or list(range(len(options)))
-    )
 
 
-def _build_safety_point_prompt(
-    state: "SafetyPointApprovalState",
-) -> str:
-    previous_intro_index = state.get("last_safety_point_prompt_intro_index")
-    selected_intro_index = _select_non_repeating_index(
-        SAFETY_POINT_PROMPT_INTROS,
-        previous_intro_index,
-    )
-    state["last_safety_point_prompt_intro_index"] = selected_intro_index
 
-    previous_verb_index = state.get("last_safety_point_prompt_verb_index")
-    selected_verb_index = _select_non_repeating_index(
-        SAFETY_POINT_COMPLIANCE_VERBS,
-        previous_verb_index,
-    )
-    state["last_safety_point_prompt_verb_index"] = selected_verb_index
-
-    intro = SAFETY_POINT_PROMPT_INTROS[selected_intro_index]
-    verb = SAFETY_POINT_COMPLIANCE_VERBS[selected_verb_index]
-
-    return (
-        f"{intro} the business {verb} the safety point above. "
-        "Alternatively, you can ask clarification questions."
-    )
 
 
 def _build_additional_question_prompt(
@@ -155,7 +99,6 @@ class SafetyPointApprovalState(TypedDict, total=False):
     completed_active_condition_count: int
     relevant_safety_point_count: int
     last_approved_safety_point_record: Dict[str, Any]
-    last_safety_point_prompt_intro_index: Optional[int]
     chilling_equipment_flow: Dict[str, Any]
 
 
@@ -825,8 +768,6 @@ def create_safety_point_graph():
         state.setdefault("clarification_turn_counts", {})
         state.setdefault("additional_answers", {})
         state.setdefault("awaiting_additional_answers", False)
-        state.setdefault("last_safety_point_prompt_intro_index", None)
-        state.setdefault("last_safety_point_prompt_verb_index", None)
         state.setdefault("last_review_message", None)
         state.setdefault("last_confirmation_message", None)
 
