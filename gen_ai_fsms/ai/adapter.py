@@ -427,42 +427,48 @@ class LLMAdapter:
         if not self.client:
             return "LLM not configured. Please check OPENAI_API_KEY."
 
-        true_conditions = [k for k, v in condition_values.items() if v == "true"]
-        context = (
-            f"Section: {section_name}\n"
-            f"Safe Method: {safe_method_name}\n"
-            f"Safety Point: {safety_point_text}\n\n"
-            f"Required additional question: {additional_question_text}\n\n"
-            f"Restaurant context (true conditions): {', '.join(true_conditions)}"
-        )
+        true_conditions = [
+            key
+            for key, value in condition_values.items()
+            if str(value).lower() == "true"
+        ]
 
-        prompt = (
-            f"{context}\n\n"
-            f"User message: {user_question}\n\n"
-            "Respond as a food safety adviser, but focus only on helping the user "
-            "answer the required additional question. "
-            "If the user asks to repeat options, repeat the options stated in the "
-            "required additional question and only add safety-point context if it is "
-            "directly necessary. "
-            "Do not ask whether the user wants to approve the safety point, because "
-            "approval has already been attempted and is waiting for this required "
-            "additional answer. "
-            "End by asking the user to answer the required additional question by "
-            "stating what the business does."
+        rendered_prompt = render_prompt(
+            "additional_question_clarification",
+            {
+                "question": user_question,
+                "section_name": section_name,
+                "safe_method_name": safe_method_name,
+                "safety_point_text": safety_point_text,
+                "additional_question_text": additional_question_text,
+                "true_conditions": true_conditions,
+            },
         )
 
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.3
+                messages=[
+                    {
+                        "role": "system",
+                        "content": rendered_prompt["system"],
+                    },
+                    {
+                        "role": "user",
+                        "content": rendered_prompt["user"],
+                    },
+                ],
+                temperature=0.3,
             )
             content = response.choices[0].message.content
             if content is None:
                 return "Sorry, I could not answer your question at this time."
             return content.strip()
         except Exception as e:
-            logger.error("LLM error in answer_additional_question_clarification: %s", e)
+            logger.error(
+                "LLM error in answer_additional_question_clarification: %s",
+                e,
+            )
             return "Sorry, I couldn't answer your question at this time."
 
 
