@@ -105,7 +105,12 @@ def show():
         for reference in references:
             st.markdown(f"- {reference}")
 
-    def render_safety_point_card(safety_point_view, expanded, key_suffix):
+    def render_safety_point_card(
+        safety_point_view,
+        expanded,
+        key_suffix,
+        intro_message=None,
+    ):
         current_safety_point = safety_point_view or {}
         safety_point_id = current_safety_point.get("safety_point_id") or "Unknown"
         original_safety_point_text = (
@@ -129,15 +134,11 @@ def show():
             st.markdown(f"**Section:** {current_safety_point.get('section_name') or 'Not available'}")
             st.markdown(f"**Safe method:** {current_safety_point.get('safe_method_name') or 'Not available'}")
 
-            st.markdown("**Rule to approve**")
-            st.text_area(
-                label="Rule to approve",
-                value=safety_point_instruction,
-                height=160,
-                disabled=True,
-                label_visibility="collapsed",
-                key=f"approval_safety_point_instruction_{safety_point_id}_{key_suffix}",
-            )
+            clean_intro_message = " ".join(str(intro_message or "").split())
+
+            if clean_intro_message:
+                st.markdown("**Introduction**")
+                st.info(clean_intro_message)
 
             if safety_point_rationale:
                 st.markdown("**Why this matters**")
@@ -149,6 +150,16 @@ def show():
                     label_visibility="collapsed",
                     key=f"approval_safety_point_rationale_{safety_point_id}_{key_suffix}",
                 )
+
+            st.markdown("**Rule to approve**")
+            st.text_area(
+                label="Rule to approve",
+                value=safety_point_instruction,
+                height=160,
+                disabled=True,
+                label_visibility="collapsed",
+                key=f"approval_safety_point_instruction_{safety_point_id}_{key_suffix}",
+            )
 
             provenance_references = current_safety_point.get("provenance_references", [])
             source_references = current_safety_point.get("source_references", [])
@@ -219,7 +230,9 @@ def show():
                         safety_point_view=safety_point_view,
                         expanded=safety_point_id == current_safety_point_id,
                         key_suffix=index,
+                        intro_message=content,
                     )
+                    continue
 
             if role == "user":
                 st.chat_message("user").write(content)
