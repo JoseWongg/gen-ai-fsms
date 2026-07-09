@@ -1653,7 +1653,16 @@ def create_safety_point_graph():
             approved_ids.append(safety_point_id)
 
         state["last_approved_safety_point_record"] = approval_record
-        state["assistant_message"] = "Safety point approval recorded."
+        state["assistant_message"] = (
+            SafetyPointMessageComposer()
+            .compose_approval_confirmation(
+                business_context=state.get("business_context", {}),
+                safety_point=current_safety_point,
+                approved_count=len(approved_ids),
+                total_count=state.get("relevant_safety_point_count"),
+            )
+        )
+        state["last_confirmation_message"] = state["assistant_message"]
         _append_approval_chat_message(
             state=state,
             role="assistant",
