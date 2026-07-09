@@ -231,6 +231,9 @@ def _build_current_safety_point_view(
         return {
             "safety_point_id": None,
             "safety_point_text": None,
+            "original_safety_point_text": None,
+            "safety_point_instruction": None,
+            "safety_point_rationale": None,
             "section_id": None,
             "section_name": None,
             "safe_method_id": None,
@@ -250,12 +253,22 @@ def _build_current_safety_point_view(
     )
     state["current_additional_question"] = current_additional_question
 
+    original_safety_point_text = (
+        current_safety_point.get("text")
+        or current_safety_point.get("safety_point_text")
+    )
+    safety_point_instruction = (
+        current_safety_point.get("instruction")
+        or original_safety_point_text
+    )
+    safety_point_rationale = current_safety_point.get("rationale", "")
+
     return {
         "safety_point_id": current_safety_point.get("safety_point_id"),
-        "safety_point_text": (
-            current_safety_point.get("text")
-            or current_safety_point.get("safety_point_text")
-        ),
+        "safety_point_text": original_safety_point_text,
+        "original_safety_point_text": original_safety_point_text,
+        "safety_point_instruction": safety_point_instruction,
+        "safety_point_rationale": safety_point_rationale,
         "section_id": current_safety_point.get("section_id"),
         "section_name": current_safety_point.get("section_name"),
         "safe_method_id": current_safety_point.get("safe_method_id"),

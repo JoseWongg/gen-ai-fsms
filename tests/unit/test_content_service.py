@@ -74,6 +74,9 @@ def test_get_safety_point_by_id(content_service):
     assert sp["safety_point_id"] == "4.1.1.1"
     assert "section_name" in sp
     assert "safe_method_name" in sp
+    assert sp["text"]
+    assert sp["instruction"]
+    assert "rationale" in sp
 
 def test_get_source_references(content_service):
     refs = content_service.get_source_references("4.1.1.3")

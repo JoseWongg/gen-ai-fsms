@@ -12,7 +12,9 @@ def test_workflow_loads_business_context_without_changing_initial_routing(
     safety_points = [
         {
             "safety_point_id": "4.1.1.1",
-            "text": "Keep chilled food cold.",
+            "text": "Original SFBB text about chilled food.",
+            "instruction": "Chilled food is kept cold.",
+            "rationale": "Keeping chilled food cold helps prevent harmful bacteria from growing.",
             "section_id": "chilling",
             "section_name": "Chilling",
             "safe_method_id": "chilled_storage",
@@ -95,6 +97,22 @@ def test_workflow_loads_business_context_without_changing_initial_routing(
     assert result["relevant_safety_point_count"] == 1
     assert result["current_safety_point"]["safety_point_id"] == "4.1.1.1"
     assert result["current_safety_point_view"]["safety_point_id"] == "4.1.1.1"
+    assert (
+        result["current_safety_point_view"]["safety_point_text"]
+        == "Original SFBB text about chilled food."
+    )
+    assert (
+        result["current_safety_point_view"]["original_safety_point_text"]
+        == "Original SFBB text about chilled food."
+    )
+    assert (
+        result["current_safety_point_view"]["safety_point_instruction"]
+        == "Chilled food is kept cold."
+    )
+    assert (
+        result["current_safety_point_view"]["safety_point_rationale"]
+        == "Keeping chilled food cold helps prevent harmful bacteria from growing."
+    )
 
     assert result["last_review_message"] is None
     assert result["last_confirmation_message"] is None
