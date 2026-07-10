@@ -32,7 +32,7 @@ prompts:
       Safe method: {{ safe_method_name | default_text("") }}
       Official rationale: {{ rationale | default_text("") }}
 
-      Write only the short review message that appears immediately after the fixed safety point instruction. The message should invite the user to approve the point, ask a clarification question, or say if they use a different method.
+      Write only a complete, coherent review message of 1-2 short sentences and no more than 70 words. It appears before the fixed safety point instruction, so do not repeat, paraphrase, or rewrite the instruction. Do not produce an incomplete or cut-off message. The message should invite the user to approve the point, ask a clarification question, or say if they use a different method.
 
   approval_confirmation:
     system: |

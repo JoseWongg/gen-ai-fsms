@@ -16,6 +16,7 @@ REVIEW_MESSAGE_FALLBACK = (
 APPROVAL_CONFIRMATION_FALLBACK = "Approval recorded for this safety point."
 
 MAX_REVIEW_MESSAGE_CHARS = 500
+MAX_REVIEW_MESSAGE_WORDS = 70
 MAX_CONFIRMATION_MESSAGE_CHARS = 300
 
 ALLOWED_FACT_TYPES = {
@@ -47,6 +48,10 @@ FORBIDDEN_REVIEW_PATTERNS = (
 
 def _normalise_text(value: Any) -> str:
     return " ".join(str(value or "").split())
+
+
+def _count_words(value: str) -> int:
+    return len(re.findall(r"\b\w+\b", value or ""))
 
 
 def _extract_fact_texts(
@@ -95,6 +100,8 @@ def _is_invalid_review_message(message: str, instruction: str) -> bool:
     if not clean_message:
         return True
     if len(clean_message) > MAX_REVIEW_MESSAGE_CHARS:
+        return True
+    if _count_words(clean_message) > MAX_REVIEW_MESSAGE_WORDS:
         return True
     if _contains_fixed_instruction(clean_message, instruction):
         return True

@@ -85,6 +85,10 @@ def test_compose_safety_point_review_message_uses_rendered_prompt_context():
     assert "uses chilled storage" in combined_prompt
     assert "records fridge temperatures every morning" in combined_prompt
     assert "Official rationale:" in combined_prompt
+    assert "1-2 short sentences" in combined_prompt
+    assert "no more than 70 words" in combined_prompt
+    assert "complete, coherent review message" in combined_prompt
+    assert "incomplete or cut-off message" in combined_prompt
 
 
 def test_compose_safety_point_review_message_rejects_unsafe_content():
@@ -96,6 +100,24 @@ def test_compose_safety_point_review_message_rejects_unsafe_content():
             )
         ]
     )
+    composer = SafetyPointMessageComposer(llm_adapter=adapter)
+
+    message = composer.compose_safety_point_review_message(
+        business_context={},
+        safety_point={
+            "instruction": "Chilled food is kept cold.",
+            "section_name": "Chilling",
+            "safe_method_name": "Chilled storage",
+        },
+    )
+
+    assert message == REVIEW_MESSAGE_FALLBACK
+
+
+def test_compose_safety_point_review_message_rejects_overlong_intro():
+    overlong_message = " ".join(["context"] * 71) + "."
+
+    adapter = FakeAdapter([overlong_message])
     composer = SafetyPointMessageComposer(llm_adapter=adapter)
 
     message = composer.compose_safety_point_review_message(

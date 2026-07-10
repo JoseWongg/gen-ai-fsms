@@ -28,7 +28,9 @@ def test_safety_point_review_message_renders_with_business_context():
     assert prompt["user"]
     assert "Test Bakery" in prompt["user"]
     assert "Celebration cakes and cupcakes" in prompt["user"]
-    assert "immediately after the fixed safety point instruction" in prompt["user"]
+    assert "before the fixed safety point instruction" in prompt["user"]
+    assert "no more than 70 words" in prompt["user"]
+    assert "complete, coherent review message" in prompt["user"]
 
 
 def test_prompt_renderer_allows_missing_optional_context():
