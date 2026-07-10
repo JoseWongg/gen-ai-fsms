@@ -375,6 +375,18 @@ def _persist_business_context_facts_from_message(
             )
 
         db.commit()
+
+        try:
+            state["business_context"] = get_business_context(
+                db=db,
+                business_profile_id=business_profile_id,
+                user_id=state.get("user_id"),
+            )
+        except Exception as exc:
+            logger.error(
+                "Business context refresh failed after fact persistence: %s",
+                exc,
+            )
     except Exception as exc:
         db.rollback()
         logger.error("Business context fact persistence failed: %s", exc)
