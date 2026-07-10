@@ -237,3 +237,97 @@ def test_extract_business_context_facts_returns_empty_for_invalid_json():
     )
 
     assert result == {"facts": []}
+
+
+def test_review_prompt_does_not_send_fixed_instruction_to_llm():
+    adapter = FakeAdapter(["Review this safety point."])
+    composer = SafetyPointMessageComposer(llm_adapter=adapter)
+
+    composer.compose_safety_point_review_message(
+        business_context={"business_name": "Test Bakery"},
+        safety_point={
+            "instruction": "Chilled food is kept cold.",
+            "section_name": "Chilling",
+            "safe_method_name": "Chilled storage",
+            "rationale": "Keeping food cold slows bacterial growth.",
+        },
+    )
+
+    call = adapter.client.chat.completions.calls[0]
+    combined_prompt = "\n".join(
+        item["content"] for item in call["messages"]
+    )
+
+    assert "Chilled food is kept cold." not in combined_prompt
+    assert "Official rationale:" in combined_prompt
+    assert "Keeping food cold slows bacterial growth." in combined_prompt
+    assert "Do not reproduce, paraphrase, or rewrite" in combined_prompt
+
+
+def test_review_prompt_does_not_infer_business_type_from_business_name():
+    adapter = FakeAdapter(["Review this safety point."])
+    composer = SafetyPointMessageComposer(llm_adapter=adapter)
+
+    composer.compose_safety_point_review_message(
+        business_context={
+            "business_name": "Nathan's Cakes",
+            "business_type_label": "",
+        },
+        safety_point={
+            "instruction": "Chilled food is kept cold.",
+            "section_name": "Chilling",
+            "safe_method_name": "Chilled storage",
+        },
+    )
+
+    call = adapter.client.chat.completions.calls[0]
+    combined_prompt = "\n".join(
+        item["content"] for item in call["messages"]
+    )
+
+    assert "Business name: Nathan's Cakes" in combined_prompt
+    assert "Business type:" in combined_prompt
+    assert "Business type: Bakery" not in combined_prompt
+    assert "Do not guess the business type from the business name." in combined_prompt
+
+
+def test_compose_safety_point_review_message_rejects_adviser_wording():
+    adapter = FakeAdapter(
+        [
+            (
+                "As your food safety advisor, I recommend reviewing this "
+                "safety point before approval."
+            )
+        ]
+    )
+    composer = SafetyPointMessageComposer(llm_adapter=adapter)
+
+    message = composer.compose_safety_point_review_message(
+        business_context={},
+        safety_point={
+            "instruction": "Chilled food is kept cold.",
+            "section_name": "Chilling",
+            "safe_method_name": "Chilled storage",
+        },
+    )
+
+    assert message == REVIEW_MESSAGE_FALLBACK
+
+
+def test_compose_approval_confirmation_rejects_adviser_wording():
+    adapter = FakeAdapter(
+        ["As your food safety adviser, approval has been recorded."]
+    )
+    composer = SafetyPointMessageComposer(llm_adapter=adapter)
+
+    message = composer.compose_approval_confirmation(
+        business_context={"business_name": "Test Bakery"},
+        safety_point={
+            "section_name": "Chilling",
+            "safe_method_name": "Chilled storage",
+        },
+        approved_count=1,
+        total_count=3,
+    )
+
+    assert message == APPROVAL_CONFIRMATION_FALLBACK
