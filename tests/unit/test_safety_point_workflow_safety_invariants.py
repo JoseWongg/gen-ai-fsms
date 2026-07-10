@@ -1,4 +1,5 @@
 import gen_ai_fsms.workflows.safety_point_graph as workflow_module
+from gen_ai_fsms.ai.safety_point_message_composer import REVIEW_MESSAGE_FALLBACK
 
 
 class FakeSession:
@@ -292,3 +293,85 @@ def test_different_method_declaration_records_no_approval(monkeypatch):
     assert result["current_safety_point"]["safety_point_id"] == "4.1.1.1"
     assert result["different_method_declared_message"] is None
     assert approval_calls == []
+
+
+def test_workflow_can_complete_when_presentation_uses_fallback_message(
+    monkeypatch,
+):
+    approval_calls = []
+    safety_points = [_safety_point()]
+
+    _patch_common_dependencies(
+        monkeypatch,
+        adapter=FakeAdapter("approval"),
+        composer=FakeComposer(review_message=REVIEW_MESSAGE_FALLBACK),
+        safety_points=safety_points,
+        approval_calls=approval_calls,
+    )
+
+    graph = workflow_module.create_safety_point_graph()
+
+    presented = graph.invoke(
+        {
+            "business_profile_id": 1,
+            "user_id": 10,
+        }
+    )
+
+    assert presented["status"] == "in_progress"
+    assert presented["next_action"] == "awaiting_user_message"
+    assert presented["assistant_message"] == REVIEW_MESSAGE_FALLBACK
+    assert presented["last_review_message"] == REVIEW_MESSAGE_FALLBACK
+    assert approval_calls == []
+
+    approval_state = dict(presented)
+    approval_state["last_user_message"] = "Yes, I approve this safety point."
+
+    result = graph.invoke(approval_state)
+
+    assert result["status"] == "completed"
+    assert result["next_action"] == "complete"
+    assert result["approved_safety_point_ids"] == ["4.1.1.1"]
+    assert len(approval_calls) == 1
+
+
+def test_clarification_limit_keeps_safety_point_unapproved_and_revisits_it(
+    monkeypatch,
+):
+    approval_calls = []
+    safety_points = [_safety_point()]
+    safety_point_id = "4.1.1.1"
+
+    _patch_common_dependencies(
+        monkeypatch,
+        adapter=FakeAdapter("clarification_request"),
+        safety_points=safety_points,
+        approval_calls=approval_calls,
+    )
+
+    graph = workflow_module.create_safety_point_graph()
+
+    result = graph.invoke(
+        {
+            "business_profile_id": 1,
+            "user_id": 10,
+            "last_user_message": "Can you explain this again?",
+            "clarification_turn_counts": {
+                safety_point_id: (
+                    workflow_module.MAX_CLARIFICATION_TURNS_PER_SAFETY_POINT
+                )
+            },
+        }
+    )
+
+    assert result["status"] == "in_progress"
+    assert result["next_action"] == "awaiting_user_message"
+    assert result["approved_safety_point_ids"] == []
+    assert result["current_safety_point_index"] == 0
+    assert result["current_safety_point"]["safety_point_id"] == safety_point_id
+    assert approval_calls == []
+
+    assert any(
+        message.get("message_type") == "clarification_limit_reached"
+        for message in result.get("approval_chat_history", [])
+    )
