@@ -15,6 +15,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from gen_ai_fsms.db.models.approved_safety_point import ApprovedSafetyPoint
+from gen_ai_fsms.db.models.business_context_fact import BusinessContextFact
 from gen_ai_fsms.db.models.approved_safety_point_response import (
     ApprovedSafetyPointResponse,
 )
@@ -337,6 +338,33 @@ def get_approved_methods_for_profile(
         "approved_safety_points": flat_approved_safety_points,
     }
 
+
+
+
+def reset_business_context_facts_for_profile(
+    db: Session,
+    business_profile_id: int,
+    workflow_session_ids: list[int] | None = None,
+) -> int:
+    """Delete parked personalisation facts before workflow/session reset.
+
+    When workflow_session_ids is provided, only facts linked to those workflow
+    sessions are deleted. When omitted, all parked facts for the business
+    profile are deleted.
+    """
+    query = db.query(BusinessContextFact).filter(
+        BusinessContextFact.business_profile_id == business_profile_id
+    )
+
+    if workflow_session_ids is not None:
+        if not workflow_session_ids:
+            return 0
+
+        query = query.filter(
+            BusinessContextFact.workflow_session_id.in_(workflow_session_ids)
+        )
+
+    return query.delete(synchronize_session=False)
 
 
 def reset_approved_methods_for_profile(

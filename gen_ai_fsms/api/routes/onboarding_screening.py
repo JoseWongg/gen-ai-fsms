@@ -31,7 +31,10 @@ from gen_ai_fsms.db.models.condition import Condition
 from gen_ai_fsms.db.models.condition_value import ConditionValue
 from gen_ai_fsms.db.models.onboarding_session import OnboardingSession
 from gen_ai_fsms.services.screening_questions import get_next_question
-from gen_ai_fsms.services.safety_point_approval_service import reset_approved_methods_for_profile
+from gen_ai_fsms.services.safety_point_approval_service import (
+    reset_approved_methods_for_profile,
+    reset_business_context_facts_for_profile,
+)
 from gen_ai_fsms.services.session_service import (
     create_session,
     load_session,
@@ -858,6 +861,13 @@ def reset_screening(
 ):
     profile = get_current_user_profile(db, current_user)
 
+    deleted_business_context_fact_count = (
+        reset_business_context_facts_for_profile(
+            db=db,
+            business_profile_id=profile.id,
+        )
+    )
+
     screening_sessions = (
         db.query(OnboardingSession)
         .filter(
@@ -905,6 +915,7 @@ def reset_screening(
         "deleted_screening_session_count": deleted_screening_session_count,
         "deleted_approval_session_count": deleted_approval_session_count,
         "deleted_condition_value_count": deleted_condition_value_count,
+        "deleted_business_context_fact_count": deleted_business_context_fact_count,
         "deleted_approved_safety_point_count": deleted_approved_safety_point_count,
         "message": (
             "Food Safety Profile screening, FSMS Builder workflow, and "
