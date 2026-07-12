@@ -73,7 +73,6 @@ def show():
         st.session_state.screening_ephemeral_after_index = None
         st.session_state.screening_reset_confirmation_requested = False
         st.session_state.screening_business_type_select = None
-        st.session_state.screening_business_description_text = ""
 
         st.session_state.approval_session = None
         st.session_state.approval_messages = []
@@ -199,9 +198,6 @@ def show():
     if "screening_business_type_select" not in st.session_state:
         st.session_state.screening_business_type_select = None
 
-    if "screening_business_description_text" not in st.session_state:
-        st.session_state.screening_business_description_text = ""
-
     current = load_current_session()
     condition_values_response = load_condition_values()
 
@@ -269,7 +265,6 @@ def show():
                         ],
                     )
                     st.session_state.screening_business_type_select = None
-                    st.session_state.screening_business_description_text = ""
                     st.rerun()
 
             return
@@ -361,42 +356,27 @@ def show():
             queue_screening_answer(selected_value)
             st.rerun()
 
-    def render_business_description_input():
-        description = st.text_area(
-            "Business description",
-            placeholder="For example: celebration cakes, cupcakes, sandwiches, hot meals, or takeaway pizzas.",
-            max_chars=500,
-            key="screening_business_description_text",
-            disabled=st.session_state.get("screening_processing", False),
-        )
-
-        if st.button(
-            "Continue",
-            use_container_width=True,
-            disabled=(
-                st.session_state.get("screening_processing", False)
-                or not description.strip()
-            ),
-        ):
-            queue_screening_answer(description.strip())
-            st.rerun()
-
     current_session_for_input = st.session_state.get("screening_session") or {}
     question_input_type = current_session_for_input.get("question_input_type", "chat")
 
     if question_input_type == "select":
         render_business_type_input(current_session_for_input)
-    elif question_input_type == "textarea":
-        render_business_description_input()
     else:
+        is_business_description = question_input_type == "textarea"
+
         st.chat_input(
-            "Type your answer here...",
+            (
+                "Tell us about the business..."
+                if is_business_description
+                else "Type your answer here..."
+            ),
             key="screening_chat_input",
+            max_chars=500 if is_business_description else None,
             disabled=(
                 st.session_state.get("screening_complete", False)
                 or st.session_state.get("screening_processing", False)
             ),
-            on_submit=submit_screening_answer
+            on_submit=submit_screening_answer,
         )
 
     if (
@@ -449,9 +429,6 @@ def show():
                     "question_options",
                     [],
                 )
-
-                if data.get("question_input_type") == "textarea":
-                    st.session_state.screening_business_description_text = ""
 
             elif action == "ask_again":
                 ask_again_message = data["message"]

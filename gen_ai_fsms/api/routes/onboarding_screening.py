@@ -91,7 +91,10 @@ def get_business_context_question(question_id: str) -> dict:
     if question_id == "business_description":
         return {
             "question_id": "business_description",
-            "text": "Briefly, what does the business make or serve?",
+            "text": (
+                "Tell us a little about the business, including what it makes or serves "
+                "and anything else that may help us understand how it operates."
+            ),
             "question_type": "business_context",
             "input_type": "textarea",
             "options": [],
@@ -429,8 +432,7 @@ def submit_answer(
 
             if not description:
                 ask_again_message = (
-                    "Please briefly describe what the business makes or serves "
-                    "before continuing."
+                    "Please tell us a little about the business before continuing."
                 )
 
                 add_display_message(state, "assistant", ask_again_message)
