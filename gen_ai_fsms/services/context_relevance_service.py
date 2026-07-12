@@ -10,68 +10,70 @@ DEFAULT_RELEVANT_FACT_TYPES = {
 }
 
 
-SECTION_RELEVANT_FACT_TYPES = {
-    "chilling": {
-        "temperature_control_practice",
-        "storage_practice",
-        "food_type_or_ingredient",
-        "equipment_used",
-        "monitoring_or_recording_practice",
-    },
-    "cooking": {
-        "cooking_or_reheating_practice",
-        "equipment_used",
-        "monitoring_or_recording_practice",
-        "food_type_or_ingredient",
-    },
-    "cleaning": {
-        "cleaning_practice",
-        "staff_training_practice",
-        "equipment_used",
-        "monitoring_or_recording_practice",
-    },
-}
-
-
+# Keyed by the real safe_method_id values used in the SFBB data files
+# (e.g. "4.1", "5.3"), not by descriptive slugs, because that is the only
+# stable identifier present on every safety point at runtime.
 SAFE_METHOD_RELEVANT_FACT_TYPES = {
-    "chilled_storage": {
+    "4.1": {  # Chilled Storage and Displaying Chilled Food
         "temperature_control_practice",
         "storage_practice",
         "food_type_or_ingredient",
         "equipment_used",
         "monitoring_or_recording_practice",
     },
-    "chilled_display": {
+    "4.2": {  # Chilling Down Hot Food
         "temperature_control_practice",
-        "storage_practice",
-        "food_type_or_ingredient",
-        "equipment_used",
-        "monitoring_or_recording_practice",
-    },
-    "freezing": {
-        "temperature_control_practice",
-        "storage_practice",
-        "food_type_or_ingredient",
-        "equipment_used",
-        "monitoring_or_recording_practice",
-    },
-    "cooking": {
         "cooking_or_reheating_practice",
         "equipment_used",
         "monitoring_or_recording_practice",
         "food_type_or_ingredient",
     },
-    "reheating": {
+    "4.3": {  # Defrosting
+        "temperature_control_practice",
+        "storage_practice",
+        "equipment_used",
+        "monitoring_or_recording_practice",
+        "food_type_or_ingredient",
+    },
+    "4.4": {  # Freezing
+        "temperature_control_practice",
+        "storage_practice",
+        "food_type_or_ingredient",
+        "equipment_used",
+        "monitoring_or_recording_practice",
+    },
+    "5.1": {  # Cooking Safely
         "cooking_or_reheating_practice",
         "equipment_used",
         "monitoring_or_recording_practice",
         "food_type_or_ingredient",
     },
-    "hot_holding": {
+    "5.2": {  # Foods That Need Extra Care
+        "food_type_or_ingredient",
+        "cooking_or_reheating_practice",
+        "monitoring_or_recording_practice",
+    },
+    "5.3": {  # Reheating
+        "cooking_or_reheating_practice",
+        "equipment_used",
+        "monitoring_or_recording_practice",
+        "food_type_or_ingredient",
+    },
+    "5.4": {  # Acrylamide
+        "cooking_or_reheating_practice",
+        "food_type_or_ingredient",
+        "equipment_used",
+    },
+    "5.5": {  # Hot Holding
         "temperature_control_practice",
         "equipment_used",
         "monitoring_or_recording_practice",
         "food_type_or_ingredient",
+    },
+    "5.6": {  # Ready-to-Eat Food
+        "food_type_or_ingredient",
+        "storage_practice",
+        "monitoring_or_recording_practice",
     },
 }
 
@@ -86,26 +88,14 @@ def get_relevant_fact_types_for_safety_point(
     if not safety_point:
         return set(DEFAULT_RELEVANT_FACT_TYPES)
 
-    section_id = normalise_identifier(safety_point.get("section_id"))
-    section_name = normalise_identifier(safety_point.get("section_name"))
     safe_method_id = normalise_identifier(safety_point.get("safe_method_id"))
-    safe_method_name = normalise_identifier(
-        safety_point.get("safe_method_name")
-    )
 
     relevant_fact_types = set(DEFAULT_RELEVANT_FACT_TYPES)
 
-    for section_value in (section_id, section_name):
-        if section_value in SECTION_RELEVANT_FACT_TYPES:
-            relevant_fact_types.update(
-                SECTION_RELEVANT_FACT_TYPES[section_value]
-            )
-
-    for safe_method_value in (safe_method_id, safe_method_name):
-        if safe_method_value in SAFE_METHOD_RELEVANT_FACT_TYPES:
-            relevant_fact_types.update(
-                SAFE_METHOD_RELEVANT_FACT_TYPES[safe_method_value]
-            )
+    if safe_method_id in SAFE_METHOD_RELEVANT_FACT_TYPES:
+        relevant_fact_types.update(
+            SAFE_METHOD_RELEVANT_FACT_TYPES[safe_method_id]
+        )
 
     return relevant_fact_types
 

@@ -1,6 +1,7 @@
 import json
 
 from gen_ai_fsms.services.context_relevance_service import (
+    DEFAULT_RELEVANT_FACT_TYPES,
     build_relevant_prompt_context,
     filter_relevant_fact_texts,
     filter_relevant_facts,
@@ -14,13 +15,11 @@ def test_normalise_identifier_handles_none_and_spacing():
     assert normalise_identifier(" Chilling ") == "chilling"
 
 
-def test_get_relevant_fact_types_for_chilling_safety_point():
+def test_get_relevant_fact_types_for_chilled_storage_safety_point():
     fact_types = get_relevant_fact_types_for_safety_point(
         {
-            "section_id": "chilling",
-            "section_name": "Chilling",
-            "safe_method_id": "chilled_storage",
-            "safe_method_name": "Chilled storage",
+            "safe_method_id": "4.1",
+            "safe_method_name": "Chilled Storage and Displaying Chilled Food",
         }
     )
 
@@ -36,10 +35,8 @@ def test_get_relevant_fact_types_for_chilling_safety_point():
 def test_get_relevant_fact_types_for_cooking_safety_point():
     fact_types = get_relevant_fact_types_for_safety_point(
         {
-            "section_id": "cooking",
-            "section_name": "Cooking",
-            "safe_method_id": "cooking",
-            "safe_method_name": "Cooking safely",
+            "safe_method_id": "5.1",
+            "safe_method_name": "Cooking Safely",
         }
     )
 
@@ -49,6 +46,36 @@ def test_get_relevant_fact_types_for_cooking_safety_point():
     assert "food_type_or_ingredient" in fact_types
     assert "storage_practice" not in fact_types
     assert "cleaning_practice" not in fact_types
+
+
+def test_get_relevant_fact_types_for_hot_holding_safety_point():
+    # Regression test: previously "hot_holding" was keyed as a descriptive
+    # slug that never matched the real numeric safe_method_id ("5.5"), so
+    # hot holding safety points silently only ever received the default
+    # fact types. This proves the real id now matches.
+    fact_types = get_relevant_fact_types_for_safety_point(
+        {
+            "safe_method_id": "5.5",
+            "safe_method_name": "Hot Holding",
+        }
+    )
+
+    assert "temperature_control_practice" in fact_types
+    assert "equipment_used" in fact_types
+    assert "monitoring_or_recording_practice" in fact_types
+    assert "food_type_or_ingredient" in fact_types
+    assert "cooking_or_reheating_practice" not in fact_types
+
+
+def test_get_relevant_fact_types_falls_back_to_defaults_for_unknown_method():
+    fact_types = get_relevant_fact_types_for_safety_point(
+        {
+            "safe_method_id": "9.9",
+            "safe_method_name": "Not a real method",
+        }
+    )
+
+    assert fact_types == DEFAULT_RELEVANT_FACT_TYPES
 
 
 def test_filter_relevant_facts_keeps_only_matching_fact_types():
@@ -135,8 +162,7 @@ def test_build_relevant_prompt_context_filters_context_without_mutating_source()
     result = build_relevant_prompt_context(
         business_context,
         {
-            "section_id": "chilling",
-            "safe_method_id": "chilled_storage",
+            "safe_method_id": "4.1",
         },
     )
 
