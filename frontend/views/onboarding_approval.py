@@ -109,7 +109,6 @@ def show():
         safety_point_view,
         expanded,
         key_suffix,
-        intro_message=None,
     ):
         current_safety_point = safety_point_view or {}
         safety_point_id = current_safety_point.get("safety_point_id") or "Unknown"
@@ -131,14 +130,15 @@ def show():
         )
 
         with st.expander(f"Safety Point: {safety_point_id}", expanded=expanded):
-            st.markdown(f"**Section:** {current_safety_point.get('section_name') or 'Not available'}")
-            st.markdown(f"**Safe method:** {current_safety_point.get('safe_method_name') or 'Not available'}")
-
-            clean_intro_message = " ".join(str(intro_message or "").split())
-
-            if clean_intro_message:
-                st.markdown("**Introduction**")
-                st.info(clean_intro_message)
+            st.markdown("**Rule to approve**")
+            st.text_area(
+                label="Rule to approve",
+                value=safety_point_instruction,
+                height=160,
+                disabled=True,
+                label_visibility="collapsed",
+                key=f"approval_safety_point_instruction_{safety_point_id}_{key_suffix}",
+            )
 
             if safety_point_rationale:
                 st.markdown("**Why this matters**")
@@ -151,23 +151,13 @@ def show():
                     key=f"approval_safety_point_rationale_{safety_point_id}_{key_suffix}",
                 )
 
-            st.markdown("**Rule to approve**")
-            st.text_area(
-                label="Rule to approve",
-                value=safety_point_instruction,
-                height=160,
-                disabled=True,
-                label_visibility="collapsed",
-                key=f"approval_safety_point_instruction_{safety_point_id}_{key_suffix}",
-            )
-
             provenance_references = current_safety_point.get("provenance_references", [])
             source_references = current_safety_point.get("source_references", [])
             additional_source_references = current_safety_point.get("additional_source_references", [])
             references_to_show = provenance_references or source_references
 
             if references_to_show or additional_source_references:
-                with st.expander("Provenance", expanded=False):
+                with st.expander("Source references", expanded=False):
                     render_reference_list("Source references", references_to_show)
                     render_reference_list("Additional source references", additional_source_references)
 
@@ -226,11 +216,14 @@ def show():
             if message_type == "safety_point_presented":
                 safety_point_view = message.get("safety_point_view")
                 if safety_point_view:
+                    clean_intro_message = " ".join(str(content or "").split())
+                    if clean_intro_message:
+                        st.chat_message("assistant").write(clean_intro_message)
+
                     render_safety_point_card(
                         safety_point_view=safety_point_view,
                         expanded=safety_point_id == current_safety_point_id,
                         key_suffix=index,
-                        intro_message=content,
                     )
                     continue
 
