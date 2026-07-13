@@ -107,7 +107,6 @@ def show():
 
     def render_safety_point_card(
         safety_point_view,
-        expanded,
         key_suffix,
     ):
         current_safety_point = safety_point_view or {}
@@ -129,7 +128,19 @@ def show():
             or ""
         )
 
-        with st.expander(f"Safety Point: {safety_point_id}", expanded=expanded):
+        expander_key = f"approval_safety_point_expander_{safety_point_id}_{key_suffix}"
+        is_open = st.session_state.get(expander_key, False)
+
+        label = f"Safety Point: {safety_point_id}"
+        if not is_open:
+            label += "   🔴 :red[**Click to display**]"
+
+        with st.expander(
+            label,
+            expanded=False,
+            key=expander_key,
+            on_change="rerun",
+        ):
             st.markdown("**Rule to approve**")
             st.text_area(
                 label="Rule to approve",
@@ -203,15 +214,11 @@ def show():
 
     def render_messages():
         messages = st.session_state.get("approval_messages", [])
-        approval_session = st.session_state.get("approval_session") or {}
-        current_safety_point = approval_session.get("current_safety_point") or {}
-        current_safety_point_id = current_safety_point.get("safety_point_id")
 
         for index, message in enumerate(messages):
             role = message.get("role", "assistant")
             content = message.get("content", "")
             message_type = message.get("message_type")
-            safety_point_id = message.get("safety_point_id")
 
             if message_type == "safety_point_presented":
                 safety_point_view = message.get("safety_point_view")
@@ -222,7 +229,6 @@ def show():
 
                     render_safety_point_card(
                         safety_point_view=safety_point_view,
-                        expanded=safety_point_id == current_safety_point_id,
                         key_suffix=index,
                     )
                     continue

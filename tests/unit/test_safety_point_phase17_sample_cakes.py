@@ -62,6 +62,8 @@ class SampleCakesJourneyComposer:
         business_context,
         safety_point,
         relevant_facts=None,
+        is_first_message=True,
+        previous_message=None,
     ):
         relevant_facts = relevant_facts or []
         self.review_calls.append(
@@ -69,6 +71,7 @@ class SampleCakesJourneyComposer:
                 "business_context": business_context,
                 "safety_point_id": safety_point.get("safety_point_id"),
                 "relevant_facts": relevant_facts,
+                "is_first_message": is_first_message,
             }
         )
 
@@ -350,6 +353,14 @@ def test_phase17_sample_cakes_probe_fact_is_saved_and_reused_only_for_personalis
         "probe thermometer" in fact["fact_text"].lower()
         for fact in second_review_call["relevant_facts"]
     )
+
+    # Regression check: only the very first safety point presented in this
+    # conversation should be composed with is_first_message=True. Once the
+    # approval chat history is non-empty, later safety points must not
+    # re-greet the user by name.
+    first_review_call = review_calls[0]
+    assert first_review_call["is_first_message"] is True
+    assert second_review_call["is_first_message"] is False
 
     second_approval_attempt = dict(after_first_approval)
     second_approval_attempt["last_user_message"] = (

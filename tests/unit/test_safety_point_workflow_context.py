@@ -52,6 +52,8 @@ def test_workflow_loads_business_context_without_changing_initial_routing(
             business_context,
             safety_point,
             relevant_facts=None,
+            is_first_message=True,
+            previous_message=None,
         ):
             assert business_context["business_name"] == "Test Bakery"
             assert safety_point["safety_point_id"] == "4.1.1.1"

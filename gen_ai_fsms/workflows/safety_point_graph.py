@@ -835,6 +835,10 @@ def create_safety_point_graph():
                         "relevant_facts",
                         [],
                     ),
+                    is_first_message=not bool(
+                        state.get("approval_chat_history")
+                    ),
+                    previous_message=state.get("last_confirmation_message"),
                 )
             )
 
