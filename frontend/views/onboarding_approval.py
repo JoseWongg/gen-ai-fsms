@@ -108,6 +108,7 @@ def show():
     def render_safety_point_card(
         safety_point_view,
         key_suffix,
+        is_current,
     ):
         current_safety_point = safety_point_view or {}
         safety_point_id = current_safety_point.get("safety_point_id") or "Unknown"
@@ -128,18 +129,23 @@ def show():
             or ""
         )
 
-        expander_key = f"approval_safety_point_expander_{safety_point_id}_{key_suffix}"
-        is_open = st.session_state.get(expander_key, False)
+        label = f"Click to display Safety Point: {safety_point_id}"
 
-        label = f"Safety Point: {safety_point_id}"
-        if not is_open:
-            label = f"Click to display {label}"
+        # Only the current safety point remembers whether the user has
+        # opened it (via a stable key). Once a point is superseded by a
+        # newer current point, it has no key, so it always renders
+        # collapsed again, matching the original behaviour of auto-closing
+        # past points.
+        expander_key = (
+            f"approval_safety_point_expander_{safety_point_id}_{key_suffix}"
+            if is_current
+            else None
+        )
 
         with st.expander(
             label,
             expanded=False,
             key=expander_key,
-            on_change="rerun",
         ):
             st.markdown("**Rule to approve**")
             st.text_area(
@@ -204,6 +210,9 @@ def show():
 
     def render_messages():
         messages = st.session_state.get("approval_messages", [])
+        approval_session = st.session_state.get("approval_session") or {}
+        current_safety_point = approval_session.get("current_safety_point") or {}
+        current_safety_point_id = current_safety_point.get("safety_point_id")
 
         for index, message in enumerate(messages):
             role = message.get("role", "assistant")
@@ -217,9 +226,12 @@ def show():
                     if clean_intro_message:
                         st.chat_message("assistant").write(clean_intro_message)
 
+                    safety_point_id = safety_point_view.get("safety_point_id")
+
                     render_safety_point_card(
                         safety_point_view=safety_point_view,
                         key_suffix=index,
+                        is_current=safety_point_id == current_safety_point_id,
                     )
                     continue
 
