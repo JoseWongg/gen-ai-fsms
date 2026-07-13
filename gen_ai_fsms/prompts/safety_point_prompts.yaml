@@ -54,6 +54,9 @@ prompts:
 
       Do not restate the data below as labelled fields (for example, do not write "Approved count: X out of Y" or "Section: X"). If it is natural to mention progress, describe it in plain language instead (for example, "that's 3 down, 2 to go").
       Keep the message short and clear: no more than two short sentences.
+      {% if previous_message %}
+      Here is the last confirmation message you sent the user: "{{ previous_message }}". Do not open this new message the same way - if that one started with an exclamation and the user's name, this one should not, and vice versa. Pick a genuinely different opening.
+      {% endif %}
       Do not introduce new requirements.
       Do not assess alternative methods.
       Do not claim broader compliance beyond the recorded approval.

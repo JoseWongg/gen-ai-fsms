@@ -262,6 +262,7 @@ class SafetyPointMessageComposer:
         safety_point: dict[str, Any],
         approved_count: Optional[int] = None,
         total_count: Optional[int] = None,
+        previous_message: Optional[str] = None,
     ) -> str:
         context = dict(business_context or {})
 
@@ -274,6 +275,7 @@ class SafetyPointMessageComposer:
                 "safe_method_name": safety_point.get("safe_method_name"),
                 "approved_count": approved_count,
                 "total_count": total_count,
+                "previous_message": previous_message,
             },
         )
 

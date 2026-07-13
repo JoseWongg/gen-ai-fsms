@@ -1682,6 +1682,7 @@ def create_safety_point_graph():
                 safety_point=current_safety_point,
                 approved_count=len(approved_ids),
                 total_count=state.get("relevant_safety_point_count"),
+                previous_message=state.get("last_confirmation_message"),
             )
         )
         state["last_confirmation_message"] = state["assistant_message"]
