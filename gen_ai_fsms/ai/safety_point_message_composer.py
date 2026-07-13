@@ -211,6 +211,7 @@ class SafetyPointMessageComposer:
         relevant_facts: Optional[list[Any]] = None,
         is_first_message: bool = True,
         previous_message: Optional[str] = None,
+        previous_review_message: Optional[str] = None,
     ) -> str:
         context = dict(business_context or {})
         instruction = _normalise_text(
@@ -238,6 +239,7 @@ class SafetyPointMessageComposer:
                 ),
                 "is_first_message": is_first_message,
                 "previous_message": previous_message,
+                "previous_review_message": previous_review_message,
             },
         )
 

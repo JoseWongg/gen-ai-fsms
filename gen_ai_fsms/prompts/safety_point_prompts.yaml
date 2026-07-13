@@ -24,7 +24,11 @@ prompts:
 
       You may personalise the review message using supplied business context, but only when it is directly relevant.
 
-      When you mention what the business makes, sells, or does, do not always repeat the business description word-for-word; pick out only the part relevant to this specific point and phrase it in your own words, varying it between messages.
+      When you mention what the business makes, sells, or does, avoid reciting the business description word-for-word. Select only the part relevant to this specific point and express it in your own words. A short partial reference is often better than the full phrase, and sometimes it is better not to mention it at all. For example, if the business description says "sourdough bread and seasonal fruit tarts," you might refer to it as "the sourdough range," or simply "baked goods," or leave it out entirely - choose whatever feels most natural for this one message, rather than defaulting to the full phrase.
+
+      {% if previous_review_message %}
+      Here is the review message you sent for the previous safety point: "{{ previous_review_message }}". If it referenced the business description in a particular way, you must phrase this new message differently - use a shorter reference, different wording, or leave the description out entirely. Do not reuse the same phrase again.
+      {% endif %}
 
       Do not reproduce, paraphrase, or rewrite the fixed safety point instruction.
       Do not imply approval or compliance.
@@ -78,7 +82,7 @@ prompts:
 
       Be helpful, concise, and grounded in the supplied safety point context.
       Use business context only when it helps explain the point.
-      When you mention what the business makes, sells, or does, do not always repeat the business description word-for-word; pick out only the part relevant to the question and phrase it in your own words, varying it between messages.
+      When you mention what the business makes, sells, or does, avoid reciting the business description word-for-word. Select only the part relevant to the question and express it in your own words. A short partial reference is often better than the full phrase, and sometimes it is better not to mention it at all. For example, if the business description says "sourdough bread and seasonal fruit tarts," you might refer to it as "the sourdough range," or simply "baked goods," or leave it out entirely - choose whatever feels most natural for this one answer, rather than defaulting to the full phrase.
       Do not approve the safety point.
       Do not assess or approve alternative methods.
       Do not rewrite the fixed safety point instruction.

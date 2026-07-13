@@ -64,6 +64,7 @@ class SampleCakesJourneyComposer:
         relevant_facts=None,
         is_first_message=True,
         previous_message=None,
+        previous_review_message=None,
     ):
         relevant_facts = relevant_facts or []
         self.review_calls.append(
