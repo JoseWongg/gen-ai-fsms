@@ -385,6 +385,12 @@ def show():
         render_messages()
         render_progress_indicator(approval_session)
 
+        st.chat_input(
+            "This workflow is complete. Reset to start again.",
+            key="approval_chat_input_completed",
+            disabled=True,
+        )
+
         if st.button("Reset and start over"):
             reset_approval()
 
