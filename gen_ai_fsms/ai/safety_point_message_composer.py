@@ -40,8 +40,8 @@ FORBIDDEN_REVIEW_PATTERNS = (
     r"\bskip\b",
     r"\bnot required\b",
     r"\bdo not need to follow\b",
-    r"\bdifferent method\b.*\b(safe|compliant|equivalent|acceptable)\b",
-    r"\b(safe|compliant|equivalent|acceptable)\b.*\bdifferent method\b",
+    r"\bdifferent method\b(?:\W+\w+){0,5}\W+(safe|compliant|equivalent|acceptable)\b",
+    r"\b(safe|compliant|equivalent|acceptable)\b(?:\W+\w+){0,5}\W+different method\b",
     r"food safety advis[eo]r",
 )
 

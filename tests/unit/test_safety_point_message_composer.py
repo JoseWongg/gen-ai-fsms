@@ -331,3 +331,48 @@ def test_compose_approval_confirmation_rejects_adviser_wording():
     )
 
     assert message == APPROVAL_CONFIRMATION_FALLBACK
+
+
+def test_review_message_is_not_rejected_when_safe_and_different_method_are_unrelated():
+    adapter = FakeAdapter(
+        [
+            (
+                "Chilled food must be kept at a safe temperature to stop "
+                "harmful bacteria growing. Let me know if you have any "
+                "questions or if there is a different method you use."
+            )
+        ]
+    )
+    composer = SafetyPointMessageComposer(llm_adapter=adapter)
+
+    message = composer.compose_safety_point_review_message(
+        business_context={},
+        safety_point={
+            "instruction": "Chilled food is kept cold.",
+            "section_name": "Chilling",
+            "safe_method_name": "Chilled storage",
+        },
+    )
+
+    assert message != REVIEW_MESSAGE_FALLBACK
+    assert "safe temperature" in message
+
+
+def test_review_message_is_still_rejected_when_endorsing_a_different_method_as_safe():
+    adapter = FakeAdapter(
+        [
+            "If you use a different method, that is also considered safe."
+        ]
+    )
+    composer = SafetyPointMessageComposer(llm_adapter=adapter)
+
+    message = composer.compose_safety_point_review_message(
+        business_context={},
+        safety_point={
+            "instruction": "Chilled food is kept cold.",
+            "section_name": "Chilling",
+            "safe_method_name": "Chilled storage",
+        },
+    )
+
+    assert message == REVIEW_MESSAGE_FALLBACK
