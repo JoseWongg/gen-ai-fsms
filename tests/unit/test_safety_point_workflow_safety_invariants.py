@@ -45,6 +45,9 @@ class FakeComposer:
     def __init__(self, review_message="Review this safety point."):
         self.review_message = review_message
 
+    def filter_relevant_facts(self, *, facts, instruction):
+        return list(facts or [])
+
     def compose_safety_point_review_message(self, **kwargs):
         return self.review_message
 

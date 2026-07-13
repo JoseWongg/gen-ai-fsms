@@ -46,6 +46,9 @@ def test_workflow_loads_business_context_without_changing_initial_routing(
         return {}
 
     class FakeSafetyPointMessageComposer:
+        def filter_relevant_facts(self, *, facts, instruction):
+            return list(facts or [])
+
         def compose_safety_point_review_message(
             self,
             *,

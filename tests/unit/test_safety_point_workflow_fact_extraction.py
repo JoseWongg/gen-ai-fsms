@@ -44,6 +44,9 @@ class FakeComposer:
         self.facts = facts or []
         self.raise_on_extract = raise_on_extract
 
+    def filter_relevant_facts(self, *, facts, instruction):
+        return list(facts or [])
+
     def compose_safety_point_review_message(self, **kwargs):
         return "Review this safety point."
 

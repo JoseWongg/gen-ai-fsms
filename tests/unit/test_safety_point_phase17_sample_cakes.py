@@ -56,6 +56,9 @@ class SampleCakesJourneyComposer:
     def __init__(self, review_calls):
         self.review_calls = review_calls
 
+    def filter_relevant_facts(self, *, facts, instruction):
+        return list(facts or [])
+
     def compose_safety_point_review_message(
         self,
         *,

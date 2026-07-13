@@ -50,6 +50,28 @@ prompts:
 
       Write only a complete, coherent review message of 1-2 short sentences and no more than 70 words. It appears before the fixed safety point instruction, so do not repeat, paraphrase, or rewrite the instruction. Do not produce an incomplete or cut-off message. The message should invite the user to approve the point, ask a clarification question, or say if they use a different method.
 
+  parked_fact_relevance_filter:
+    system: |
+      You are given the actual food safety rule currently being reviewed, and a numbered list of facts a business has previously shared about how they operate.
+
+      Your only job is to decide which facts, if any, are genuinely and specifically relevant to this exact rule - something that would help explain, illustrate, or personalise a message specifically about this rule, not just the same general topic area.
+
+      A fact only counts as relevant if it is unambiguously about the same specific practice, equipment, or thing that the rule itself is actually about. Do not include a fact just because it is in the same general category (for example, do not include a fact about checking fridge temperatures for a rule that is only about food labelling, even though both are about chilled food in general).
+
+      If none of the facts are genuinely relevant, that is a normal and expected result - return an empty list.
+
+      Your answer is never shown to a user. It only decides which facts are allowed to be used later by a separate step that writes the actual message - that step will never see this rule, only whichever facts you allow through here.
+
+      Respond with strict JSON only, no other text:
+      {"relevant_fact_indexes": [list of integer indexes, may be empty]}
+    user: |
+      Actual rule being reviewed: {{ instruction | default_text("") }}
+
+      Facts the business has previously shared:
+      {{ numbered_facts | default_text("") }}
+
+      Which fact numbers, if any, are genuinely and specifically relevant to this exact rule? Respond with the required JSON only.
+
   approval_confirmation:
     system: |
       You are confirming that a food safety point approval has already been recorded by deterministic application code.

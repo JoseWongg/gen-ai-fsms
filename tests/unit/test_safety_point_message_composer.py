@@ -376,3 +376,119 @@ def test_review_message_is_still_rejected_when_endorsing_a_different_method_as_s
     )
 
     assert message == REVIEW_MESSAGE_FALLBACK
+
+
+def test_filter_relevant_facts_keeps_only_the_indexes_the_llm_returns():
+    adapter = FakeAdapter(
+        [
+            json.dumps({"relevant_fact_indexes": [1]}),
+        ]
+    )
+    composer = SafetyPointMessageComposer(llm_adapter=adapter)
+
+    facts = [
+        {"fact_type": "food_type_or_ingredient", "fact_text": "Sells sourdough bread."},
+        {"fact_type": "monitoring_or_recording_practice", "fact_text": "Checks fridge temperatures with a probe thermometer."},
+    ]
+
+    result = composer.filter_relevant_facts(
+        facts=facts,
+        instruction="Fridges are set at 5C or below and checked regularly.",
+    )
+
+    assert result == [facts[1]]
+
+    call = adapter.client.completions.calls[0]
+    assert call["temperature"] == 0.0
+    assert call["response_format"] == {"type": "json_object"}
+    combined_prompt = "\n".join(item["content"] for item in call["messages"])
+    assert "Fridges are set at 5C or below" in combined_prompt
+    assert "0: Sells sourdough bread." in combined_prompt
+    assert "1: Checks fridge temperatures with a probe thermometer." in combined_prompt
+
+
+def test_filter_relevant_facts_returns_empty_list_when_none_are_relevant():
+    adapter = FakeAdapter(
+        [
+            json.dumps({"relevant_fact_indexes": []}),
+        ]
+    )
+    composer = SafetyPointMessageComposer(llm_adapter=adapter)
+
+    facts = [
+        {"fact_type": "food_type_or_ingredient", "fact_text": "Sells sourdough bread."},
+    ]
+
+    result = composer.filter_relevant_facts(
+        facts=facts,
+        instruction="Fridges are set at 5C or below and checked regularly.",
+    )
+
+    assert result == []
+
+
+def test_filter_relevant_facts_returns_empty_list_with_no_facts_or_instruction():
+    composer = SafetyPointMessageComposer(llm_adapter=FakeAdapter([]))
+
+    assert composer.filter_relevant_facts(facts=[], instruction="Some rule.") == []
+    assert composer.filter_relevant_facts(facts=None, instruction="Some rule.") == []
+    assert (
+        composer.filter_relevant_facts(
+            facts=[{"fact_type": "x", "fact_text": "y"}], instruction=""
+        )
+        == []
+    )
+
+
+def test_filter_relevant_facts_fails_closed_on_llm_error():
+    class RaisingAdapter:
+        def __init__(self):
+            self.client = SimpleNamespace(
+                chat=SimpleNamespace(
+                    completions=SimpleNamespace(
+                        create=lambda **kwargs: (_ for _ in ()).throw(
+                            RuntimeError("network error")
+                        )
+                    )
+                )
+            )
+            self.model = "test-model"
+
+    composer = SafetyPointMessageComposer(llm_adapter=RaisingAdapter())
+
+    result = composer.filter_relevant_facts(
+        facts=[{"fact_type": "x", "fact_text": "y"}],
+        instruction="Some rule.",
+    )
+
+    assert result == []
+
+
+def test_filter_relevant_facts_fails_closed_on_invalid_json():
+    adapter = FakeAdapter(["not valid json"])
+    composer = SafetyPointMessageComposer(llm_adapter=adapter)
+
+    result = composer.filter_relevant_facts(
+        facts=[{"fact_type": "x", "fact_text": "y"}],
+        instruction="Some rule.",
+    )
+
+    assert result == []
+
+
+def test_filter_relevant_facts_ignores_out_of_range_indexes():
+    adapter = FakeAdapter(
+        [
+            json.dumps({"relevant_fact_indexes": [0, 5, -1, "not a number"]}),
+        ]
+    )
+    composer = SafetyPointMessageComposer(llm_adapter=adapter)
+
+    facts = [{"fact_type": "x", "fact_text": "only fact"}]
+
+    result = composer.filter_relevant_facts(
+        facts=facts,
+        instruction="Some rule.",
+    )
+
+    assert result == [facts[0]]

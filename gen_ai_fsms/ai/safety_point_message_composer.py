@@ -203,6 +203,129 @@ class SafetyPointMessageComposer:
         content = response.choices[0].message.content
         return content.strip() if content else None
 
+    def filter_relevant_facts(
+        self,
+        *,
+        facts: Optional[list[dict[str, Any]]],
+        instruction: str,
+    ) -> list[dict[str, Any]]:
+        """Filter parked facts down to only those genuinely relevant to
+        this exact safety point rule.
+
+        This is the only place in the workflow where the fixed
+        instruction text is given to an LLM call. That call's own output
+        is never shown to a user - it only ever returns which facts (by
+        index) are allowed to be offered to a later, separate step that
+        writes the actual message. That writing step never sees the
+        instruction, only whichever facts pass through here.
+
+        If this check fails for any reason (network error, bad
+        response, anything), the safe default is to offer no facts, not
+        to block anything else. A failure here can only ever make the
+        resulting message more generic; it can never cause a fallback
+        to the generic template message.
+        """
+        if not facts:
+            return []
+
+        clean_instruction = _normalise_text(instruction)
+        if not clean_instruction:
+            logger.warning(
+                "Parked fact relevance filter: no instruction text was "
+                "provided, offering no facts."
+            )
+            return []
+
+        fact_texts: list[str] = []
+        for fact in facts:
+            if isinstance(fact, dict):
+                text = _normalise_text(fact.get("fact_text"))
+            else:
+                text = _normalise_text(fact)
+            fact_texts.append(text)
+
+        numbered_lines = [
+            f"{index}: {text}"
+            for index, text in enumerate(fact_texts)
+            if text
+        ]
+
+        if not numbered_lines:
+            return []
+
+        numbered_facts = "\n".join(numbered_lines)
+
+        rendered_prompt = render_prompt(
+            "parked_fact_relevance_filter",
+            {
+                "instruction": clean_instruction,
+                "numbered_facts": numbered_facts,
+            },
+        )
+
+        try:
+            content = self._call_llm(
+                rendered_prompt,
+                temperature=0.0,
+                response_format={"type": "json_object"},
+            )
+        except Exception as exc:
+            logger.warning(
+                "Parked fact relevance filter: LLM call failed: %s", exc
+            )
+            return []
+
+        if not content:
+            logger.warning(
+                "Parked fact relevance filter: empty LLM response"
+            )
+            return []
+
+        try:
+            payload = json.loads(content)
+        except json.JSONDecodeError:
+            logger.warning(
+                "Parked fact relevance filter: invalid JSON response: %r",
+                content,
+            )
+            return []
+
+        if not isinstance(payload, dict):
+            logger.warning(
+                "Parked fact relevance filter: response was not a JSON "
+                "object: %r",
+                payload,
+            )
+            return []
+
+        raw_indexes = payload.get("relevant_fact_indexes")
+        if not isinstance(raw_indexes, list):
+            logger.warning(
+                "Parked fact relevance filter: relevant_fact_indexes "
+                "missing or not a list: %r",
+                payload,
+            )
+            return []
+
+        valid_indexes: set[int] = set()
+        for raw_index in raw_indexes:
+            if isinstance(raw_index, bool):
+                continue
+            if isinstance(raw_index, int) and 0 <= raw_index < len(facts):
+                valid_indexes.add(raw_index)
+
+        filtered_facts = [facts[index] for index in sorted(valid_indexes)]
+
+        logger.warning(
+            "PARKED FACT RELEVANCE FILTER RESULT: kept %d of %d facts | "
+            "instruction=%r",
+            len(filtered_facts),
+            len(facts),
+            clean_instruction,
+        )
+
+        return filtered_facts
+
     def compose_safety_point_review_message(
         self,
         *,

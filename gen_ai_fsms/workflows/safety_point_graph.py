@@ -17,7 +17,6 @@ from gen_ai_fsms.db.session import SessionLocal
 
 from gen_ai_fsms.services.business_context_service import get_business_context
 from gen_ai_fsms.services.business_context_fact_service import create_business_context_fact
-from gen_ai_fsms.services.context_relevance_service import build_relevant_prompt_context
 from gen_ai_fsms.services.safety_point_approval_service import (
     get_condition_values_for_profile,
     get_relevant_safety_points_for_profile,
@@ -822,19 +821,23 @@ def create_safety_point_graph():
         )
 
         if not state.get("last_user_message"):
-            relevant_business_context = build_relevant_prompt_context(
-                state.get("business_context", {}),
-                current_safety_point,
+            business_context = state.get("business_context", {})
+            safety_point_instruction_text = (
+                current_safety_point.get("instruction")
+                or current_safety_point.get("safety_point_instruction")
+                or safety_point_text
+                or ""
+            )
+            composer = SafetyPointMessageComposer()
+            filtered_facts = composer.filter_relevant_facts(
+                facts=business_context.get("relevant_facts", []),
+                instruction=safety_point_instruction_text,
             )
             safety_point_prompt = (
-                SafetyPointMessageComposer()
-                .compose_safety_point_review_message(
-                    business_context=relevant_business_context,
+                composer.compose_safety_point_review_message(
+                    business_context=business_context,
                     safety_point=current_safety_point,
-                    relevant_facts=relevant_business_context.get(
-                        "relevant_facts",
-                        [],
-                    ),
+                    relevant_facts=filtered_facts,
                     is_first_message=not bool(
                         state.get("approval_chat_history")
                     ),
@@ -1053,9 +1056,10 @@ def create_safety_point_graph():
                 or safety_point_text
             )
             safety_point_rationale = current_safety_point.get("rationale", "")
-            business_context = build_relevant_prompt_context(
-                state.get("business_context", {}),
-                current_safety_point,
+            business_context = state.get("business_context", {})
+            filtered_facts = SafetyPointMessageComposer().filter_relevant_facts(
+                facts=business_context.get("relevant_facts", []),
+                instruction=safety_point_instruction or "",
             )
             answer = adapter.answer_safety_point_question(
                 safety_point_text=safety_point_text,
@@ -1066,7 +1070,7 @@ def create_safety_point_graph():
                 safety_point_instruction=safety_point_instruction,
                 safety_point_rationale=safety_point_rationale,
                 business_context=business_context,
-                relevant_facts=business_context.get("relevant_facts", []),
+                relevant_facts=filtered_facts,
             )
 
         messages = state.setdefault("current_q_and_a_messages", [])
