@@ -244,8 +244,8 @@ def test_additional_question_answer_can_persist_fact_separately_from_approval(
     assert result["next_action"] == "complete"
     assert result["status"] == "completed"
     assert (
-        result["assistant_message"]
-        == "All relevant safety points have been approved."
+        "All relevant safety points have been approved"
+        in result["assistant_message"]
     )
     assert result["additional_answers"] == {}
 
@@ -295,7 +295,7 @@ def test_plain_approval_with_no_extracted_facts_stores_no_fact(monkeypatch):
     )
 
     assert result["status"] == "completed"
-    assert result["assistant_message"] == "All relevant safety points have been approved."
+    assert "All relevant safety points have been approved" in result["assistant_message"]
     assert len(approval_calls) == 1
     assert recorded_facts == []
 

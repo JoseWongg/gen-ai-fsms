@@ -225,8 +225,8 @@ def test_generated_confirmation_does_not_control_workflow_routing(monkeypatch):
     assert result["next_action"] == "complete"
     assert result["last_confirmation_message"] == misleading_confirmation
     assert (
-        result["assistant_message"]
-        == "All relevant safety points have been approved."
+        "All relevant safety points have been approved"
+        in result["assistant_message"]
     )
 
     assert event_log.count("record_approval") == 1

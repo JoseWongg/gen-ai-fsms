@@ -1742,7 +1742,9 @@ def create_safety_point_graph():
             state["status"] = "completed"
             state["next_action"] = "complete_approval"
             state["assistant_message"] = (
-                "All relevant safety points have been approved."
+                "All relevant safety points have been approved. They are now "
+                "part of your Food Safety Policy and can be viewed in the "
+                "Food Safety section as Approved Methods."
             )
             return state
 
@@ -1778,7 +1780,9 @@ def create_safety_point_graph():
         state["next_action"] = "complete"
         if not state.get("assistant_message"):
             state["assistant_message"] = (
-                "All relevant safety points have been approved."
+                "All relevant safety points have been approved. They are now "
+                "part of your Food Safety Policy and can be viewed in the "
+                "Food Safety section as Approved Methods."
             )
         _append_approval_chat_message(
             state=state,

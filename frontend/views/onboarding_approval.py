@@ -190,26 +190,16 @@ def show():
         st.markdown(f"**Required additional question:** {question_text}")
 
     def render_context_panel():
-        if st.session_state.get("approval_session") is None:
-            st.info(
-                "This process reviews the SFBB safety points that are relevant to the "
-                "completed Food Safety Profile.\n\n"
-                "The purpose is to confirm which standard SFBB safety points the "
-                "business will follow.\n\n"
-                "Approved safety points can be viewed in the Food Safety section as "
-                "Approved Methods."
-            )
-            return
-
         st.info(
-            "You will be presented, one at a time, with relevant safety points based "
-            "on your Food Safety Profile.\n\n"
-            "You can confirm whether the business adheres to the safety point.\n\n"
-            "Alternatively, you can ask clarification questions.\n\n"
-            "Some safety points will need you to respond to additional questions "
-            "before final approval.\n\n"
-            "Approved safety points are part of your Food Safety Policy and can be "
-            "viewed in the Food Safety section as Approved Methods."
+            "This process reviews the SFBB safety points that are relevant to the "
+            "completed Food Safety Profile. The purpose is to confirm which "
+            "standard SFBB safety points the business will follow.\n\n"
+            "You will be presented, one at a time, with relevant safety points. "
+            "You can confirm whether the business adheres to each one, or ask "
+            "clarification questions. Some safety points will need you to "
+            "respond to additional questions before final approval.\n\n"
+            "Approved safety points are part of your Food Safety Policy and can "
+            "be viewed in the Food Safety section as Approved Methods."
         )
 
     def render_messages():
@@ -378,16 +368,7 @@ def show():
 
         return
 
-    render_context_panel()
-
     if approval_session.get("workflow_status") == "completed":
-        st.success(
-            "FSMS Builder completed.\n\n"
-            "All relevant safety points have been approved.\n\n"
-            "Approved safety points are part of your Food Safety Policy and can be "
-            "viewed in the Food Safety section as Approved Methods."
-        )
-
         st.markdown("---")
         render_messages()
         render_progress_indicator(approval_session)
