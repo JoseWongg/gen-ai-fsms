@@ -332,13 +332,11 @@ def reset_safety_point_approval(
     )
 
     deleted_count = len(sessions)
-    workflow_session_ids = [session.id for session in sessions]
 
     deleted_business_context_fact_count = (
         reset_business_context_facts_for_profile(
             db=db,
             business_profile_id=profile.id,
-            workflow_session_ids=workflow_session_ids,
         )
     )
 

@@ -99,7 +99,7 @@ def test_safety_point_approval_reset_deletes_parked_facts_before_session_delete(
     assert response["deleted_approved_safety_point_count"] == 3
 
     assert db.events == [
-        ("delete_business_context_facts", 100, (10, 11)),
+        ("delete_business_context_facts", 100, ()),
         ("delete_session", 10, "safety_point_approval"),
         ("delete_session", 11, "safety_point_approval"),
         ("delete_approved_methods", 100),
