@@ -133,7 +133,7 @@ def show():
 
         label = f"Safety Point: {safety_point_id}"
         if not is_open:
-            label += "   🔴 :red[**Click to display**]"
+            label = f"Click to display {label}"
 
         with st.expander(
             label,
