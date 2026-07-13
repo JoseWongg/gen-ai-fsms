@@ -356,11 +356,75 @@ def show():
             queue_screening_answer(selected_value)
             st.rerun()
 
+    def render_yes_no_input(current_session):
+        question_id = current_session.get("question_id")
+        suggested_answer = current_session.get("question_suggested_answer")
+
+        # Keying the switch by question id gives each question a fresh
+        # widget with its own suggested starting position, rather than
+        # carrying over whatever position the previous question's switch
+        # was left in.
+        switch_key = f"screening_yes_no_switch_{question_id}"
+
+        st.markdown(
+            """
+            <style>
+            div[data-testid="stToggle"] label div[data-baseweb="toggle"] {
+                transform: scale(1.4);
+            }
+            div[data-testid="stToggle"] {
+                display: flex;
+                justify-content: center;
+                width: 100%;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        outer_left, outer_center, outer_right = st.columns([1, 2, 1])
+
+        with outer_center:
+            label_no, switch_col, label_yes = st.columns([3, 1, 3])
+
+            with label_no:
+                st.markdown(
+                    "<div style='text-align:right; font-size:1.3em; "
+                    "padding-top:10px;'>No</div>",
+                    unsafe_allow_html=True,
+                )
+
+            with switch_col:
+                selected_value = st.toggle(
+                    " ",
+                    value=suggested_answer == "true",
+                    key=switch_key,
+                    disabled=st.session_state.get("screening_processing", False),
+                    label_visibility="collapsed",
+                )
+
+            with label_yes:
+                st.markdown(
+                    "<div style='text-align:left; font-size:1.3em; "
+                    "padding-top:10px;'>Yes</div>",
+                    unsafe_allow_html=True,
+                )
+
+        if st.button(
+            "Continue",
+            use_container_width=True,
+            disabled=st.session_state.get("screening_processing", False),
+        ):
+            queue_screening_answer("yes" if selected_value else "no")
+            st.rerun()
+
     current_session_for_input = st.session_state.get("screening_session") or {}
     question_input_type = current_session_for_input.get("question_input_type", "chat")
 
     if question_input_type == "select":
         render_business_type_input(current_session_for_input)
+    elif question_input_type == "yes_no":
+        render_yes_no_input(current_session_for_input)
     else:
         is_business_description = question_input_type == "textarea"
 
@@ -428,6 +492,9 @@ def show():
                 st.session_state.screening_session["question_options"] = data.get(
                     "question_options",
                     [],
+                )
+                st.session_state.screening_session["question_suggested_answer"] = (
+                    data.get("question_suggested_answer")
                 )
 
             elif action == "ask_again":

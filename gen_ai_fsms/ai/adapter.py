@@ -101,6 +101,79 @@ class LLMAdapter:
                 "reason": f"API error: {e}"
             }
 
+    def suggest_screening_answer(
+        self,
+        *,
+        business_description: str,
+        question_text: str,
+    ) -> str:
+        """
+        Suggest a starting yes/no value for a screening question, based on
+        the business description the user already provided.
+
+        This is only ever used to pre-set a switch that the user reviews
+        and can freely change before continuing - it never determines the
+        final recorded answer on its own. Returns "true" or "false", and
+        defaults to "false" whenever the description does not clearly
+        indicate an answer, or if anything goes wrong.
+        """
+        clean_description = (business_description or "").strip()
+
+        if not self.client or not clean_description:
+            return "false"
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You suggest a starting yes/no value for a food "
+                    "safety screening question, based on a business's "
+                    "own description of what it does. This is only a "
+                    "starting suggestion for the user to review and "
+                    "change if needed - it is never the final answer.\n"
+                    "Only answer true if the description clearly and "
+                    "specifically indicates this activity happens. If "
+                    "the description does not mention it, is ambiguous, "
+                    "or you are not confident, answer false.\n"
+                    "Return strict JSON only, no other text: "
+                    '{"value": "true" or "false"}'
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Business description: {clean_description}\n\n"
+                    f"Screening question: {question_text}\n\n"
+                    "What should the starting value be?"
+                ),
+            },
+        ]
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.0,
+                response_format={"type": "json_object"},
+            )
+            content = response.choices[0].message.content
+        except Exception as exc:
+            logger.error("LLM error in suggest_screening_answer: %s", exc)
+            return "false"
+
+        if not content:
+            return "false"
+
+        try:
+            payload = json.loads(content)
+        except json.JSONDecodeError:
+            return "false"
+
+        if not isinstance(payload, dict):
+            return "false"
+
+        return "true" if payload.get("value") == "true" else "false"
+
     def answer_screening_clarification(self, question: str, user_question: str) -> str:
         """Explain the meaning of a screening question."""
         if not self.client:

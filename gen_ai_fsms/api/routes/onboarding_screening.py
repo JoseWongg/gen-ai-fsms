@@ -104,7 +104,11 @@ def get_business_context_question(question_id: str) -> dict:
     raise ValueError(f"Unknown business context question_id: {question_id}")
 
 
-def set_current_question_from_payload(state: dict, question: dict) -> None:
+def set_current_question_from_payload(
+    state: dict,
+    question: dict,
+    business_description: str | None = None,
+) -> None:
     state["current_question_id"] = question["question_id"]
     state["current_question_text"] = question["text"]
     state["conditions_to_set"] = question.get("sets_conditions", [])
@@ -112,12 +116,26 @@ def set_current_question_from_payload(state: dict, question: dict) -> None:
     state["current_question_input_type"] = question.get("input_type", "chat")
     state["current_question_options"] = question.get("options", [])
 
+    if question.get("question_type") == "screening":
+        adapter = get_llm_adapter()
+        state["current_question_suggested_answer"] = (
+            adapter.suggest_screening_answer(
+                business_description=business_description or "",
+                question_text=question["text"],
+            )
+        )
+    else:
+        state["current_question_suggested_answer"] = None
+
 
 def build_question_response_fields(state: dict) -> dict:
     return {
         "question_type": state.get("current_question_type", "screening"),
         "question_input_type": state.get("current_question_input_type", "chat"),
         "question_options": state.get("current_question_options", []),
+        "question_suggested_answer": state.get(
+            "current_question_suggested_answer"
+        ),
     }
 
 
@@ -133,7 +151,10 @@ def normalise_business_type(answer: str) -> str | None:
     return BUSINESS_TYPE_VALUES_BY_NORMALISED_LABEL.get(cleaned.lower())
 
 
-def start_first_screening_question(state: dict) -> dict:
+def start_first_screening_question(
+    state: dict,
+    business_description: str | None = None,
+) -> dict:
     first_q = get_next_question({}, set())
 
     if not first_q:
@@ -146,11 +167,11 @@ def start_first_screening_question(state: dict) -> dict:
         "text": first_q["text"],
         "sets_conditions": first_q["sets_conditions"],
         "question_type": "screening",
-        "input_type": "chat",
+        "input_type": "yes_no",
         "options": [],
     }
 
-    set_current_question_from_payload(state, question)
+    set_current_question_from_payload(state, question, business_description)
     state["next_action"] = "next_question"
 
     return question
@@ -478,7 +499,9 @@ def submit_answer(
 
             add_display_message(state, "assistant", recorded_message)
 
-            next_question = start_first_screening_question(state)
+            next_question = start_first_screening_question(
+                state, business_description=description
+            )
             add_display_message(state, "assistant", next_question["text"])
 
             update_session(db, session_obj.id, json.dumps(state), "in_progress")
@@ -611,10 +634,12 @@ def submit_answer(
             "text": next_question["text"],
             "sets_conditions": next_question["sets_conditions"],
             "question_type": "screening",
-            "input_type": "chat",
+            "input_type": "yes_no",
             "options": [],
         }
-        set_current_question_from_payload(state, question)
+        set_current_question_from_payload(
+            state, question, profile.business_description
+        )
         state["next_action"] = "next_question"
 
     if action == "clear":
