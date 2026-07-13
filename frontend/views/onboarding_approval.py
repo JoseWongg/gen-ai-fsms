@@ -249,14 +249,14 @@ def show():
         if st.session_state.get("approval_processing", False):
             st.info("Processing your message...")
 
-    def submit_approval_message():
+    def queue_approval_message(message):
         if (
             st.session_state.get("approval_processing", False)
             or st.session_state.get("pending_approval_message") is not None
         ):
             return
 
-        submitted_message = st.session_state.get("approval_chat_input")
+        submitted_message = " ".join(str(message or "").split())
 
         if not submitted_message:
             return
@@ -271,6 +271,11 @@ def show():
             "message_type": "user_message",
         })
         st.session_state.approval_messages = current_messages
+
+    def submit_approval_message():
+        queue_approval_message(
+            st.session_state.get("approval_chat_input")
+        )
 
     def process_pending_message():
         if (
@@ -415,6 +420,24 @@ def show():
     )
 
     process_pending_message()
+
+    current_additional_question = approval_session.get(
+        "current_additional_question"
+    )
+
+    if not current_additional_question:
+        approve_disabled = (
+            st.session_state.get("approval_processing", False)
+            or st.session_state.get("pending_approval_message") is not None
+        )
+
+        if st.button(
+            "Approve safety point",
+            type="primary",
+            disabled=approve_disabled,
+        ):
+            queue_approval_message("I approve this safety point.")
+            st.rerun()
 
     if st.button("Reset and start over"):
         reset_approval()
