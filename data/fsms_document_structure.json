@@ -1,0 +1,193 @@
+{
+  "schema_version": "1.0",
+  "planned_section_count": 10,
+  "supported_section_count": 4,
+  "sections": [
+    {
+      "section_id": "food_safety_policy",
+      "title": "Food Safety Policy",
+      "display_order": 1,
+      "implementation_status": "supported",
+      "completion_rule": "business_profile_complete",
+      "source_section_ids": [],
+      "always_applicable": true,
+      "counts_towards_business_completion": true,
+      "counts_towards_product_coverage": true,
+      "introduction": "This section records the business's commitment to follow the food safety methods contained in this document within the areas currently supported by the system."
+    },
+    {
+      "section_id": "business_and_hazard_overview",
+      "title": "Business and Hazard Overview",
+      "display_order": 2,
+      "implementation_status": "supported",
+      "completion_rule": "food_safety_profile_complete",
+      "source_section_ids": [],
+      "always_applicable": true,
+      "counts_towards_business_completion": true,
+      "counts_towards_product_coverage": true,
+      "introduction": "This section summarises the business activities and the Food Safety Profile information used to identify which food safety controls apply."
+    },
+    {
+      "section_id": "temperature_control",
+      "title": "Temperature Control",
+      "display_order": 3,
+      "implementation_status": "supported",
+      "completion_rule": "all_applicable_chilling_requirements_complete",
+      "source_section_ids": [
+        "chilling"
+      ],
+      "always_applicable": false,
+      "counts_towards_business_completion": true,
+      "counts_towards_product_coverage": true,
+      "introduction": "This section records the applicable methods approved by the business for chilling, cooling, defrosting and freezing food safely."
+    },
+    {
+      "section_id": "cooking_and_reheating",
+      "title": "Cooking and Reheating",
+      "display_order": 4,
+      "implementation_status": "supported",
+      "completion_rule": "all_applicable_cooking_requirements_complete",
+      "source_section_ids": [
+        "cooking"
+      ],
+      "always_applicable": false,
+      "counts_towards_business_completion": true,
+      "counts_towards_product_coverage": true,
+      "introduction": "This section records the applicable methods approved by the business for cooking, reheating, hot holding and handling ready-to-eat food safely."
+    },
+    {
+      "section_id": "cross_contamination_control",
+      "title": "Cross-Contamination Control",
+      "display_order": 5,
+      "implementation_status": "beyond_prototype_scope",
+      "source_section_ids": [],
+      "always_applicable": true,
+      "counts_towards_business_completion": false,
+      "counts_towards_product_coverage": true,
+      "introduction": "This planned section will record controls used to prevent cross-contamination between raw food, ready-to-eat food, equipment, surfaces and staff activities."
+    },
+    {
+      "section_id": "cleaning_and_disinfection",
+      "title": "Cleaning and Disinfection",
+      "display_order": 6,
+      "implementation_status": "beyond_prototype_scope",
+      "source_section_ids": [],
+      "always_applicable": true,
+      "counts_towards_business_completion": false,
+      "counts_towards_product_coverage": true,
+      "introduction": "This planned section will record the cleaning and disinfection methods, schedules, products and checks used by the business."
+    },
+    {
+      "section_id": "allergen_management",
+      "title": "Allergen Management",
+      "display_order": 7,
+      "implementation_status": "beyond_prototype_scope",
+      "source_section_ids": [],
+      "always_applicable": true,
+      "counts_towards_business_completion": false,
+      "counts_towards_product_coverage": true,
+      "introduction": "This planned section will record how allergen information is managed and how unintended allergen cross-contact is controlled."
+    },
+    {
+      "section_id": "pest_control",
+      "title": "Pest Control",
+      "display_order": 8,
+      "implementation_status": "beyond_prototype_scope",
+      "source_section_ids": [],
+      "always_applicable": true,
+      "counts_towards_business_completion": false,
+      "counts_towards_product_coverage": true,
+      "introduction": "This planned section will record the measures used to prevent, identify and respond to pest activity."
+    },
+    {
+      "section_id": "deliveries_and_traceability",
+      "title": "Deliveries and Traceability",
+      "display_order": 9,
+      "implementation_status": "beyond_prototype_scope",
+      "source_section_ids": [],
+      "always_applicable": true,
+      "counts_towards_business_completion": false,
+      "counts_towards_product_coverage": true,
+      "introduction": "This planned section will record supplier, delivery, stock identification and traceability controls."
+    },
+    {
+      "section_id": "training_responsibilities_and_review",
+      "title": "Training, Responsibilities and Review",
+      "display_order": 10,
+      "implementation_status": "beyond_prototype_scope",
+      "source_section_ids": [],
+      "always_applicable": true,
+      "counts_towards_business_completion": false,
+      "counts_towards_product_coverage": true,
+      "introduction": "This planned section will record staff responsibilities, training arrangements and the process used to review and update the Food Safety Management System."
+    }
+  ],
+  "safe_method_introductions": {
+    "4.1": {
+      "title": "Chilled Storage and Displaying Chilled Food",
+      "source_section_id": "chilling",
+      "introduction": "This subsection records the methods used to keep chilled food at safe temperatures, manage chilled storage and display, and monitor chilling equipment."
+    },
+    "4.2": {
+      "title": "Chilling Down Hot Food",
+      "source_section_id": "chilling",
+      "introduction": "This subsection records the methods used to cool cooked food quickly and safely before refrigerated or frozen storage."
+    },
+    "4.3": {
+      "title": "Defrosting",
+      "source_section_id": "chilling",
+      "introduction": "This subsection records how food is defrosted safely and how the business checks that food is fully defrosted before cooking or use."
+    },
+    "4.4": {
+      "title": "Freezing",
+      "source_section_id": "chilling",
+      "introduction": "This subsection records how frozen food is received, prepared, stored and monitored to keep it safe."
+    },
+    "5.1": {
+      "title": "Cooking Safely",
+      "source_section_id": "cooking",
+      "introduction": "This subsection records the controls used to cook food thoroughly, prevent contamination during cooking, and check that food has reached a safe condition."
+    },
+    "5.2": {
+      "title": "Foods That Need Extra Care",
+      "source_section_id": "cooking",
+      "introduction": "This subsection records the additional controls used for foods that require particular care during preparation and cooking."
+    },
+    "5.3": {
+      "title": "Reheating",
+      "source_section_id": "cooking",
+      "introduction": "This subsection records how previously cooked food is reheated safely and served or held without unnecessary delay."
+    },
+    "5.4": {
+      "title": "Acrylamide",
+      "source_section_id": "cooking",
+      "introduction": "This subsection records the cooking controls used to reduce acrylamide formation while ensuring food is cooked safely."
+    },
+    "5.5": {
+      "title": "Hot Holding",
+      "source_section_id": "cooking",
+      "introduction": "This subsection records how cooked food is kept hot safely before service and how hot-holding temperatures are checked."
+    },
+    "5.6": {
+      "title": "Ready-to-Eat Food",
+      "source_section_id": "cooking",
+      "introduction": "This subsection records the controls used to protect ready-to-eat food from contamination because it will not receive further cooking before service."
+    }
+  },
+  "appendices": [
+    {
+      "appendix_id": "monitoring_arrangements_and_records",
+      "title": "Monitoring Arrangements and Records",
+      "display_order": 1,
+      "counts_towards_business_completion": false,
+      "counts_towards_product_coverage": false
+    },
+    {
+      "appendix_id": "source_references",
+      "title": "Source References",
+      "display_order": 2,
+      "counts_towards_business_completion": false,
+      "counts_towards_product_coverage": false
+    }
+  ]
+}
