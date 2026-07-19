@@ -16,8 +16,9 @@ class FakeSession:
 
 
 class FakeAdapter:
-    def __init__(self, action):
+    def __init__(self, action, cleaning_result=None):
         self.action = action
+        self.cleaning_result = cleaning_result
 
     def interpret_safety_point_response(
         self,
@@ -37,6 +38,23 @@ class FakeAdapter:
 
     def answer_additional_question_clarification(self, **kwargs):
         return "Additional question clarification answer."
+
+    def clean_additional_question_response(
+        self,
+        *,
+        additional_question_text,
+        raw_response_text,
+    ):
+        if self.cleaning_result is not None:
+            return self.cleaning_result
+
+        return {
+            "success": True,
+            "document_response_text": (
+                "Chilled food is kept in Fridge 1."
+            ),
+            "reason": "Removed conversational wording.",
+        }
 
 
 class FakeComposer:
@@ -251,13 +269,16 @@ def test_additional_question_answer_can_persist_fact_separately_from_approval(
         in result["assistant_message"]
     )
     assert result["additional_answers"] == {}
+    assert result["document_additional_answers"] == {}
 
     assert len(approval_calls) == 1
     assert approval_calls[0]["additional_answers"] == {
         "where_chilled_food_is_kept": "We keep chilled food in Fridge 1."
     }
-    assert approval_calls[0]["additional_answers"] == {
-        "where_chilled_food_is_kept": "We keep chilled food in Fridge 1."
+    assert approval_calls[0]["document_additional_answers"] == {
+        "where_chilled_food_is_kept": (
+            "Chilled food is kept in Fridge 1."
+        )
     }
 
     assert len(recorded_facts) == 1
@@ -332,3 +353,60 @@ def test_fact_extraction_failure_does_not_block_approval(monkeypatch):
     assert result["status"] == "completed"
     assert len(approval_calls) == 1
     assert recorded_facts == []
+
+
+def test_additional_answer_cleaning_failure_keeps_question_open(
+    monkeypatch,
+):
+    recorded_facts = []
+    approval_calls = []
+    additional_questions = [
+        {
+            "question_key": "where_chilled_food_is_kept",
+            "question_text": "Where do you keep chilled food?",
+            "required": True,
+        }
+    ]
+
+    _patch_common_dependencies(
+        monkeypatch,
+        adapter=FakeAdapter(
+            "additional_answer",
+            cleaning_result={
+                "success": False,
+                "document_response_text": None,
+                "reason": "Reliable wording could not be produced.",
+            },
+        ),
+        composer=FakeComposer(),
+        safety_points=[
+            _safety_point(
+                additional_questions=additional_questions
+            )
+        ],
+        recorded_facts=recorded_facts,
+        approval_calls=approval_calls,
+    )
+
+    graph = workflow_module.create_safety_point_graph()
+
+    result = graph.invoke(
+        {
+            "business_profile_id": 1,
+            "user_id": 10,
+            "last_user_message": "It depends.",
+            "awaiting_additional_answers": True,
+            "current_additional_question_index": 0,
+            "pending_additional_questions": additional_questions,
+            "current_additional_question": additional_questions[0],
+        }
+    )
+
+    assert result["next_action"] == "awaiting_user_message"
+    assert result["awaiting_additional_answers"] is True
+    assert result["additional_answers"] == {}
+    assert result["document_additional_answers"] == {}
+    assert approval_calls == []
+    assert "could not prepare reliable wording" in (
+        result["assistant_message"].lower()
+    )

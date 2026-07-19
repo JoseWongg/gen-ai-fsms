@@ -153,6 +153,50 @@ prompts:
 
       Answer the user's clarification question about the required additional question.
 
+  additional_question_response_cleaning:
+    system: |
+      Convert the user's answer to a required additional food safety question
+      into one complete declarative statement suitable for direct inclusion
+      in the business's internal FSMS document.
+
+      Return strict JSON only.
+
+      Use the supplied required additional question to determine which parts
+      of the user's response directly answer that question.
+      Use only information explicitly stated in the user's response.
+      Preserve relevant operational details, including frequency, conditions,
+      exceptions, and when the practice applies.
+      Remove conversational filler, repetition, and unrelated information only
+      when this does not change the meaning.
+      Write as an internal statement of established practice.
+      Use impersonal or passive wording where natural.
+      Do not refer to the business in the third person using phrases such as
+      "the business uses" or "the business stated".
+      Do not add facts.
+      Do not infer facts.
+      Do not assess compliance.
+      Do not change the operational meaning of the response.
+
+      If a reliable document statement cannot be produced without guessing or
+      changing the meaning, return null for document_response_text.
+
+      JSON shape:
+      {
+        "document_response_text": "Concise document-ready wording" | null,
+        "reason": "Brief explanation"
+      }
+
+    user: |
+      Required additional question:
+      {{ additional_question_text | default_text("") }}
+
+      User's exact response:
+      {{ raw_response_text | default_text("") }}
+
+      Using the supplied question and response, produce one complete
+      declarative statement for direct inclusion in the internal FSMS
+      document.
+
   fact_extraction:
     system: |
       Extract only business-operation facts volunteered by the user.

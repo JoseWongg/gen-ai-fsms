@@ -244,6 +244,9 @@ def get_approved_methods_for_profile(
                 "question_key": response.question_key,
                 "question_text": response.question_text,
                 "response_text": response.response_text,
+                "document_response_text": (
+                    response.document_response_text
+                ),
                 "created_at": (
                     response.created_at.isoformat()
                     if response.created_at
@@ -261,6 +264,7 @@ def get_approved_methods_for_profile(
                 and response.question_key == "chilling_equipment_temperature_checks"
             ):
                 response_view["response_text"] = None
+                response_view["document_response_text"] = None
                 response_view["current_chilling_equipment"] = current_chilling_equipment
 
             responses.append(response_view)
@@ -644,6 +648,7 @@ def record_approved_safety_point(
     user_id: int,
     safety_point: Dict[str, Any],
     additional_answers: Dict[str, str],
+    document_additional_answers: Dict[str, str],
 ) -> Dict[str, Any]:
     safety_point_text = (
         safety_point.get("text")
@@ -677,11 +682,25 @@ def record_approved_safety_point(
         if question is None:
             continue
 
+        document_response_text = document_additional_answers.get(
+            question_key
+        )
+
+        if (
+            not isinstance(document_response_text, str)
+            or not document_response_text.strip()
+        ):
+            raise ValueError(
+                "Missing document response text for additional question "
+                f"'{question_key}'."
+            )
+
         response_record = ApprovedSafetyPointResponse(
             approved_safety_point_id=approved_safety_point.id,
             question_key=question_key,
             question_text=question.get("question_text", ""),
             response_text=response_text,
+            document_response_text=document_response_text.strip(),
         )
 
         db.add(response_record)

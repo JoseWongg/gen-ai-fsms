@@ -18,6 +18,7 @@ class ApprovedSafetyPointResponse(Base):
     question_key = Column(String(100), nullable=False)
     question_text = Column(Text, nullable=False)
     response_text = Column(Text, nullable=False)
+    document_response_text = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
         DateTime(timezone=True),

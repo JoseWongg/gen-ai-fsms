@@ -81,6 +81,7 @@ class SafetyPointApprovalState(TypedDict, total=False):
     pending_additional_questions: List[Dict[str, Any]]
     current_additional_question_index: Optional[int]
     additional_answers: Dict[str, str]
+    document_additional_answers: Dict[str, str]
     different_method_declared_message: Optional[str]
     approved_safety_point_ids: List[str]
     status: str
@@ -674,10 +675,18 @@ def _finalize_chilling_equipment_flow(
         state["next_action"] = "move_to_next_safety_point"
         return state
 
-    additional_answers = state.setdefault("additional_answers", {})
-    additional_answers[CHILLING_EQUIPMENT_QUESTION_KEY] = (
+    equipment_summary = (
         _build_chilling_equipment_additional_answer_summary(complete_items)
     )
+    additional_answers = state.setdefault("additional_answers", {})
+    document_additional_answers = state.setdefault(
+        "document_additional_answers",
+        {},
+    )
+    additional_answers[CHILLING_EQUIPMENT_QUESTION_KEY] = equipment_summary
+    document_additional_answers[
+        CHILLING_EQUIPMENT_QUESTION_KEY
+    ] = equipment_summary
 
     _append_approval_chat_message(
         state=state,
@@ -778,6 +787,7 @@ def create_safety_point_graph():
         state.setdefault("approval_chat_history", [])
         state.setdefault("clarification_turn_counts", {})
         state.setdefault("additional_answers", {})
+        state.setdefault("document_additional_answers", {})
         state.setdefault("awaiting_additional_answers", False)
         state.setdefault("last_review_message", None)
         state.setdefault("last_confirmation_message", None)
@@ -1162,10 +1172,23 @@ def create_safety_point_graph():
             result = adapter.extract_chilling_equipment_names(user_message)
 
             if result.get("no_chilling_equipment_declared"):
-                additional_answers = state.setdefault("additional_answers", {})
-                additional_answers[CHILLING_EQUIPMENT_QUESTION_KEY] = (
+                equipment_summary = (
                     "The business stated that it does not use chilling equipment."
                 )
+                additional_answers = state.setdefault(
+                    "additional_answers",
+                    {},
+                )
+                document_additional_answers = state.setdefault(
+                    "document_additional_answers",
+                    {},
+                )
+                additional_answers[
+                    CHILLING_EQUIPMENT_QUESTION_KEY
+                ] = equipment_summary
+                document_additional_answers[
+                    CHILLING_EQUIPMENT_QUESTION_KEY
+                ] = equipment_summary
 
                 state["awaiting_additional_answers"] = False
                 state["current_additional_question_index"] = None
@@ -1496,8 +1519,42 @@ def create_safety_point_graph():
             state["current_response_intent"] = None
             return state
 
+        cleaning_result = (
+            get_llm_adapter().clean_additional_question_response(
+                additional_question_text=current_question.get(
+                    "question_text",
+                    "",
+                ),
+                raw_response_text=user_message,
+            )
+        )
+
+        if not cleaning_result.get("success"):
+            state["assistant_message"] = (
+                "I understood your response, but I could not prepare reliable "
+                "wording for the FSMS document. Please restate the answer "
+                "briefly and include only what the business does."
+            )
+            _append_approval_chat_message(
+                state=state,
+                role="assistant",
+                content=state.get("assistant_message"),
+                message_type="additional_answer_cleaning_failed",
+            )
+            state["last_user_message"] = None
+            state["current_response_intent"] = None
+            state["next_action"] = "awaiting_user_message"
+            return state
+
         additional_answers = state.setdefault("additional_answers", {})
+        document_additional_answers = state.setdefault(
+            "document_additional_answers",
+            {},
+        )
         additional_answers[question_key] = user_message
+        document_additional_answers[question_key] = (
+            cleaning_result["document_response_text"]
+        )
 
         _set_current_safety_point_context(state)
 
@@ -1665,6 +1722,10 @@ def create_safety_point_graph():
                 user_id=user_id,
                 safety_point=current_safety_point,
                 additional_answers=state.get("additional_answers", {}),
+                document_additional_answers=state.get(
+                    "document_additional_answers",
+                    {},
+                ),
             )
             db.commit()
         except Exception:
@@ -1716,6 +1777,7 @@ def create_safety_point_graph():
         state["current_response_intent"] = None
         state["current_q_and_a_messages"] = []
         state["additional_answers"] = {}
+        state["document_additional_answers"] = {}
         state["pending_additional_questions"] = []
         state["current_additional_question_index"] = None
         state["current_additional_question"] = None

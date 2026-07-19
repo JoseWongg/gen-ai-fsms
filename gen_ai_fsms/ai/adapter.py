@@ -544,6 +544,100 @@ class LLMAdapter:
             )
             return "Sorry, I couldn't answer your question at this time."
 
+    def clean_additional_question_response(
+        self,
+        additional_question_text: str,
+        raw_response_text: str,
+    ) -> Dict[str, Any]:
+        """
+        Produce concise document wording from an accepted additional answer.
+
+        The raw response remains the source evidence. This method must not add
+        or infer operational facts.
+        """
+        failure_result = {
+            "success": False,
+            "document_response_text": None,
+            "reason": "Document wording could not be produced.",
+        }
+
+        if not self.client:
+            return {
+                **failure_result,
+                "reason": "LLM not configured",
+            }
+
+        rendered_prompt = render_prompt(
+            "additional_question_response_cleaning",
+            {
+                "additional_question_text": additional_question_text,
+                "raw_response_text": raw_response_text,
+            },
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": rendered_prompt["system"],
+                    },
+                    {
+                        "role": "user",
+                        "content": rendered_prompt["user"],
+                    },
+                ],
+                temperature=0.2,
+                response_format={"type": "json_object"},
+            )
+
+            content = response.choices[0].message.content
+
+            if content is None:
+                return {
+                    **failure_result,
+                    "reason": "Empty response from LLM",
+                }
+
+            result = json.loads(content)
+            document_response_text = result.get("document_response_text")
+
+            if not isinstance(document_response_text, str):
+                return {
+                    **failure_result,
+                    "reason": result.get(
+                        "reason",
+                        "No document wording was returned.",
+                    ),
+                }
+
+            document_response_text = document_response_text.strip()
+
+            if not document_response_text:
+                return {
+                    **failure_result,
+                    "reason": result.get(
+                        "reason",
+                        "Empty document wording was returned.",
+                    ),
+                }
+
+            return {
+                "success": True,
+                "document_response_text": document_response_text,
+                "reason": result.get("reason", ""),
+            }
+
+        except Exception as e:
+            logger.error(
+                "LLM error in clean_additional_question_response: %s",
+                e,
+            )
+            return {
+                **failure_result,
+                "reason": f"API error: {e}",
+            }
 
     def extract_chilling_equipment_names(
         self,
