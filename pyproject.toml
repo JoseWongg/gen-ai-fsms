@@ -25,7 +25,8 @@ dependencies = [
     "python-jose[cryptography]",
     "email-validator",
     "bcrypt==3.2.0",
-    "openai"
+    "openai",
+    "reportlab==5.0.0"
 ]
 
 authors = [
