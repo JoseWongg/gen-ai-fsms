@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional
 
 from gen_ai_fsms.schemas.fsms_document import (
     FSMSDocumentArrangement,
+    FSMSDocumentProgress,
     FSMSDocumentRule,
     FSMSDocumentSection,
     FSMSDocumentSubsection,
@@ -423,3 +424,208 @@ def _collect_references(
                 references.append(reference)
 
     return references
+
+
+
+def build_beyond_scope_section(
+    *,
+    section_config: Dict[str, Any],
+) -> FSMSDocumentSection:
+    """
+    Build a controlled placeholder for a planned unsupported section.
+    """
+    if (
+        section_config.get("implementation_status")
+        != "beyond_prototype_scope"
+    ):
+        raise ValueError(
+            "Only beyond-prototype-scope sections can be built by "
+            "build_beyond_scope_section."
+        )
+
+    return FSMSDocumentSection(
+        section_id=section_config["section_id"],
+        title=section_config["title"],
+        display_order=section_config["display_order"],
+        status="beyond_prototype_scope",
+        introduction=section_config["introduction"],
+        completion_message="Beyond prototype scope",
+        applicable_safety_point_count=0,
+        approved_safety_point_count=0,
+        outstanding_safety_point_count=0,
+        subsections=[],
+    )
+
+
+def build_document_progress(
+    *,
+    structure_config: Dict[str, Any],
+    sections: List[FSMSDocumentSection],
+) -> FSMSDocumentProgress:
+    """
+    Calculate completion and product-coverage values.
+
+    Supported sections that are always applicable remain in the completion
+    denominator even if their section content has not yet been built.
+    Non-applicable operational sections are omitted from the denominator.
+    Beyond-scope sections affect product coverage only.
+    """
+    configured_sections = structure_config.get("sections")
+
+    if not isinstance(configured_sections, list):
+        raise ValueError(
+            "FSMS document structure must contain a section list."
+        )
+
+    configured_by_id: Dict[str, Dict[str, Any]] = {}
+
+    for section_config in configured_sections:
+        section_id = section_config.get("section_id")
+
+        if not section_id:
+            raise ValueError(
+                "FSMS document section configuration is missing "
+                "a section ID."
+            )
+
+        if section_id in configured_by_id:
+            raise ValueError(
+                "Duplicate FSMS document section configuration: "
+                f"'{section_id}'."
+            )
+
+        configured_by_id[section_id] = section_config
+
+    built_by_id: Dict[str, FSMSDocumentSection] = {}
+
+    for section in sections:
+        if section.section_id in built_by_id:
+            raise ValueError(
+                "Duplicate built FSMS document section: "
+                f"'{section.section_id}'."
+            )
+
+        section_config = configured_by_id.get(section.section_id)
+
+        if section_config is None:
+            raise ValueError(
+                "Built FSMS document section is not configured: "
+                f"'{section.section_id}'."
+            )
+
+        implementation_status = section_config.get(
+            "implementation_status"
+        )
+
+        if (
+            implementation_status == "supported"
+            and section.status == "beyond_prototype_scope"
+        ):
+            raise ValueError(
+                "Supported FSMS document section cannot use the "
+                "beyond-prototype-scope status."
+            )
+
+        if (
+            implementation_status == "beyond_prototype_scope"
+            and section.status != "beyond_prototype_scope"
+        ):
+            raise ValueError(
+                "Beyond-prototype-scope section must use the "
+                "matching section status."
+            )
+
+        built_by_id[section.section_id] = section
+
+    applicable_supported_count = 0
+    completed_applicable_count = 0
+
+    for section_config in configured_sections:
+        if section_config.get("implementation_status") != "supported":
+            continue
+
+        if (
+            section_config.get(
+                "counts_towards_business_completion"
+            )
+            is not True
+        ):
+            continue
+
+        built_section = built_by_id.get(
+            section_config["section_id"]
+        )
+
+        if built_section is None:
+            if section_config.get("always_applicable") is True:
+                applicable_supported_count += 1
+
+            continue
+
+        applicable_supported_count += 1
+
+        if built_section.status == "completed":
+            completed_applicable_count += 1
+
+    if applicable_supported_count == 0:
+        completion_percentage = 0
+    else:
+        completion_percentage = round(
+            completed_applicable_count
+            / applicable_supported_count
+            * 100
+        )
+
+    if completed_applicable_count == 0:
+        document_status = "not_started"
+    elif (
+        completed_applicable_count
+        == applicable_supported_count
+    ):
+        document_status = "completed"
+    else:
+        document_status = "in_progress"
+
+    supported_section_count = structure_config.get(
+        "supported_section_count"
+    )
+    planned_section_count = structure_config.get(
+        "planned_section_count"
+    )
+
+    if not isinstance(supported_section_count, int):
+        raise ValueError(
+            "FSMS document structure is missing the supported "
+            "section count."
+        )
+
+    if not isinstance(planned_section_count, int):
+        raise ValueError(
+            "FSMS document structure is missing the planned "
+            "section count."
+        )
+
+    return FSMSDocumentProgress(
+        completed_applicable_section_count=(
+            completed_applicable_count
+        ),
+        applicable_supported_section_count=(
+            applicable_supported_count
+        ),
+        completion_percentage=completion_percentage,
+        supported_section_count=supported_section_count,
+        planned_section_count=planned_section_count,
+        document_status=document_status,
+        main_value=(
+            f"{completed_applicable_count}/"
+            f"{applicable_supported_count}"
+        ),
+        completion_caption=(
+            "Applicable prototype sections completed"
+        ),
+        coverage_caption=(
+            f"{supported_section_count} of "
+            f"{planned_section_count} planned FSMS sections "
+            "supported"
+        ),
+    )
