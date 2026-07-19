@@ -93,7 +93,7 @@ def test_missing_document_response_is_rejected():
         )
 
 
-def test_chilling_equipment_table_preserves_supplied_order():
+def test_chilling_equipment_table_formats_stored_codes():
     arrangement = transform_additional_response(
         safety_point_id="4.1.1.3",
         response={
@@ -103,17 +103,19 @@ def test_chilling_equipment_table_preserves_supplied_order():
                 {
                     "equipment_asset_code": "CHILL-002",
                     "equipment_name": "Freezer 1",
-                    "equipment_type": "Upright freezer",
-                    "equipment_use": "Frozen food storage",
-                    "temperature_check_method": "Digital display",
+                    "equipment_type": "freezer",
+                    "equipment_use": "storage",
+                    "temperature_check_method": (
+                        "digital_or_dial_display"
+                    ),
                 },
                 {
                     "equipment_asset_code": "CHILL-001",
                     "equipment_name": "Fridge 1",
-                    "equipment_type": "Upright refrigerator",
-                    "equipment_use": "Chilled food storage",
+                    "equipment_type": "fridge",
+                    "equipment_use": "display",
                     "temperature_check_method": (
-                        "Digital display and probe thermometer"
+                        "probe_between_packs"
                     ),
                 },
             ],
@@ -134,16 +136,16 @@ def test_chilling_equipment_table_preserves_supplied_order():
         [
             "CHILL-002",
             "Freezer 1",
-            "Upright freezer",
-            "Frozen food storage",
-            "Digital display",
+            "Freezer",
+            "Storage",
+            "Digital/dial display",
         ],
         [
             "CHILL-001",
             "Fridge 1",
-            "Upright refrigerator",
-            "Chilled food storage",
-            "Digital display and probe thermometer",
+            "Fridge",
+            "Display",
+            "Probe between packs",
         ],
     ]
 

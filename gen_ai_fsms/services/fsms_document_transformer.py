@@ -16,6 +16,22 @@ CHILLING_EQUIPMENT_QUESTION_KEY = (
     "chilling_equipment_temperature_checks"
 )
 
+CHILLING_EQUIPMENT_VALUE_LABELS = {
+    "equipment_type": {
+        "fridge": "Fridge",
+        "freezer": "Freezer",
+    },
+    "equipment_use": {
+        "storage": "Storage",
+        "display": "Display",
+    },
+    "temperature_check_method": {
+        "digital_or_dial_display": "Digital/dial display",
+        "probe_between_packs": "Probe between packs",
+    },
+}
+
+
 ADDITIONAL_RESPONSE_TITLES = {
     CHILLING_EQUIPMENT_QUESTION_KEY: (
         "Chilling equipment and temperature checks"
@@ -151,10 +167,17 @@ def _transform_chilling_equipment_response(
             [
                 _table_value(equipment.get("equipment_asset_code")),
                 _table_value(equipment.get("equipment_name")),
-                _table_value(equipment.get("equipment_type")),
-                _table_value(equipment.get("equipment_use")),
-                _table_value(
-                    equipment.get("temperature_check_method")
+                _format_chilling_equipment_value(
+                    "equipment_type",
+                    equipment.get("equipment_type"),
+                ),
+                _format_chilling_equipment_value(
+                    "equipment_use",
+                    equipment.get("equipment_use"),
+                ),
+                _format_chilling_equipment_value(
+                    "temperature_check_method",
+                    equipment.get("temperature_check_method"),
                 ),
             ]
         )
@@ -183,6 +206,32 @@ def _table_value(value: Any) -> str:
 
     return str(value).strip()
 
+
+
+def _format_chilling_equipment_value(
+    field_name: str,
+    value: Any,
+) -> str:
+    cleaned_value = _table_value(value)
+
+    if not cleaned_value:
+        return ""
+
+    configured_labels = CHILLING_EQUIPMENT_VALUE_LABELS.get(
+        field_name,
+        {},
+    )
+
+    configured_label = configured_labels.get(cleaned_value)
+
+    if configured_label is not None:
+        return configured_label
+
+    return (
+        cleaned_value.replace("_", " ")
+        .replace("-", " ")
+        .capitalize()
+    )
 
 
 def build_supported_control_section(
