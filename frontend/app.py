@@ -13,6 +13,7 @@ from views.reset_password import show as reset_page
 from views.onboarding_screening import show as screening_page
 from views.onboarding_approval import show as approval_page
 from views.approved_methods import show as approved_methods_page
+from views.fsms_document import show as fsms_document_page
 from views.checklist import show as checklist_page
 from views.shift_archive import show as shift_archive_page
 from views.shift_diary import show as shift_diary_page
@@ -234,6 +235,11 @@ ROUTES = {
         "view": approved_methods_page,
         "admin_only": False,
     },
+    "food_safety_fsms_document": {
+        "title": "Food Safety Management System",
+        "view": fsms_document_page,
+        "admin_only": False,
+    },
     "compliance_food_safety_review": {
         "title": "Food Safety Management System Review",
         "message": "AI-assisted chatbot to introduce changes to the FSMS.",
@@ -339,6 +345,7 @@ MENU_LABEL_TO_ROUTE = {
     "Profile Builder": "compliance_food_safety_profile",
     "FSMS Builder": "compliance_food_safety_fsms_builder",
     "Approved Methods": "compliance_food_safety_approved_methods",
+    "FSMS Document": "food_safety_fsms_document",
     "FSMS Review": "compliance_food_safety_review",
     "Chilling Equipment": "compliance_food_safety_chilling_equipment",
     "Processing Equipment": "compliance_food_safety_processing_equipment",
@@ -367,6 +374,7 @@ def get_navigation_items():
     food_safety_children = [
         sac.MenuItem("Q&A"),
         sac.MenuItem("Approved Methods"),
+        sac.MenuItem("FSMS Document"),
         sac.MenuItem("Allergens Matrix"),
         sac.MenuItem("Cleaning Schedule"),
     ]
