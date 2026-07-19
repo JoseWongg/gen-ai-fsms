@@ -151,3 +151,12 @@ def test_appendices_do_not_affect_progress_counts():
         assert (
             appendix["counts_towards_product_coverage"] is False
         )
+
+
+
+def test_document_structure_has_controlled_document_title():
+    structure = load_json(STRUCTURE_PATH)
+
+    assert structure["document_title"] == (
+        "Food Safety Management System"
+    )

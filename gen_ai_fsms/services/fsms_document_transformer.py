@@ -1,6 +1,9 @@
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from gen_ai_fsms.schemas.fsms_document import (
+    FSMSDocument,
+    FSMSDocumentAppendix,
     FSMSDocumentArrangement,
     FSMSDocumentProgress,
     FSMSDocumentRule,
@@ -629,3 +632,220 @@ def build_document_progress(
             "supported"
         ),
     )
+
+
+
+def build_fsms_document(
+    *,
+    structure_config: Dict[str, Any],
+    business_profile: Dict[str, Any],
+    generated_at: datetime,
+    supported_sections: List[FSMSDocumentSection],
+) -> FSMSDocument:
+    """
+    Assemble the complete structured FSMS document.
+
+    The caller supplies supported sections that have already been
+    transformed. Missing always-applicable supported sections are shown as
+    not completed. Missing operational sections are treated as
+    non-applicable and omitted.
+    """
+    document_title = structure_config.get("document_title")
+
+    if not isinstance(document_title, str) or not document_title.strip():
+        raise ValueError(
+            "FSMS document structure is missing the document title."
+        )
+
+    configured_sections = structure_config.get("sections")
+
+    if not isinstance(configured_sections, list):
+        raise ValueError(
+            "FSMS document structure must contain a section list."
+        )
+
+    configured_by_id = {
+        section_config.get("section_id"): section_config
+        for section_config in configured_sections
+        if section_config.get("section_id")
+    }
+
+    supplied_by_id: Dict[str, FSMSDocumentSection] = {}
+
+    for section in supported_sections:
+        if section.section_id in supplied_by_id:
+            raise ValueError(
+                "Duplicate supported FSMS document section supplied: "
+                f"'{section.section_id}'."
+            )
+
+        section_config = configured_by_id.get(section.section_id)
+
+        if section_config is None:
+            raise ValueError(
+                "Supplied FSMS document section is not configured: "
+                f"'{section.section_id}'."
+            )
+
+        if section_config.get("implementation_status") != "supported":
+            raise ValueError(
+                "Only supported FSMS document sections may be "
+                "supplied to build_fsms_document."
+            )
+
+        if (
+            section.title != section_config.get("title")
+            or section.display_order
+            != section_config.get("display_order")
+        ):
+            raise ValueError(
+                "Supplied FSMS document section does not match its "
+                f"controlled structure: '{section.section_id}'."
+            )
+
+        supplied_by_id[section.section_id] = section
+
+    document_sections = []
+
+    for section_config in sorted(
+        configured_sections,
+        key=lambda item: item["display_order"],
+    ):
+        implementation_status = section_config.get(
+            "implementation_status"
+        )
+
+        if implementation_status == "beyond_prototype_scope":
+            document_sections.append(
+                build_beyond_scope_section(
+                    section_config=section_config,
+                )
+            )
+            continue
+
+        if implementation_status != "supported":
+            raise ValueError(
+                "Unsupported FSMS document implementation status: "
+                f"'{implementation_status}'."
+            )
+
+        supplied_section = supplied_by_id.get(
+            section_config["section_id"]
+        )
+
+        if supplied_section is not None:
+            document_sections.append(supplied_section)
+            continue
+
+        if section_config.get("always_applicable") is True:
+            document_sections.append(
+                _build_incomplete_supported_section(
+                    section_config=section_config,
+                )
+            )
+
+    appendix_configs = structure_config.get("appendices")
+
+    if not isinstance(appendix_configs, list):
+        raise ValueError(
+            "FSMS document structure must contain an appendix list."
+        )
+
+    appendices = [
+        FSMSDocumentAppendix(
+            appendix_id=appendix_config["appendix_id"],
+            title=appendix_config["title"],
+            display_order=appendix_config["display_order"],
+        )
+        for appendix_config in sorted(
+            appendix_configs,
+            key=lambda item: item["display_order"],
+        )
+    ]
+
+    progress = build_document_progress(
+        structure_config=structure_config,
+        sections=document_sections,
+    )
+
+    return FSMSDocument(
+        document_title=document_title.strip(),
+        business_name=_required_profile_text(
+            business_profile,
+            "business_name",
+        ),
+        site_name=_required_profile_text(
+            business_profile,
+            "site_name",
+        ),
+        business_type=_optional_profile_text(
+            business_profile,
+            "business_type",
+        ),
+        business_description=_optional_profile_text(
+            business_profile,
+            "business_description",
+        ),
+        generated_at=generated_at,
+        progress=progress,
+        sections=document_sections,
+        appendices=appendices,
+    )
+
+
+def _build_incomplete_supported_section(
+    *,
+    section_config: Dict[str, Any],
+) -> FSMSDocumentSection:
+    if (
+        section_config.get("implementation_status") != "supported"
+        or section_config.get("always_applicable") is not True
+    ):
+        raise ValueError(
+            "Only always-applicable supported sections can use the "
+            "incomplete placeholder."
+        )
+
+    return FSMSDocumentSection(
+        section_id=section_config["section_id"],
+        title=section_config["title"],
+        display_order=section_config["display_order"],
+        status="not_completed",
+        introduction=section_config["introduction"],
+        completion_message="Not completed",
+    )
+
+
+def _required_profile_text(
+    business_profile: Dict[str, Any],
+    field_name: str,
+) -> str:
+    value = business_profile.get(field_name)
+
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(
+            "Business profile is missing required document field "
+            f"'{field_name}'."
+        )
+
+    return value.strip()
+
+
+def _optional_profile_text(
+    business_profile: Dict[str, Any],
+    field_name: str,
+) -> Optional[str]:
+    value = business_profile.get(field_name)
+
+    if value is None:
+        return None
+
+    if not isinstance(value, str):
+        raise ValueError(
+            "Business profile document field must be text: "
+            f"'{field_name}'."
+        )
+
+    value = value.strip()
+
+    return value or None
