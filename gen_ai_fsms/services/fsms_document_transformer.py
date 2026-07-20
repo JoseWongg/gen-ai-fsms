@@ -793,24 +793,19 @@ def build_fsms_document(
                 )
             )
 
-    appendix_configs = structure_config.get("appendices")
-
+    appendix_configs = structure_config.get(
+        "appendices"
+    )
     if not isinstance(appendix_configs, list):
         raise ValueError(
-            "FSMS document structure must contain an appendix list."
+            "FSMS document structure must contain an "
+            "appendix list."
         )
 
-    appendices = [
-        FSMSDocumentAppendix(
-            appendix_id=appendix_config["appendix_id"],
-            title=appendix_config["title"],
-            display_order=appendix_config["display_order"],
-        )
-        for appendix_config in sorted(
-            appendix_configs,
-            key=lambda item: item["display_order"],
-        )
-    ]
+    appendices = _build_document_appendices(
+        appendix_configs=appendix_configs,
+        sections=document_sections,
+    )
 
     progress = build_document_progress(
         structure_config=structure_config,
@@ -840,6 +835,96 @@ def build_fsms_document(
         sections=document_sections,
         appendices=appendices,
     )
+
+
+def _build_document_appendices(
+    *,
+    appendix_configs: List[Dict[str, Any]],
+    sections: List[FSMSDocumentSection],
+) -> List[FSMSDocumentAppendix]:
+    monitoring_arrangements = (
+        _collect_monitoring_arrangements(sections)
+    )
+    source_references = _collect_document_references(
+        sections
+    )
+
+    appendices = []
+
+    for appendix_config in sorted(
+        appendix_configs,
+        key=lambda item: item["display_order"],
+    ):
+        appendix_id = appendix_config.get("appendix_id")
+
+        arrangements = []
+        references = []
+
+        if (
+            appendix_id
+            == "monitoring_arrangements_and_records"
+        ):
+            arrangements = monitoring_arrangements
+        elif appendix_id == "source_references":
+            references = source_references
+
+        appendices.append(
+            FSMSDocumentAppendix(
+                appendix_id=appendix_config[
+                    "appendix_id"
+                ],
+                title=appendix_config["title"],
+                display_order=appendix_config[
+                    "display_order"
+                ],
+                arrangements=arrangements,
+                source_references=references,
+            )
+        )
+
+    return appendices
+
+
+def _collect_monitoring_arrangements(
+    sections: List[FSMSDocumentSection],
+) -> List[FSMSDocumentArrangement]:
+    arrangements = []
+
+    for section in sections:
+        for subsection in section.subsections:
+            for arrangement in (
+                subsection.business_specific_arrangements
+            ):
+                if (
+                    arrangement.arrangement_type
+                    != "chilling_equipment_table"
+                ):
+                    continue
+
+                arrangements.append(
+                    arrangement.model_copy(deep=True)
+                )
+
+    return arrangements
+
+
+def _collect_document_references(
+    sections: List[FSMSDocumentSection],
+) -> List[str]:
+    reference_groups = []
+
+    for section in sections:
+        for subsection in section.subsections:
+            for rule in subsection.approved_rules:
+                reference_groups.append(
+                    rule.source_references
+                )
+
+            reference_groups.append(
+                subsection.source_references
+            )
+
+    return _collect_references(*reference_groups)
 
 
 def _build_incomplete_supported_section(

@@ -2,7 +2,12 @@ from datetime import datetime, timezone
 
 import pytest
 
-from gen_ai_fsms.schemas.fsms_document import FSMSDocumentSection
+from gen_ai_fsms.schemas.fsms_document import (
+    FSMSDocumentArrangement,
+    FSMSDocumentRule,
+    FSMSDocumentSection,
+    FSMSDocumentSubsection,
+)
 from gen_ai_fsms.services.fsms_document_transformer import (
     build_fsms_document,
 )
@@ -242,3 +247,125 @@ def test_document_builder_rejects_structure_mismatch():
                 )
             ],
         )
+
+
+
+def test_document_builder_populates_appendices():
+    monitoring_arrangement = FSMSDocumentArrangement(
+        arrangement_type="chilling_equipment_table",
+        title=(
+            "Chilling equipment and temperature checks"
+        ),
+        table_headers=[
+            "Asset code",
+            "Equipment",
+            "Type",
+            "Use",
+            "Temperature check method",
+        ],
+        table_rows=[
+            [
+                "CHILL-001",
+                "Fridge 1",
+                "Fridge",
+                "Storage",
+                "Digital/dial display",
+            ]
+        ],
+        source_safety_point_id="4.1.1.3",
+        source_question_key=(
+            "chilling_equipment_temperature_checks"
+        ),
+    )
+    non_monitoring_arrangement = (
+        FSMSDocumentArrangement(
+            arrangement_type=(
+                "additional_question_response"
+            ),
+            title="Defrosting arrangement",
+            statements=[
+                "Food is defrosted in the refrigerator."
+            ],
+            source_safety_point_id="4.3.1.1",
+            source_question_key=(
+                "foods_defrosted_under_cold_running_water"
+            ),
+        )
+    )
+
+    temperature_section = FSMSDocumentSection(
+        section_id="temperature_control",
+        title="Temperature Control",
+        display_order=3,
+        status="completed",
+        introduction="Temperature introduction.",
+        subsections=[
+            FSMSDocumentSubsection(
+                safe_method_id="4.1",
+                title="Chilled Storage",
+                introduction=(
+                    "Chilled storage introduction."
+                ),
+                status="completed",
+                approved_rules=[
+                    FSMSDocumentRule(
+                        safety_point_id="4.1.1.1",
+                        instruction=(
+                            "Chilled food is kept cold."
+                        ),
+                        source_references=[
+                            (
+                                "SFBB Pack > Chilling > "
+                                "Chilled Storage"
+                            ),
+                            "FSA temperature guidance",
+                        ],
+                    )
+                ],
+                business_specific_arrangements=[
+                    monitoring_arrangement,
+                    non_monitoring_arrangement,
+                ],
+                source_references=[
+                    (
+                        "SFBB Pack > Chilling > "
+                        "Chilled Storage"
+                    ),
+                    "Additional chilling guidance",
+                ],
+            )
+        ],
+    )
+
+    document = build_fsms_document(
+        structure_config=STRUCTURE_CONFIG,
+        business_profile=BUSINESS_PROFILE,
+        generated_at=datetime.now(timezone.utc),
+        supported_sections=[temperature_section],
+    )
+
+    monitoring_appendix = document.appendices[0]
+    references_appendix = document.appendices[1]
+
+    assert [
+        arrangement.arrangement_type
+        for arrangement
+        in monitoring_appendix.arrangements
+    ] == ["chilling_equipment_table"]
+
+    assert (
+        monitoring_appendix
+        .arrangements[0]
+        .table_rows
+        == monitoring_arrangement.table_rows
+    )
+    assert (
+        monitoring_appendix.arrangements[0]
+        is not monitoring_arrangement
+    )
+
+    assert references_appendix.source_references == [
+        "SFBB Pack > Chilling > Chilled Storage",
+        "FSA temperature guidance",
+        "Additional chilling guidance",
+    ]
