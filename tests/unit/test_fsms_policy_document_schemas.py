@@ -250,3 +250,18 @@ def test_content_blocks_reject_unknown_block_type():
 
     with pytest.raises(ValidationError):
         FSMSPolicyDocument.model_validate(payload)
+
+@pytest.mark.parametrize(
+    "role",
+    [
+        "business_context",
+        "food_safety_importance",
+    ],
+)
+def test_list_blocks_support_overview_roles(role):
+    block = FSMSListBlock(
+        role=role,
+        items=["A controlled document statement."],
+    )
+
+    assert block.role == role

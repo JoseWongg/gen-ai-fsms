@@ -17,6 +17,7 @@ from gen_ai_fsms.schemas.fsms_policy_document import (
 )
 from gen_ai_fsms.services.safety_point_approval_service import (
     get_approved_methods_for_profile,
+    get_condition_values_for_profile,
     get_relevant_safety_points_for_profile,
     get_screening_completion_status,
 )
@@ -78,8 +79,9 @@ def generate_fsms_policy_document_for_profile(
 
     This transitional service does not replace the live FSMS
     endpoint or PDF renderer. It currently populates the
-    controlled Food Safety Policy content; later implementation
-    steps will populate the remaining sections.
+    controlled Food Safety Policy and Business Scope content;
+    later implementation steps will populate the operational
+    sections.
     """
     profile = (
         db.query(BusinessProfile)
@@ -110,6 +112,10 @@ def generate_fsms_policy_document_for_profile(
         )
 
     screening_status = get_screening_completion_status(
+        db=db,
+        business_profile_id=business_profile_id,
+    )
+    condition_values = get_condition_values_for_profile(
         db=db,
         business_profile_id=business_profile_id,
     )
@@ -187,6 +193,8 @@ def generate_fsms_policy_document_for_profile(
             approved_applicable_points
         ),
         profile=profile,
+        applicable_safety_points=applicable_safety_points,
+        condition_values=condition_values,
     )
 
     return FSMSPolicyDocument(
@@ -223,6 +231,10 @@ def _build_policy_sections(
         Dict[str, Any]
     ],
     profile: BusinessProfile,
+    applicable_safety_points: List[
+        Dict[str, Any]
+    ],
+    condition_values: Dict[str, str],
 ) -> List[FSMSPolicySection]:
     approved_points_by_section: Dict[
         str,
@@ -256,16 +268,34 @@ def _build_policy_sections(
             "always",
             "business_profile_exists",
         }:
-            subsections = [
-                _build_policy_subsection(
-                    subsection_config,
-                    profile=profile,
+            if (
+                section_config.get("section_id")
+                == (
+                    "business_scope_and_"
+                    "food_safety_overview"
                 )
-                for subsection_config
-                in _configured_subsections(
-                    section_config
+            ):
+                subsections = (
+                    _build_business_scope_subsections(
+                        section_config=section_config,
+                        profile=profile,
+                        condition_values=condition_values,
+                        applicable_safety_points=(
+                            applicable_safety_points
+                        ),
+                    )
                 )
-            ]
+            else:
+                subsections = [
+                    _build_policy_subsection(
+                        subsection_config,
+                        profile=profile,
+                    )
+                    for subsection_config
+                    in _configured_subsections(
+                        section_config
+                    )
+                ]
         elif inclusion == "approved_applicable_content":
             section_points = [
                 safety_point
@@ -348,6 +378,356 @@ def _build_policy_sections(
     return sections
 
 
+def _build_business_scope_subsections(
+    *,
+    section_config: Dict[str, Any],
+    profile: BusinessProfile,
+    condition_values: Dict[str, str],
+    applicable_safety_points: List[
+        Dict[str, Any]
+    ],
+) -> List[FSMSPolicySubsection]:
+    subsections = []
+
+    for subsection_config in _configured_subsections(
+        section_config
+    ):
+        subsection_id = _required_structure_text(
+            subsection_config,
+            "subsection_id",
+        )
+
+        if subsection_id == "activities_covered_by_fsms":
+            content_blocks = _build_activity_blocks(
+                subsection_config=subsection_config,
+                profile=profile,
+                condition_values=condition_values,
+            )
+        elif subsection_id == "main_food_safety_hazards":
+            content_blocks = _build_hazard_blocks(
+                subsection_config=subsection_config,
+                profile=profile,
+                condition_values=condition_values,
+                applicable_safety_points=(
+                    applicable_safety_points
+                ),
+            )
+        else:
+            content_blocks = (
+                _build_configured_content_blocks(
+                    subsection_config,
+                    profile=profile,
+                )
+            )
+
+        if not content_blocks:
+            continue
+
+        subsections.append(
+            FSMSPolicySubsection(
+                subsection_number=(
+                    _required_structure_text(
+                        subsection_config,
+                        "subsection_number",
+                    )
+                ),
+                title=_required_structure_text(
+                    subsection_config,
+                    "title",
+                ),
+                content_blocks=content_blocks,
+            )
+        )
+
+    return subsections
+
+
+def _build_activity_blocks(
+    *,
+    subsection_config: Dict[str, Any],
+    profile: BusinessProfile,
+    condition_values: Dict[str, str],
+) -> List[FSMSPolicyContentBlock]:
+    definitions = _definitions_by_content_key(
+        subsection_config
+    )
+    activity_definition = definitions[
+        "applicable_activity_statements"
+    ]
+    mappings = activity_definition.get(
+        "condition_statements"
+    )
+
+    if not isinstance(mappings, list):
+        raise ValueError(
+            "Configured FSMS activity statements must "
+            "be a list."
+        )
+
+    items = []
+    matched_condition_ids = []
+
+    for mapping in mappings:
+        if not isinstance(mapping, dict):
+            raise ValueError(
+                "Each configured FSMS activity statement "
+                "must be a JSON object."
+            )
+
+        condition_id = _required_structure_text(
+            mapping,
+            "condition_id",
+        )
+
+        if condition_values.get(condition_id) != "true":
+            continue
+
+        items.append(
+            _required_structure_text(
+                mapping,
+                "statement",
+            )
+        )
+        matched_condition_ids.append(condition_id)
+
+    if not items:
+        return []
+
+    introduction_blocks = (
+        _build_single_configured_definition(
+            definitions["activities_introduction"],
+            profile=profile,
+        )
+    )
+
+    return introduction_blocks + [
+        FSMSListBlock(
+            role=_required_structure_text(
+                activity_definition,
+                "role",
+            ),
+            items=items,
+            source=FSMSContentSource(
+                condition_ids=matched_condition_ids,
+                source_references=(
+                    _configured_source_references(
+                        activity_definition
+                    )
+                ),
+            ),
+        )
+    ]
+
+
+def _build_hazard_blocks(
+    *,
+    subsection_config: Dict[str, Any],
+    profile: BusinessProfile,
+    condition_values: Dict[str, str],
+    applicable_safety_points: List[
+        Dict[str, Any]
+    ],
+) -> List[FSMSPolicyContentBlock]:
+    definitions = _definitions_by_content_key(
+        subsection_config
+    )
+    hazard_definition = definitions[
+        "applicable_hazard_summary"
+    ]
+    configured_hazards = hazard_definition.get(
+        "hazard_definitions"
+    )
+
+    if not isinstance(configured_hazards, list):
+        raise ValueError(
+            "Configured FSMS hazard definitions must "
+            "be a list."
+        )
+
+    items = []
+    matched_condition_ids = []
+    matched_safety_point_ids = []
+
+    for configured_hazard in configured_hazards:
+        if not isinstance(configured_hazard, dict):
+            raise ValueError(
+                "Each configured FSMS hazard definition "
+                "must be a JSON object."
+            )
+
+        condition_ids = _configured_string_list(
+            configured_hazard,
+            "condition_ids",
+        )
+        safe_method_ids = set(
+            _configured_string_list(
+                configured_hazard,
+                "safe_method_ids",
+            )
+        )
+
+        hazard_condition_ids = [
+            condition_id
+            for condition_id in condition_ids
+            if condition_values.get(condition_id) == "true"
+        ]
+
+        hazard_safety_points = [
+            safety_point
+            for safety_point in applicable_safety_points
+            if (
+                _required_safety_point_text(
+                    safety_point,
+                    "safe_method_id",
+                )
+                in safe_method_ids
+            )
+        ]
+
+        if (
+            not hazard_condition_ids
+            and not hazard_safety_points
+        ):
+            continue
+
+        items.append(
+            _required_structure_text(
+                configured_hazard,
+                "statement",
+            )
+        )
+
+        for condition_id in hazard_condition_ids:
+            _append_unique(
+                matched_condition_ids,
+                condition_id,
+            )
+
+        for safety_point in hazard_safety_points:
+            _append_unique(
+                matched_safety_point_ids,
+                _required_safety_point_text(
+                    safety_point,
+                    "safety_point_id",
+                ),
+            )
+
+    if not items:
+        return []
+
+    introduction_blocks = (
+        _build_single_configured_definition(
+            definitions["hazards_introduction"],
+            profile=profile,
+        )
+    )
+
+    return introduction_blocks + [
+        FSMSListBlock(
+            role=_required_structure_text(
+                hazard_definition,
+                "role",
+            ),
+            items=items,
+            source=FSMSContentSource(
+                safety_point_ids=(
+                    matched_safety_point_ids
+                ),
+                condition_ids=matched_condition_ids,
+                source_references=(
+                    _configured_source_references(
+                        hazard_definition
+                    )
+                ),
+            ),
+        )
+    ]
+
+
+def _definitions_by_content_key(
+    configured_object: Dict[str, Any],
+) -> Dict[str, Dict[str, Any]]:
+    definitions = configured_object.get(
+        "content_definitions"
+    )
+
+    if not isinstance(definitions, list):
+        raise ValueError(
+            "Configured FSMS content definitions must "
+            "be a list."
+        )
+
+    definitions_by_key = {}
+
+    for definition in definitions:
+        if not isinstance(definition, dict):
+            raise ValueError(
+                "Each configured FSMS content definition "
+                "must be a JSON object."
+            )
+
+        content_key = _required_structure_text(
+            definition,
+            "content_key",
+        )
+        definitions_by_key[content_key] = definition
+
+    return definitions_by_key
+
+
+def _build_single_configured_definition(
+    definition: Dict[str, Any],
+    *,
+    profile: BusinessProfile,
+) -> List[FSMSPolicyContentBlock]:
+    return _build_configured_content_blocks(
+        {
+            "content_definitions": [
+                definition,
+            ]
+        },
+        profile=profile,
+    )
+
+
+def _configured_string_list(
+    configured_object: Dict[str, Any],
+    field_name: str,
+) -> List[str]:
+    values = configured_object.get(
+        field_name,
+        [],
+    )
+
+    if not isinstance(values, list):
+        raise ValueError(
+            "Configured FSMS field "
+            f"'{field_name}' must be a list."
+        )
+
+    cleaned_values = []
+
+    for value in values:
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(
+                "Each configured FSMS value in "
+                f"'{field_name}' must be a non-empty "
+                "string."
+            )
+
+        cleaned_values.append(value.strip())
+
+    return cleaned_values
+
+
+def _append_unique(
+    values: List[str],
+    value: str,
+) -> None:
+    if value not in values:
+        values.append(value)
+
+
 def _configured_subsections(
     section_config: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
@@ -408,6 +788,12 @@ def _build_configured_content_blocks(
                 "Each configured FSMS content definition "
                 "must be a JSON object."
             )
+
+        if not _profile_fields_are_available(
+            definition,
+            profile=profile,
+        ):
+            continue
 
         block_type = _required_structure_text(
             definition,
@@ -521,7 +907,74 @@ def _policy_template_values(
                 getattr(profile, "business_type", None)
             )
         ),
+        "business_description_sentence": (
+            _normalise_optional_sentence(
+                getattr(
+                    profile,
+                    "business_description",
+                    None,
+                )
+            )
+        ),
     }
+
+
+def _profile_fields_are_available(
+    definition: Dict[str, Any],
+    *,
+    profile: BusinessProfile,
+) -> bool:
+    field_names = definition.get(
+        "required_profile_fields",
+        [],
+    )
+
+    if not isinstance(field_names, list):
+        raise ValueError(
+            "Configured required profile fields must "
+            "be a list."
+        )
+
+    for field_name in field_names:
+        if (
+            not isinstance(field_name, str)
+            or not field_name.strip()
+        ):
+            raise ValueError(
+                "Each required profile field must be "
+                "a non-empty string."
+            )
+
+        value = getattr(
+            profile,
+            field_name.strip(),
+            None,
+        )
+
+        if (
+            not isinstance(value, str)
+            or not value.strip()
+        ):
+            return False
+
+    return True
+
+
+def _normalise_optional_sentence(
+    value: Optional[str],
+) -> str:
+    if not isinstance(value, str):
+        return ""
+
+    cleaned = value.strip()
+
+    if not cleaned:
+        return ""
+
+    if cleaned[-1] not in ".!?":
+        cleaned = f"{cleaned}."
+
+    return cleaned
 
 
 def _render_policy_template(

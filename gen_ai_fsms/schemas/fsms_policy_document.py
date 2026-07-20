@@ -36,6 +36,8 @@ FSMSTextRole = Literal[
 ]
 
 FSMSListRole = Literal[
+    "business_context",
+    "food_safety_importance",
     "policy",
     "responsibilities",
     "procedure",

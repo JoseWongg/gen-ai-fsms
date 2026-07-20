@@ -114,6 +114,8 @@ ALLOWED_ROLES = {
         "review",
     },
     "list": {
+        "business_context",
+        "food_safety_importance",
         "policy",
         "responsibilities",
         "procedure",

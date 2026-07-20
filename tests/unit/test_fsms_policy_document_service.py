@@ -62,6 +62,7 @@ def _patch_sources(
     screening_complete=True,
     applicable_safety_points=None,
     approved_safety_point_ids=None,
+    condition_values=None,
 ):
     monkeypatch.setattr(
         service,
@@ -69,6 +70,16 @@ def _patch_sources(
         lambda **kwargs: {
             "is_complete": screening_complete,
         },
+    )
+    resolved_condition_values = (
+        condition_values
+        if condition_values is not None
+        else {}
+    )
+    monkeypatch.setattr(
+        service,
+        "get_condition_values_for_profile",
+        lambda **kwargs: resolved_condition_values,
     )
     monkeypatch.setattr(
         service,
@@ -666,3 +677,268 @@ def test_section_one_content_is_same_for_draft_and_approved(
         draft_document.sections[0].model_dump()
         == approved_document.sections[0].model_dump()
     )
+
+def _scope_subsection(document, subsection_number):
+    scope_section = document.sections[1]
+
+    return next(
+        subsection
+        for subsection in scope_section.subsections
+        if subsection.subsection_number
+        == subsection_number
+    )
+
+
+def test_business_scope_operations_and_control_approach(
+    monkeypatch,
+):
+    _patch_sources(monkeypatch)
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+
+    operations = _scope_subsection(document, "2.1")
+
+    assert [
+        block.role
+        for block in operations.content_blocks
+    ] == [
+        "business_context",
+        "business_context",
+    ]
+
+    assert operations.content_blocks[0].text == (
+        "Example Foods Ltd operates Example Kitchen as "
+        "a bakery."
+    )
+    assert operations.content_blocks[1].text == (
+        "The business describes its food operation as "
+        "follows: A bakery making chilled desserts."
+    )
+
+    control_approach = _scope_subsection(
+        document,
+        "2.4",
+    )
+
+    assert control_approach.content_blocks[0].text == (
+        "Food safety risks are managed through documented "
+        "procedures, monitoring and corrective action. "
+        "Where operational controls have been approved for "
+        "Example Foods Ltd, they are set out in the relevant "
+        "sections of this document. Staff must follow the "
+        "controls relevant to their work, complete the "
+        "required checks and report or correct failures "
+        "promptly."
+    )
+
+
+def test_missing_description_omits_description_block(
+    monkeypatch,
+):
+    _patch_sources(monkeypatch)
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(
+                _profile(business_description=None)
+            ),
+            business_profile_id=1,
+        )
+    )
+
+    operations = _scope_subsection(document, "2.1")
+
+    assert len(operations.content_blocks) == 1
+    assert operations.content_blocks[0].text == (
+        "Example Foods Ltd operates Example Kitchen as "
+        "a bakery."
+    )
+
+
+def test_activities_use_positive_supported_conditions(
+    monkeypatch,
+):
+    _patch_sources(
+        monkeypatch,
+        condition_values={
+            "cooks_food": "true",
+            "handles_eggs": "true",
+            "delivers_food": "true",
+            "unknown_condition": "true",
+            "chills_food": "false",
+        },
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+
+    activities = _scope_subsection(
+        document,
+        "2.2",
+    )
+
+    assert activities.content_blocks[0].text == (
+        "The food activities within the current scope of "
+        "this Food Safety Management System are:"
+    )
+    assert activities.content_blocks[1].items == [
+        "Preparing or cooking food on site.",
+        (
+            "Using eggs or preparing foods containing "
+            "eggs."
+        ),
+    ]
+    assert (
+        activities.content_blocks[1]
+        .source.condition_ids
+    ) == [
+        "cooks_food",
+        "handles_eggs",
+    ]
+
+    assert (
+        activities.content_blocks[1]
+        .source.condition_ids
+    ) == [
+        "cooks_food",
+        "handles_eggs",
+    ]
+
+
+def test_activities_subsection_is_omitted_without_supported_activity(
+    monkeypatch,
+):
+    _patch_sources(
+        monkeypatch,
+        condition_values={
+            "delivers_food": "true",
+            "unknown_condition": "true",
+        },
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+
+    scope_section = document.sections[1]
+
+    assert "2.2" not in {
+        subsection.subsection_number
+        for subsection in scope_section.subsections
+    }
+
+
+def test_hazards_are_controlled_and_traceable(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "4.1.1.1",
+            "chilling",
+            "4.1",
+        ),
+        _safety_point(
+            "5.1.1.1",
+            "cooking",
+            "5.1",
+        ),
+    ]
+
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        condition_values={
+            "handles_raw_fish": "true",
+            (
+                "handles_bread_bakery_or_"
+                "potatoes"
+            ): "true",
+        },
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+
+    hazards = _scope_subsection(document, "2.3")
+    hazard_list = hazards.content_blocks[1]
+
+    assert hazard_list.items == [
+        (
+            "Harmful bacteria growing when chilled, "
+            "cooling, reheated or hot-held food is not "
+            "kept under suitable temperature control."
+        ),
+        (
+            "Harmful bacteria surviving where food is "
+            "not cooked or reheated thoroughly."
+        ),
+        (
+            "Food becoming unsafe through unsuitable "
+            "storage, poor date control, incorrect "
+            "defrosting or loss of temperature control."
+        ),
+        (
+            "Food-specific hazards, including parasites "
+            "in fish, natural toxins in dried pulses and "
+            "safety risks associated with shellfish."
+        ),
+        (
+            "Increased acrylamide formation where bread, "
+            "bakery or potato products are cooked too "
+            "dark or at unsuitable temperatures."
+        ),
+    ]
+
+    assert hazard_list.source.safety_point_ids == [
+        "4.1.1.1",
+        "5.1.1.1",
+    ]
+    assert hazard_list.source.condition_ids == [
+        "handles_raw_fish",
+        "handles_bread_bakery_or_potatoes",
+    ]
+    assert hazard_list.source.source_references == [
+        "data/sfbb_chilling_cooking.json",
+    ]
+
+
+def test_hazards_subsection_is_omitted_without_applicable_category(
+    monkeypatch,
+):
+    _patch_sources(
+        monkeypatch,
+        condition_values={
+            "delivers_food": "true",
+        },
+        applicable_safety_points=[],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+
+    scope_section = document.sections[1]
+
+    assert "2.3" not in {
+        subsection.subsection_number
+        for subsection in scope_section.subsections
+    }

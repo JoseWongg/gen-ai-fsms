@@ -121,15 +121,34 @@
           "inclusion": "business_profile_exists",
           "content_definitions": [
             {
-              "content_key": "business_operations_summary",
+              "content_key": "business_operations_identity",
               "block_type": "text",
               "role": "business_context",
               "dynamic_sources": [
                 "business_name",
                 "site_name",
-                "business_type",
-                "business_description",
-                "positive_conditions"
+                "business_type"
+              ],
+              "template": "{business_name} operates {site_name} as {business_type_with_article}.",
+              "source_references": [
+                "business_profile.business_name",
+                "business_profile.site_name",
+                "business_profile.business_type"
+              ]
+            },
+            {
+              "content_key": "business_operations_description",
+              "block_type": "text",
+              "role": "business_context",
+              "dynamic_sources": [
+                "business_description"
+              ],
+              "required_profile_fields": [
+                "business_description"
+              ],
+              "template": "The business describes its food operation as follows: {business_description_sentence}",
+              "source_references": [
+                "business_profile.business_description"
               ]
             }
           ]
@@ -141,11 +160,107 @@
           "inclusion": "positive_conditions_exist",
           "content_definitions": [
             {
-              "content_key": "applicable_activity_statements",
+              "content_key": "activities_introduction",
               "block_type": "text",
+              "role": "business_context",
+              "text": "The food activities within the current scope of this Food Safety Management System are:"
+            },
+            {
+              "content_key": "applicable_activity_statements",
+              "block_type": "list",
               "role": "business_context",
               "dynamic_sources": [
                 "positive_conditions"
+              ],
+              "condition_statements": [
+                {
+                  "condition_id": "chills_food",
+                  "statement": "Keeping food chilled in fridges or chilled display units."
+                },
+                {
+                  "condition_id": "chills_hot_food",
+                  "statement": "Cooling cooked food for later use or storage."
+                },
+                {
+                  "condition_id": "defrosts_food",
+                  "statement": "Defrosting frozen food before use."
+                },
+                {
+                  "condition_id": "freezes_food",
+                  "statement": "Freezing food on site or storing food in freezers."
+                },
+                {
+                  "condition_id": "cooks_food",
+                  "statement": "Preparing or cooking food on site."
+                },
+                {
+                  "condition_id": "reheats_food",
+                  "statement": "Reheating previously cooked food."
+                },
+                {
+                  "condition_id": "hot_holds_food",
+                  "statement": "Keeping food hot before serving."
+                },
+                {
+                  "condition_id": "handles_ready_to_eat_food",
+                  "statement": "Preparing ready-to-eat food."
+                },
+                {
+                  "condition_id": "handles_raw_meat_or_poultry",
+                  "statement": "Handling raw meat or poultry."
+                },
+                {
+                  "condition_id": "cooks_rice",
+                  "statement": "Cooking rice."
+                },
+                {
+                  "condition_id": "handles_eggs",
+                  "statement": "Using eggs or preparing foods containing eggs."
+                },
+                {
+                  "condition_id": "cooks_dried_pulses",
+                  "statement": "Cooking dried pulses such as dried beans."
+                },
+                {
+                  "condition_id": "handles_raw_fish",
+                  "statement": "Cooking or handling fish."
+                },
+                {
+                  "condition_id": "handles_raw_molluscs_or_crustaceans",
+                  "statement": "Cooking or handling shellfish."
+                },
+                {
+                  "condition_id": "handles_bread_bakery_or_potatoes",
+                  "statement": "Cooking or handling bread, bakery products, chips, fries or similar potato products."
+                },
+                {
+                  "condition_id": "uses_sink_to_defrost_food",
+                  "statement": "Using a sink to defrost food."
+                },
+                {
+                  "condition_id": "buys_frozen_food",
+                  "statement": "Receiving food that arrives frozen."
+                },
+                {
+                  "condition_id": "stores_food_that_must_be_kept_frozen",
+                  "statement": "Storing food that must remain frozen."
+                },
+                {
+                  "condition_id": "uses_microwave_reheating",
+                  "statement": "Using a microwave to reheat food."
+                },
+                {
+                  "condition_id": "displays_hot_food",
+                  "statement": "Displaying hot food for service."
+                },
+                {
+                  "condition_id": "uses_slicer",
+                  "statement": "Using a slicer for cooked meat or ready-to-eat food."
+                },
+                {
+                  "condition_id": "displays_chilled_food",
+                  "statement": "Displaying chilled food for customers or self-service."
+                }
               ]
             }
           ]
@@ -157,12 +272,100 @@
           "inclusion": "applicable_operational_content",
           "content_definitions": [
             {
-              "content_key": "applicable_hazard_summary",
+              "content_key": "hazards_introduction",
               "block_type": "text",
               "role": "food_safety_importance",
+              "text": "Based on the food activities carried out by the business, the principal hazards addressed within this FSMS are:"
+            },
+            {
+              "content_key": "applicable_hazard_summary",
+              "block_type": "list",
+              "role": "food_safety_importance",
               "dynamic_sources": [
+                "positive_conditions",
                 "applicable_safety_point_rationales",
                 "applicable_safety_point_text"
+              ],
+              "source_references": [
+                "data/sfbb_chilling_cooking.json"
+              ],
+              "hazard_definitions": [
+                {
+                  "statement": "Harmful bacteria growing when chilled, cooling, reheated or hot-held food is not kept under suitable temperature control.",
+                  "condition_ids": [
+                    "chills_food",
+                    "chills_hot_food",
+                    "defrosts_food",
+                    "reheats_food",
+                    "hot_holds_food",
+                    "displays_chilled_food",
+                    "displays_hot_food"
+                  ],
+                  "safe_method_ids": [
+                    "4.1",
+                    "4.2",
+                    "4.3",
+                    "5.3",
+                    "5.5"
+                  ]
+                },
+                {
+                  "statement": "Harmful bacteria surviving where food is not cooked or reheated thoroughly.",
+                  "condition_ids": [
+                    "cooks_food",
+                    "reheats_food"
+                  ],
+                  "safe_method_ids": [
+                    "5.1",
+                    "5.2",
+                    "5.3"
+                  ]
+                },
+                {
+                  "statement": "Cross-contamination between raw food and cooked or ready-to-eat food through hands, surfaces, utensils or equipment.",
+                  "condition_ids": [
+                    "handles_raw_meat_or_poultry",
+                    "handles_ready_to_eat_food",
+                    "uses_slicer"
+                  ],
+                  "safe_method_ids": [
+                    "5.6"
+                  ]
+                },
+                {
+                  "statement": "Food becoming unsafe through unsuitable storage, poor date control, incorrect defrosting or loss of temperature control.",
+                  "condition_ids": [
+                    "chills_food",
+                    "defrosts_food",
+                    "freezes_food",
+                    "buys_frozen_food",
+                    "stores_food_that_must_be_kept_frozen",
+                    "displays_chilled_food"
+                  ],
+                  "safe_method_ids": [
+                    "4.1",
+                    "4.3",
+                    "4.4"
+                  ]
+                },
+                {
+                  "statement": "Food-specific hazards, including parasites in fish, natural toxins in dried pulses and safety risks associated with shellfish.",
+                  "condition_ids": [
+                    "handles_raw_fish",
+                    "handles_raw_molluscs_or_crustaceans",
+                    "cooks_dried_pulses"
+                  ],
+                  "safe_method_ids": []
+                },
+                {
+                  "statement": "Increased acrylamide formation where bread, bakery or potato products are cooked too dark or at unsuitable temperatures.",
+                  "condition_ids": [
+                    "handles_bread_bakery_or_potatoes"
+                  ],
+                  "safe_method_ids": [
+                    "5.4"
+                  ]
+                }
               ]
             }
           ]
@@ -178,7 +381,12 @@
               "block_type": "text",
               "role": "introduction",
               "dynamic_sources": [
+                "business_name",
                 "applicable_operational_sections"
+              ],
+              "template": "Food safety risks are managed through documented procedures, monitoring and corrective action. Where operational controls have been approved for {business_name}, they are set out in the relevant sections of this document. Staff must follow the controls relevant to their work, complete the required checks and report or correct failures promptly.",
+              "source_references": [
+                "business_profile.business_name"
               ]
             }
           ]
