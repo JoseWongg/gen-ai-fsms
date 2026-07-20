@@ -90,8 +90,9 @@ def generate_fsms_policy_document_for_profile(
     This transitional service does not replace the live FSMS
     endpoint or PDF renderer. It currently populates the
     controlled Food Safety Policy, Business Scope and approved
-    chilling-control and equipment-monitoring content. Later
-    implementation steps will populate cooking controls.
+    chilling, equipment-monitoring and approved cooking
+    operational content. Later implementation steps will
+    populate consolidated cooking checks.
     """
     profile = (
         db.query(BusinessProfile)
@@ -379,6 +380,23 @@ def _build_policy_sections(
                         ),
                     )
                 )
+            elif (
+                section_config.get("section_id")
+                == "cooking_and_reheating"
+            ):
+                section_content_blocks = (
+                    _build_configured_content_blocks(
+                        section_config,
+                        profile=profile,
+                    )
+                )
+                subsections = (
+                    _build_cooking_operational_subsections(
+                        section_config=section_config,
+                        profile=profile,
+                        safety_points=section_points,
+                    )
+                )
             else:
                 approved_safe_method_ids = {
                     _required_safety_point_text(
@@ -451,6 +469,53 @@ def _build_policy_sections(
         )
 
     return sections
+
+
+def _build_cooking_operational_subsections(
+    *,
+    section_config: Dict[str, Any],
+    profile: BusinessProfile,
+    safety_points: List[Dict[str, Any]],
+) -> List[FSMSPolicySubsection]:
+    subsections = []
+
+    for subsection_config in _configured_subsections(
+        section_config
+    ):
+        if (
+            subsection_config.get("inclusion")
+            != "approved_applicable_content"
+        ):
+            continue
+
+        configured_method_ids = set(
+            _configured_string_list(
+                subsection_config,
+                "source_safe_method_ids",
+            )
+        )
+        subsection_points = [
+            safety_point
+            for safety_point in safety_points
+            if _required_safety_point_text(
+                safety_point,
+                "safe_method_id",
+            )
+            in configured_method_ids
+        ]
+
+        if not subsection_points:
+            continue
+
+        subsections.append(
+            _build_operational_subsection(
+                subsection_config=subsection_config,
+                profile=profile,
+                safety_points=subsection_points,
+            )
+        )
+
+    return subsections
 
 
 def _build_chilling_operational_subsections(
@@ -1055,6 +1120,16 @@ def _build_operational_subsection(
                 "definition must be a JSON object."
             )
 
+        source_points = (
+            _operational_points_for_definition(
+                definition=definition,
+                safety_points=safety_points,
+            )
+        )
+
+        if not source_points:
+            continue
+
         dynamic_sources = definition.get(
             "dynamic_sources",
             [],
@@ -1073,7 +1148,7 @@ def _build_operational_subsection(
             content_blocks.append(
                 _build_operational_procedure_block(
                     definition=definition,
-                    safety_points=safety_points,
+                    safety_points=source_points,
                 )
             )
             continue
@@ -1085,7 +1160,7 @@ def _build_operational_subsection(
             content_blocks.extend(
                 _build_additional_response_blocks(
                     definition=definition,
-                    safety_points=safety_points,
+                    safety_points=source_points,
                 )
             )
             continue
@@ -1096,12 +1171,11 @@ def _build_operational_subsection(
                 "source_safety_point_ids",
             )
         )
-        source_points = safety_points
 
         if required_safety_point_ids:
             source_points = [
                 safety_point
-                for safety_point in safety_points
+                for safety_point in source_points
                 if _required_safety_point_text(
                     safety_point,
                     "safety_point_id",
@@ -1165,6 +1239,32 @@ def _build_operational_subsection(
     )
 
 
+def _operational_points_for_definition(
+    *,
+    definition: Dict[str, Any],
+    safety_points: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    safe_method_ids = set(
+        _configured_string_list(
+            definition,
+            "source_safe_method_ids",
+        )
+    )
+
+    if not safe_method_ids:
+        return safety_points
+
+    return [
+        safety_point
+        for safety_point in safety_points
+        if _required_safety_point_text(
+            safety_point,
+            "safe_method_id",
+        )
+        in safe_method_ids
+    ]
+
+
 def _build_operational_procedure_block(
     *,
     definition: Dict[str, Any],
@@ -1184,6 +1284,10 @@ def _build_operational_procedure_block(
         role=_required_structure_text(
             definition,
             "role",
+        ),
+        heading=_optional_structure_text(
+            definition,
+            "heading",
         ),
         items=items,
         source=_operational_content_source(

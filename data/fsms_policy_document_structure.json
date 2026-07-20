@@ -764,12 +764,22 @@
         {
           "content_key": "cooking_section_introduction",
           "block_type": "text",
-          "role": "introduction"
+          "role": "introduction",
+          "dynamic_sources": [
+            "business_name",
+            "site_name"
+          ],
+          "template": "{business_name} controls cooking, reheating, hot holding and the handling of ready-to-eat food at {site_name} to ensure that food is safe to serve. Approved procedures, suitable equipment, appropriate checks and corrective actions are used for the activities carried out at the site.",
+          "source_references": [
+            "business_profile.business_name",
+            "business_profile.site_name"
+          ]
         },
         {
           "content_key": "cooking_overall_policy",
           "block_type": "text",
           "role": "policy",
+          "text": "Food must be cooked or reheated thoroughly using the approved method applicable to the product. Food must be protected from contamination before, during and after cooking. Hot food must remain under suitable temperature control until it is served, and ready-to-eat food must be handled safely because it may receive no further cooking before consumption.",
           "dynamic_sources": [
             "business_name",
             "site_name"
@@ -785,26 +795,56 @@
           "source_safe_method_ids": [
             "5.1"
           ],
-          "content_pattern": [
+          "content_definitions": [
             {
+              "content_key": "food_safety_importance",
               "block_type": "text",
-              "role": "food_safety_importance"
+              "role": "food_safety_importance",
+              "text": "Proper cooking kills harmful bacteria that may be present in food. Food that has not been cooked thoroughly may be unsafe. Cooking does not remove allergens, and cooked or ready-to-eat food can still become unsafe through contamination after cooking."
             },
             {
+              "content_key": "operational_policy",
               "block_type": "text",
-              "role": "policy"
+              "role": "policy",
+              "template": "Food at {site_name} will be cooked thoroughly using suitable, properly preheated equipment. Manufacturer's instructions will be followed where applicable. Raw food will be kept separate from cooked and ready-to-eat food, and the approved checks appropriate to each dish will be completed before it is served.",
+              "dynamic_sources": [
+                "site_name"
+              ],
+              "source_references": [
+                "business_profile.site_name"
+              ]
             },
             {
+              "content_key": "approved_procedures",
               "block_type": "list",
-              "role": "procedure"
+              "role": "procedure",
+              "dynamic_sources": [
+                "approved_safety_point_instructions"
+              ]
             },
             {
+              "content_key": "business_specific_arrangements",
               "block_type": "text",
-              "role": "monitoring"
+              "role": "business_context",
+              "heading": "Business-specific arrangement",
+              "dynamic_sources": [
+                "approved_additional_responses"
+              ]
             },
             {
+              "content_key": "operational_monitoring",
               "block_type": "text",
-              "role": "corrective_action"
+              "role": "monitoring",
+              "text": "A clean, disinfected temperature probe must be used to confirm that food has reached an approved safe time and temperature combination. The thickest part, centre or several locations must be checked where necessary to identify cold spots.",
+              "source_safety_point_ids": [
+                "5.1.1.12"
+              ]
+            },
+            {
+              "content_key": "operational_corrective_action",
+              "block_type": "text",
+              "role": "corrective_action",
+              "text": "Food that has not passed its required cooking check must not be served. Cooking must continue where this can be done safely, after which the food must be checked again. Food must be discarded where thorough cooking or a safe temperature history cannot be established."
             }
           ]
         },
@@ -817,26 +857,66 @@
             "5.2",
             "5.4"
           ],
-          "content_pattern": [
+          "content_definitions": [
             {
+              "content_key": "food_safety_importance",
               "block_type": "text",
-              "role": "food_safety_importance"
+              "role": "food_safety_importance",
+              "text": "Some foods require additional controls because they may contain specific bacteria, spores, natural toxins, parasites or other hazards. Certain potato, bread and bakery products also require controlled preparation and cooking to reduce acrylamide formation."
             },
             {
+              "content_key": "operational_policy",
               "block_type": "text",
-              "role": "policy"
+              "role": "policy",
+              "text": "Food requiring additional care will be obtained, stored, prepared and cooked using the approved controls applicable to that food. Staff must follow any product-specific supplier or manufacturer instructions and complete the relevant visual, temperature, storage and traceability checks."
             },
             {
+              "content_key": "food_specific_procedures",
               "block_type": "list",
-              "role": "procedure"
+              "role": "procedure",
+              "heading": "Food-specific controls",
+              "dynamic_sources": [
+                "approved_safety_point_instructions"
+              ],
+              "source_safe_method_ids": [
+                "5.2"
+              ]
             },
             {
-              "block_type": "text",
-              "role": "monitoring"
+              "content_key": "acrylamide_procedures",
+              "block_type": "list",
+              "role": "procedure",
+              "heading": "Acrylamide controls",
+              "dynamic_sources": [
+                "approved_safety_point_instructions"
+              ],
+              "source_safe_method_ids": [
+                "5.4"
+              ]
             },
             {
+              "content_key": "business_specific_arrangements",
               "block_type": "text",
-              "role": "corrective_action"
+              "role": "business_context",
+              "heading": "Business-specific arrangement",
+              "dynamic_sources": [
+                "approved_additional_responses"
+              ],
+              "source_safe_method_ids": [
+                "5.2"
+              ]
+            },
+            {
+              "content_key": "operational_monitoring",
+              "block_type": "text",
+              "role": "monitoring",
+              "text": "Staff must check the characteristics relevant to the food, including cooking temperature, appearance, texture, shell condition, product labelling, storage conditions and cooking colour. Acrylamide-forming foods must be checked to confirm that they have not been overcooked or burnt."
+            },
+            {
+              "content_key": "operational_corrective_action",
+              "block_type": "text",
+              "role": "corrective_action",
+              "text": "Food that does not meet its applicable food-specific check must not be served. Unsafe or damaged shellfish, inadequately cooked food and products that cannot be shown to have been handled safely must be discarded. Over-baked, burnt or otherwise non-compliant acrylamide-forming products must not be accepted or served."
             }
           ]
         },
@@ -848,26 +928,41 @@
           "source_safe_method_ids": [
             "5.3"
           ],
-          "content_pattern": [
+          "content_definitions": [
             {
+              "content_key": "food_safety_importance",
               "block_type": "text",
-              "role": "food_safety_importance"
+              "role": "food_safety_importance",
+              "text": "Harmful bacteria may grow after food has first been cooked. Reheating must therefore cook the food again thoroughly rather than merely warming it."
             },
             {
+              "content_key": "operational_policy",
               "block_type": "text",
-              "role": "policy"
+              "role": "policy",
+              "text": "Food will be reheated thoroughly until it reaches an approved safe temperature in the centre. Suitable equipment will be used in accordance with the manufacturer's instructions. Food will be reheated only once and will be served immediately or transferred directly to hot holding."
             },
             {
+              "content_key": "approved_procedures",
               "block_type": "list",
-              "role": "procedure"
+              "role": "procedure",
+              "dynamic_sources": [
+                "approved_safety_point_instructions"
+              ]
             },
             {
+              "content_key": "operational_monitoring",
               "block_type": "text",
-              "role": "monitoring"
+              "role": "monitoring",
+              "text": "A clean, disinfected probe must be used to check the centre of reheated food. Large dishes and microwaved food must be checked in more than one location where necessary to confirm that no cold spots remain.",
+              "source_safety_point_ids": [
+                "5.3.1.1"
+              ]
             },
             {
+              "content_key": "operational_corrective_action",
               "block_type": "text",
-              "role": "corrective_action"
+              "role": "corrective_action",
+              "text": "Food that has not reached its required reheating temperature must not be served or placed in hot holding. Reheating may continue where this can be done safely, followed by another check. Food must be discarded where it has already been reheated once or its safety cannot be established."
             }
           ]
         },
@@ -879,26 +974,50 @@
           "source_safe_method_ids": [
             "5.5"
           ],
-          "content_pattern": [
+          "content_definitions": [
             {
+              "content_key": "food_safety_importance",
               "block_type": "text",
-              "role": "food_safety_importance"
+              "role": "food_safety_importance",
+              "text": "Hot food can support the growth of harmful bacteria if it is allowed to fall below a safe holding temperature. Suitable equipment and regular checks are required to keep food safe until service."
             },
             {
+              "content_key": "operational_policy",
               "block_type": "text",
-              "role": "policy"
+              "role": "policy",
+              "text": "Food intended for hot service will be cooked or reheated thoroughly before being placed into preheated hot-holding equipment. Hot-holding equipment will not be used to cook or reheat food. Hot food will normally be maintained at 63\u00b0C or above."
             },
             {
+              "content_key": "approved_procedures",
               "block_type": "list",
-              "role": "procedure"
+              "role": "procedure",
+              "dynamic_sources": [
+                "approved_safety_point_instructions"
+              ]
             },
             {
+              "content_key": "business_specific_arrangements",
               "block_type": "text",
-              "role": "monitoring"
+              "role": "business_context",
+              "heading": "Business-specific arrangement",
+              "dynamic_sources": [
+                "approved_additional_responses"
+              ]
             },
             {
+              "content_key": "operational_monitoring",
               "block_type": "text",
-              "role": "corrective_action"
+              "role": "monitoring",
+              "text": "Hot-held food must be checked with a clean, disinfected probe to confirm that it remains at 63\u00b0C or above. Checks must be carried out at suitable intervals and when there is reason to suspect that the equipment or food temperature has changed.",
+              "source_safety_point_ids": [
+                "5.5.1.5"
+              ]
+            },
+            {
+              "content_key": "operational_corrective_action",
+              "block_type": "text",
+              "role": "corrective_action",
+              "text": "Food below the required hot-holding temperature must not simply remain on display. The approved time-limited exception may be followed where it applies and the time can be established. Otherwise, the food must be reheated thoroughly, cooled safely or discarded according to its time and temperature history. Food that has exceeded the permitted display period must be discarded."
             }
           ]
         },
@@ -910,26 +1029,38 @@
           "source_safe_method_ids": [
             "5.6"
           ],
-          "content_pattern": [
+          "content_definitions": [
             {
+              "content_key": "food_safety_importance",
               "block_type": "text",
-              "role": "food_safety_importance"
+              "role": "food_safety_importance",
+              "text": "Ready-to-eat food may receive no further cooking before it is served. Contamination, poor temperature control or use beyond its safe shelf life can therefore make it unsafe without another cooking step to remove the hazard."
             },
             {
+              "content_key": "operational_policy",
               "block_type": "text",
-              "role": "policy"
+              "role": "policy",
+              "text": "Ready-to-eat food will be protected from raw food, dirty equipment, unwashed produce, hands and other sources of contamination. It will be stored at the appropriate temperature, used within its shelf life and handled with clean, suitable equipment."
             },
             {
+              "content_key": "approved_procedures",
               "block_type": "list",
-              "role": "procedure"
+              "role": "procedure",
+              "dynamic_sources": [
+                "approved_safety_point_instructions"
+              ]
             },
             {
+              "content_key": "operational_monitoring",
               "block_type": "text",
-              "role": "monitoring"
+              "role": "monitoring",
+              "text": "Staff must check separation arrangements, cleanliness, date labels, use-by dates, storage temperatures and the condition of equipment used for ready-to-eat food. Slicers and other complex equipment must be checked after cleaning to confirm that no food residue remains."
             },
             {
+              "content_key": "operational_corrective_action",
               "block_type": "text",
-              "role": "corrective_action"
+              "role": "corrective_action",
+              "text": "Ready-to-eat food that has been contaminated, stored beyond its safe date or exposed to an unsafe temperature must not be served. Affected food must be isolated and discarded where its safety cannot be established. Contaminated equipment or surfaces must be cleaned and disinfected before further use."
             }
           ]
         },

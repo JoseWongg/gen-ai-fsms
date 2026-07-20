@@ -1744,3 +1744,541 @@ def test_equipment_limit_uses_existing_compliance_threshold(
         )
         == expected_limit
     )
+
+def test_cooking_section_content_is_personalised(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "5.1.1.1",
+            "cooking",
+            "5.1",
+        )
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "5.1.1.1",
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    section = _document_section(document, "4")
+
+    assert [
+        block.role
+        for block in section.content_blocks
+    ] == [
+        "introduction",
+        "policy",
+    ]
+    assert section.content_blocks[0].text == (
+        "Example Foods Ltd controls cooking, reheating, "
+        "hot holding and the handling of ready-to-eat food "
+        "at Example Kitchen to ensure that food is safe to "
+        "serve. Approved procedures, suitable equipment, "
+        "appropriate checks and corrective actions are used "
+        "for the activities carried out at the site."
+    )
+
+
+def test_cooking_safely_uses_approved_source_order(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "5.1.1.2",
+            "cooking",
+            "5.1",
+            instruction=(
+                "Follow the manufacturer's instructions.\n"
+                "Use the tested cooking method."
+            ),
+        ),
+        _safety_point(
+            "5.1.1.12",
+            "cooking",
+            "5.1",
+            instruction=(
+                "Use a disinfected temperature probe."
+            ),
+        ),
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "5.1.1.12",
+            "5.1.1.2",
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "4.1",
+    )
+
+    assert [
+        block.role
+        for block in subsection.content_blocks
+    ] == [
+        "food_safety_importance",
+        "policy",
+        "procedure",
+        "monitoring",
+        "corrective_action",
+    ]
+    assert subsection.content_blocks[2].items == [
+        (
+            "Follow the manufacturer's instructions. "
+            "Use the tested cooking method."
+        ),
+        "Use a disinfected temperature probe.",
+    ]
+    assert (
+        subsection.content_blocks[2]
+        .source.safety_point_ids
+    ) == [
+        "5.1.1.2",
+        "5.1.1.12",
+    ]
+
+
+def test_cooking_monitoring_requires_probe_control(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "5.1.1.2",
+            "cooking",
+            "5.1",
+        )
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "5.1.1.2",
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "4.1",
+    )
+
+    assert [
+        block.role
+        for block in subsection.content_blocks
+    ] == [
+        "food_safety_importance",
+        "policy",
+        "procedure",
+        "corrective_action",
+    ]
+
+
+def test_cooking_uses_document_ready_response(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "5.1.1.5",
+            "cooking",
+            "5.1",
+        )
+    ]
+    approved = [
+        {
+            "safety_point_id": "5.1.1.5",
+            "additional_responses": [
+                {
+                    "question_key": (
+                        "dishes_containing_"
+                        "cooked_whole_birds"
+                    ),
+                    "question_text": (
+                        "Which whole birds are cooked?"
+                    ),
+                    "response_text": (
+                        "raw conversational answer"
+                    ),
+                    "document_response_text": (
+                        "Whole chickens are roasted and "
+                        "checked in the thickest area "
+                        "between the leg and breast."
+                    ),
+                }
+            ],
+        }
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_points=approved,
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "4.1",
+    )
+    arrangement = next(
+        block
+        for block in subsection.content_blocks
+        if block.role == "business_context"
+    )
+
+    assert arrangement.heading == (
+        "Business-specific arrangement"
+    )
+    assert arrangement.text == (
+        "Whole chickens are roasted and checked in the "
+        "thickest area between the leg and breast."
+    )
+    assert arrangement.source.safety_point_ids == [
+        "5.1.1.5"
+    ]
+    assert (
+        arrangement.source.additional_question_keys
+    ) == [
+        "dishes_containing_cooked_whole_birds"
+    ]
+
+    rendered = str(subsection.model_dump())
+
+    assert "raw conversational answer" not in rendered
+    assert "Which whole birds are cooked?" not in rendered
+
+
+def test_additional_care_separates_control_groups(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "5.2.1.1",
+            "cooking",
+            "5.2",
+            instruction="Apply the egg controls.",
+        ),
+        _safety_point(
+            "5.4.1.1",
+            "cooking",
+            "5.4",
+            instruction="Apply the acrylamide controls.",
+        ),
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "5.2.1.1",
+            "5.4.1.1",
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "4.2",
+    )
+    procedure_blocks = [
+        block
+        for block in subsection.content_blocks
+        if block.role == "procedure"
+    ]
+
+    assert [
+        block.heading
+        for block in procedure_blocks
+    ] == [
+        "Food-specific controls",
+        "Acrylamide controls",
+    ]
+    assert [
+        block.items
+        for block in procedure_blocks
+    ] == [
+        ["Apply the egg controls."],
+        ["Apply the acrylamide controls."],
+    ]
+    assert [
+        block.source.safety_point_ids
+        for block in procedure_blocks
+    ] == [
+        ["5.2.1.1"],
+        ["5.4.1.1"],
+    ]
+
+
+def test_additional_care_omits_unapproved_group(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "5.2.1.1",
+            "cooking",
+            "5.2",
+            instruction="Unapproved egg control.",
+        ),
+        _safety_point(
+            "5.4.1.1",
+            "cooking",
+            "5.4",
+            instruction="Approved acrylamide control.",
+        ),
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "5.4.1.1",
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "4.2",
+    )
+    procedure_blocks = [
+        block
+        for block in subsection.content_blocks
+        if block.role == "procedure"
+    ]
+
+    assert len(procedure_blocks) == 1
+    assert procedure_blocks[0].heading == (
+        "Acrylamide controls"
+    )
+    assert procedure_blocks[0].items == [
+        "Approved acrylamide control."
+    ]
+
+
+def test_hot_holding_response_and_monitoring(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "5.5.1.1",
+            "cooking",
+            "5.5",
+        ),
+        _safety_point(
+            "5.5.1.5",
+            "cooking",
+            "5.5",
+        ),
+    ]
+    approved = [
+        {
+            "safety_point_id": "5.5.1.1",
+            "additional_responses": [
+                {
+                    "question_key": (
+                        "hot_holding_equipment"
+                    ),
+                    "question_text": (
+                        "Which equipment is used?"
+                    ),
+                    "response_text": "bain marie",
+                    "document_response_text": (
+                        "A bain-marie and heated display "
+                        "unit are used for hot holding "
+                        "during service."
+                    ),
+                }
+            ],
+        },
+        {
+            "safety_point_id": "5.5.1.5",
+        },
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_points=approved,
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "4.4",
+    )
+
+    assert [
+        block.role
+        for block in subsection.content_blocks
+    ] == [
+        "food_safety_importance",
+        "policy",
+        "procedure",
+        "business_context",
+        "monitoring",
+        "corrective_action",
+    ]
+
+    arrangement = subsection.content_blocks[3]
+
+    assert arrangement.text == (
+        "A bain-marie and heated display unit are used "
+        "for hot holding during service."
+    )
+    assert arrangement.source.additional_question_keys == [
+        "hot_holding_equipment"
+    ]
+
+
+@pytest.mark.parametrize(
+    (
+        "safety_point_id",
+        "safe_method_id",
+        "subsection_number",
+    ),
+    [
+        (
+            "5.3.1.1",
+            "5.3",
+            "4.3",
+        ),
+        (
+            "5.6.1.1",
+            "5.6",
+            "4.5",
+        ),
+    ],
+)
+def test_cooking_subsections_have_controlled_block_order(
+    monkeypatch,
+    safety_point_id,
+    safe_method_id,
+    subsection_number,
+):
+    applicable = [
+        _safety_point(
+            safety_point_id,
+            "cooking",
+            safe_method_id,
+        )
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            safety_point_id,
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        subsection_number,
+    )
+
+    assert [
+        block.role
+        for block in subsection.content_blocks
+    ] == [
+        "food_safety_importance",
+        "policy",
+        "procedure",
+        "monitoring",
+        "corrective_action",
+    ]
+
+
+def test_unapproved_cooking_point_is_not_documented(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "5.3.1.1",
+            "cooking",
+            "5.3",
+            instruction="Unapproved probe control.",
+        ),
+        _safety_point(
+            "5.3.1.2",
+            "cooking",
+            "5.3",
+            instruction="Approved equipment control.",
+        ),
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "5.3.1.2",
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "4.3",
+    )
+    procedure = next(
+        block
+        for block in subsection.content_blocks
+        if block.role == "procedure"
+    )
+
+    assert procedure.items == [
+        "Approved equipment control."
+    ]
+    assert procedure.source.safety_point_ids == [
+        "5.3.1.2"
+    ]
+    assert "monitoring" not in {
+        block.role
+        for block in subsection.content_blocks
+    }
