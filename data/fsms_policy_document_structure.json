@@ -665,18 +665,48 @@
           "dynamic_sources": [
             "active_chilling_equipment"
           ],
-          "content_pattern": [
+          "content_definitions": [
             {
+              "content_key": "temperature_monitoring_policy",
               "block_type": "text",
-              "role": "monitoring"
+              "role": "monitoring",
+              "dynamic_sources": [
+                "site_name",
+                "active_chilling_equipment"
+              ],
+              "template": "The temperature of active chilling equipment at {site_name} must be checked using the method recorded for that equipment. Actual temperatures must be recorded rather than ticks or general statements. A clean, disinfected probe must be used whenever food or pack temperatures are checked.",
+              "source_safety_point_ids": [
+                "4.1.1.3"
+              ],
+              "source_references": [
+                "business_profile.site_name"
+              ]
             },
             {
+              "content_key": "active_chilling_equipment_table",
               "block_type": "table",
-              "role": "equipment"
+              "role": "equipment",
+              "heading": "Active chilling equipment",
+              "dynamic_sources": [
+                "active_chilling_equipment"
+              ],
+              "headers": [
+                "Asset code",
+                "Equipment",
+                "Type",
+                "Use",
+                "Check method",
+                "Required limit"
+              ]
             },
             {
+              "content_key": "temperature_monitoring_corrective_action",
               "block_type": "text",
-              "role": "corrective_action"
+              "role": "corrective_action",
+              "text": "Any reading above the applicable equipment limit must be treated as a non-compliant temperature and must trigger the corrective-action process. Staff must establish the actual condition of affected food rather than relying only on the equipment reading. For a fridge incident, fresh fish must be assessed against its applicable 5\u00b0C threshold and other chilled food against the 8\u00b0C threshold. One shared out-of-range duration applies to all affected food. Food must be discarded where it exceeded its applicable safe limit and it cannot be confirmed that this lasted for less than four hours. The incident, assessment, decision and action must be recorded.",
+              "source_safety_point_ids": [
+                "4.1.1.3"
+              ]
             }
           ]
         },
@@ -689,10 +719,34 @@
             "active_chilling_equipment",
             "fridge_temperature_checklist_definition"
           ],
-          "content_pattern": [
+          "content_definitions": [
             {
+              "content_key": "checklist_identification",
+              "block_type": "text",
+              "role": "monitoring",
+              "text": "Date: ____________________\nShift / service: ____________________\nPerson in charge: ____________________"
+            },
+            {
+              "content_key": "fridge_temperature_checklist",
               "block_type": "table",
-              "role": "checklist"
+              "role": "checklist",
+              "heading": "Daily chilling temperature checks",
+              "dynamic_sources": [
+                "active_chilling_equipment"
+              ],
+              "headers": [
+                "Equipment",
+                "Required limit",
+                "AM temperature",
+                "PM temperature",
+                "Corrective action / diary reference"
+              ]
+            },
+            {
+              "content_key": "checklist_instruction",
+              "block_type": "text",
+              "role": "monitoring",
+              "text": "Record the actual temperature shown or measured. Where a reading exceeds the required limit, follow the corrective-action procedure immediately and record the incident and action taken."
             }
           ]
         }

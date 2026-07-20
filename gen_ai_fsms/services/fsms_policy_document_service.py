@@ -5,6 +5,9 @@ from typing import Any, Dict, List, Optional, Set
 
 from sqlalchemy.orm import Session
 
+from gen_ai_fsms.db.models.business_chilling_equipment import (
+    BusinessChillingEquipment,
+)
 from gen_ai_fsms.db.models.business_profile import BusinessProfile
 from gen_ai_fsms.schemas.fsms_policy_document import (
     FSMSContentSource,
@@ -13,7 +16,14 @@ from gen_ai_fsms.schemas.fsms_policy_document import (
     FSMSPolicyDocument,
     FSMSPolicySection,
     FSMSPolicySubsection,
+    FSMSTableBlock,
     FSMSTextBlock,
+)
+from gen_ai_fsms.services.chilling_temperature_compliance_service import (
+    FREEZER_TYPE,
+    FRIDGE_TYPE,
+    get_chilling_temperature_threshold,
+    normalize_chilling_equipment_type,
 )
 from gen_ai_fsms.services.safety_point_approval_service import (
     get_approved_methods_for_profile,
@@ -80,8 +90,8 @@ def generate_fsms_policy_document_for_profile(
     This transitional service does not replace the live FSMS
     endpoint or PDF renderer. It currently populates the
     controlled Food Safety Policy, Business Scope and approved
-    chilling-control content. Later implementation steps will
-    populate equipment monitoring and cooking controls.
+    chilling-control and equipment-monitoring content. Later
+    implementation steps will populate cooking controls.
     """
     profile = (
         db.query(BusinessProfile)
@@ -142,6 +152,13 @@ def generate_fsms_policy_document_for_profile(
         raise ValueError(
             "Approved safety point data must be a list."
         )
+
+    active_chilling_equipment = (
+        _get_active_chilling_equipment(
+            db=db,
+            business_profile_id=business_profile_id,
+        )
+    )
 
     applicable_ids = _safety_point_ids(
         applicable_safety_points,
@@ -220,6 +237,9 @@ def generate_fsms_policy_document_for_profile(
         profile=profile,
         applicable_safety_points=applicable_safety_points,
         condition_values=condition_values,
+        active_chilling_equipment=(
+            active_chilling_equipment
+        ),
     )
 
     return FSMSPolicyDocument(
@@ -260,6 +280,9 @@ def _build_policy_sections(
         Dict[str, Any]
     ],
     condition_values: Dict[str, str],
+    active_chilling_equipment: List[
+        BusinessChillingEquipment
+    ],
 ) -> List[FSMSPolicySection]:
     approved_points_by_section: Dict[
         str,
@@ -351,6 +374,9 @@ def _build_policy_sections(
                         section_config=section_config,
                         profile=profile,
                         safety_points=section_points,
+                        active_chilling_equipment=(
+                            active_chilling_equipment
+                        ),
                     )
                 )
             else:
@@ -432,46 +458,574 @@ def _build_chilling_operational_subsections(
     section_config: Dict[str, Any],
     profile: BusinessProfile,
     safety_points: List[Dict[str, Any]],
+    active_chilling_equipment: List[
+        BusinessChillingEquipment
+    ],
 ) -> List[FSMSPolicySubsection]:
     subsections = []
 
     for subsection_config in _configured_subsections(
         section_config
     ):
+        inclusion = subsection_config.get("inclusion")
+
+        if inclusion == "approved_applicable_content":
+            configured_method_ids = set(
+                _configured_string_list(
+                    subsection_config,
+                    "source_safe_method_ids",
+                )
+            )
+            subsection_points = [
+                safety_point
+                for safety_point in safety_points
+                if _required_safety_point_text(
+                    safety_point,
+                    "safe_method_id",
+                )
+                in configured_method_ids
+            ]
+
+            if not subsection_points:
+                continue
+
+            subsections.append(
+                _build_operational_subsection(
+                    subsection_config=(
+                        subsection_config
+                    ),
+                    profile=profile,
+                    safety_points=subsection_points,
+                )
+            )
+            continue
+
         if (
-            subsection_config.get("inclusion")
-            != "approved_applicable_content"
+            inclusion
+            == "approved_monitoring_content_and_equipment"
         ):
+            if not active_chilling_equipment:
+                continue
+
+            monitoring_points = (
+                _required_source_safety_points(
+                    subsection_config=(
+                        subsection_config
+                    ),
+                    safety_points=safety_points,
+                )
+            )
+
+            if not monitoring_points:
+                continue
+
+            subsections.append(
+                _build_temperature_monitoring_subsection(
+                    subsection_config=(
+                        subsection_config
+                    ),
+                    profile=profile,
+                    safety_points=monitoring_points,
+                    active_chilling_equipment=(
+                        active_chilling_equipment
+                    ),
+                )
+            )
             continue
 
-        configured_method_ids = set(
-            _configured_string_list(
-                subsection_config,
-                "source_safe_method_ids",
-            )
-        )
-        subsection_points = [
-            safety_point
-            for safety_point in safety_points
-            if _required_safety_point_text(
-                safety_point,
-                "safe_method_id",
-            )
-            in configured_method_ids
-        ]
+        if inclusion == "active_chilling_equipment":
+            if not active_chilling_equipment:
+                continue
 
-        if not subsection_points:
+            subsections.append(
+                _build_temperature_checklist_subsection(
+                    subsection_config=(
+                        subsection_config
+                    ),
+                    active_chilling_equipment=(
+                        active_chilling_equipment
+                    ),
+                )
+            )
             continue
 
-        subsections.append(
-            _build_operational_subsection(
-                subsection_config=subsection_config,
-                profile=profile,
-                safety_points=subsection_points,
-            )
+        raise ValueError(
+            "Unsupported chilling subsection inclusion "
+            f"rule: '{inclusion}'."
         )
 
     return subsections
+
+
+def _required_source_safety_points(
+    *,
+    subsection_config: Dict[str, Any],
+    safety_points: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    definitions = subsection_config.get(
+        "content_definitions"
+    )
+
+    if not isinstance(definitions, list):
+        raise ValueError(
+            "Configured monitoring content definitions "
+            "must be a list."
+        )
+
+    required_ids = []
+
+    for definition in definitions:
+        if not isinstance(definition, dict):
+            raise ValueError(
+                "Each configured monitoring definition "
+                "must be a JSON object."
+            )
+
+        for safety_point_id in _configured_string_list(
+            definition,
+            "source_safety_point_ids",
+        ):
+            _append_unique(
+                required_ids,
+                safety_point_id,
+            )
+
+    return [
+        safety_point
+        for safety_point in safety_points
+        if _required_safety_point_text(
+            safety_point,
+            "safety_point_id",
+        )
+        in required_ids
+    ]
+
+
+def _build_temperature_monitoring_subsection(
+    *,
+    subsection_config: Dict[str, Any],
+    profile: BusinessProfile,
+    safety_points: List[Dict[str, Any]],
+    active_chilling_equipment: List[
+        BusinessChillingEquipment
+    ],
+) -> FSMSPolicySubsection:
+    definitions = subsection_config.get(
+        "content_definitions"
+    )
+
+    if not isinstance(definitions, list):
+        raise ValueError(
+            "Temperature monitoring definitions must "
+            "be a list."
+        )
+
+    content_blocks: List[
+        FSMSPolicyContentBlock
+    ] = []
+
+    for definition in definitions:
+        block_type = _required_structure_text(
+            definition,
+            "block_type",
+        )
+
+        if block_type == "table":
+            content_blocks.append(
+                _build_equipment_table_block(
+                    definition=definition,
+                    safety_points=safety_points,
+                    equipment=active_chilling_equipment,
+                )
+            )
+            continue
+
+        if block_type != "text":
+            raise ValueError(
+                "Temperature monitoring content supports "
+                "only text and table blocks."
+            )
+
+        raw_text = definition.get("template")
+
+        if raw_text is None:
+            raw_text = definition.get("text")
+
+        if (
+            not isinstance(raw_text, str)
+            or not raw_text.strip()
+        ):
+            raise ValueError(
+                "Temperature monitoring text must be "
+                "a non-empty string."
+            )
+
+        content_blocks.append(
+            FSMSTextBlock(
+                role=_required_structure_text(
+                    definition,
+                    "role",
+                ),
+                text=_render_policy_template(
+                    raw_text,
+                    _policy_template_values(profile),
+                ),
+                source=FSMSContentSource(
+                    safety_point_ids=[
+                        _required_safety_point_text(
+                            safety_point,
+                            "safety_point_id",
+                        )
+                        for safety_point
+                        in safety_points
+                    ],
+                    source_references=(
+                        _configured_source_references(
+                            definition
+                        )
+                        + _equipment_source_references(
+                            active_chilling_equipment
+                        )
+                    ),
+                ),
+            )
+        )
+
+    return FSMSPolicySubsection(
+        subsection_number=_required_structure_text(
+            subsection_config,
+            "subsection_number",
+        ),
+        title=_required_structure_text(
+            subsection_config,
+            "title",
+        ),
+        content_blocks=content_blocks,
+    )
+
+
+def _build_equipment_table_block(
+    *,
+    definition: Dict[str, Any],
+    safety_points: List[Dict[str, Any]],
+    equipment: List[BusinessChillingEquipment],
+) -> FSMSTableBlock:
+    return FSMSTableBlock(
+        role=_required_structure_text(
+            definition,
+            "role",
+        ),
+        heading=_optional_structure_text(
+            definition,
+            "heading",
+        ),
+        headers=_configured_table_headers(
+            definition
+        ),
+        rows=[
+            [
+                _required_equipment_text(
+                    item,
+                    "equipment_asset_code",
+                ),
+                _required_equipment_text(
+                    item,
+                    "equipment_name",
+                ),
+                _equipment_type_label(
+                    item.equipment_type
+                ),
+                _equipment_use_label(
+                    item.equipment_use
+                ),
+                _temperature_check_method_label(
+                    item.temperature_check_method
+                ),
+                _equipment_required_limit(
+                    item.equipment_type
+                ),
+            ]
+            for item in equipment
+        ],
+        source=FSMSContentSource(
+            safety_point_ids=[
+                _required_safety_point_text(
+                    safety_point,
+                    "safety_point_id",
+                )
+                for safety_point in safety_points
+            ],
+            source_references=(
+                _equipment_source_references(
+                    equipment
+                )
+            ),
+        ),
+    )
+
+
+def _build_temperature_checklist_subsection(
+    *,
+    subsection_config: Dict[str, Any],
+    active_chilling_equipment: List[
+        BusinessChillingEquipment
+    ],
+) -> FSMSPolicySubsection:
+    definitions = subsection_config.get(
+        "content_definitions"
+    )
+
+    if not isinstance(definitions, list):
+        raise ValueError(
+            "Temperature checklist definitions must "
+            "be a list."
+        )
+
+    content_blocks: List[
+        FSMSPolicyContentBlock
+    ] = []
+    source = FSMSContentSource(
+        safety_point_ids=(
+            _equipment_source_safety_point_ids(
+                active_chilling_equipment
+            )
+        ),
+        source_references=(
+            _equipment_source_references(
+                active_chilling_equipment
+            )
+        ),
+    )
+
+    for definition in definitions:
+        block_type = _required_structure_text(
+            definition,
+            "block_type",
+        )
+
+        if block_type == "text":
+            content_blocks.append(
+                FSMSTextBlock(
+                    role=_required_structure_text(
+                        definition,
+                        "role",
+                    ),
+                    text=_required_structure_text(
+                        definition,
+                        "text",
+                    ),
+                    source=source,
+                )
+            )
+            continue
+
+        if block_type == "table":
+            content_blocks.append(
+                FSMSTableBlock(
+                    role=_required_structure_text(
+                        definition,
+                        "role",
+                    ),
+                    heading=_optional_structure_text(
+                        definition,
+                        "heading",
+                    ),
+                    headers=_configured_table_headers(
+                        definition
+                    ),
+                    rows=[
+                        [
+                            _required_equipment_text(
+                                item,
+                                "equipment_name",
+                            ),
+                            _equipment_required_limit(
+                                item.equipment_type
+                            ),
+                            "",
+                            "",
+                            "",
+                        ]
+                        for item
+                        in active_chilling_equipment
+                    ],
+                    source=source,
+                )
+            )
+            continue
+
+        raise ValueError(
+            "Temperature checklist content supports "
+            "only text and table blocks."
+        )
+
+    return FSMSPolicySubsection(
+        subsection_number=_required_structure_text(
+            subsection_config,
+            "subsection_number",
+        ),
+        title=_required_structure_text(
+            subsection_config,
+            "title",
+        ),
+        content_blocks=content_blocks,
+    )
+
+
+def _configured_table_headers(
+    definition: Dict[str, Any],
+) -> List[str]:
+    return _configured_string_list(
+        definition,
+        "headers",
+    )
+
+
+def _optional_structure_text(
+    configured_object: Dict[str, Any],
+    field_name: str,
+) -> Optional[str]:
+    value = configured_object.get(field_name)
+
+    if value is None:
+        return None
+
+    return _required_structure_text(
+        configured_object,
+        field_name,
+    )
+
+
+def _required_equipment_text(
+    equipment: BusinessChillingEquipment,
+    field_name: str,
+) -> str:
+    value = getattr(equipment, field_name, None)
+
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(
+            "Chilling equipment is missing required "
+            f"field '{field_name}'."
+        )
+
+    return value.strip()
+
+
+def _equipment_type_label(
+    equipment_type: str,
+) -> str:
+    normalized_type = (
+        normalize_chilling_equipment_type(
+            equipment_type
+        )
+    )
+
+    if normalized_type == FRIDGE_TYPE:
+        return "Fridge"
+
+    if normalized_type == FREEZER_TYPE:
+        return "Freezer"
+
+    raise ValueError(
+        "Unsupported chilling equipment type: "
+        f"{equipment_type}"
+    )
+
+
+def _equipment_use_label(
+    equipment_use: str,
+) -> str:
+    cleaned = equipment_use.strip().lower()
+
+    labels = {
+        "storage": "Storage",
+        "display": "Display",
+    }
+
+    if cleaned not in labels:
+        raise ValueError(
+            "Unsupported chilling equipment use: "
+            f"{equipment_use}"
+        )
+
+    return labels[cleaned]
+
+
+def _temperature_check_method_label(
+    temperature_check_method: str,
+) -> str:
+    cleaned = (
+        temperature_check_method.strip().lower()
+    )
+
+    labels = {
+        "digital_or_dial_display": (
+            "Digital or dial display"
+        ),
+        "probe_between_packs": (
+            "Probe between packs"
+        ),
+    }
+
+    if cleaned not in labels:
+        raise ValueError(
+            "Unsupported temperature check method: "
+            f"{temperature_check_method}"
+        )
+
+    return labels[cleaned]
+
+
+def _equipment_required_limit(
+    equipment_type: str,
+) -> str:
+    threshold = get_chilling_temperature_threshold(
+        equipment_type
+    )
+    threshold_text = format(threshold, "f")
+
+    if threshold_text.startswith("-"):
+        threshold_text = (
+            "−" + threshold_text.removeprefix("-")
+        )
+
+    return f"{threshold_text}°C or below"
+
+
+def _equipment_source_safety_point_ids(
+    equipment: List[BusinessChillingEquipment],
+) -> List[str]:
+    safety_point_ids = []
+
+    for item in equipment:
+        safety_point_id = _required_equipment_text(
+            item,
+            "source_safety_point_id",
+        )
+        _append_unique(
+            safety_point_ids,
+            safety_point_id,
+        )
+
+    return safety_point_ids
+
+
+def _equipment_source_references(
+    equipment: List[BusinessChillingEquipment],
+) -> List[str]:
+    references = []
+
+    for item in equipment:
+        asset_code = _required_equipment_text(
+            item,
+            "equipment_asset_code",
+        )
+        references.append(
+            "business_chilling_equipment."
+            f"{asset_code}"
+        )
+
+    return references
 
 
 def _build_operational_subsection(
@@ -1470,6 +2024,26 @@ def _business_type_with_article(
     )
 
     return f"{article} {formatted_type.lower()}"
+
+
+def _get_active_chilling_equipment(
+    *,
+    db: Session,
+    business_profile_id: int,
+) -> List[BusinessChillingEquipment]:
+    return (
+        db.query(BusinessChillingEquipment)
+        .filter(
+            BusinessChillingEquipment.business_profile_id
+            == business_profile_id,
+            BusinessChillingEquipment.is_active.is_(True),
+        )
+        .order_by(
+            BusinessChillingEquipment.equipment_name,
+            BusinessChillingEquipment.id,
+        )
+        .all()
+    )
 
 
 def _safety_point_ids(

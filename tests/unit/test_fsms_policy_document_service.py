@@ -78,6 +78,7 @@ def _patch_sources(
     approved_safety_point_ids=None,
     approved_safety_points=None,
     condition_values=None,
+    active_chilling_equipment=None,
 ):
     monkeypatch.setattr(
         service,
@@ -120,6 +121,18 @@ def _patch_sources(
                 else []
             )
         ]
+    )
+    resolved_active_chilling_equipment = (
+        active_chilling_equipment
+        if active_chilling_equipment is not None
+        else []
+    )
+    monkeypatch.setattr(
+        service,
+        "_get_active_chilling_equipment",
+        lambda **kwargs: (
+            resolved_active_chilling_equipment
+        ),
     )
     monkeypatch.setattr(
         service,
@@ -1401,3 +1414,333 @@ def test_chilling_subsections_have_controlled_block_order(
         "monitoring",
         "corrective_action",
     ]
+
+def _equipment(
+    *,
+    equipment_id,
+    asset_code,
+    name,
+    equipment_type,
+    equipment_use="storage",
+    check_method="digital_or_dial_display",
+    source_safety_point_id="4.1.1.3",
+):
+    return SimpleNamespace(
+        id=equipment_id,
+        equipment_asset_code=asset_code,
+        equipment_name=name,
+        equipment_type=equipment_type,
+        equipment_use=equipment_use,
+        temperature_check_method=check_method,
+        source_safety_point_id=(
+            source_safety_point_id
+        ),
+        is_active=True,
+    )
+
+
+def test_temperature_monitoring_builds_equipment_table(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "4.1.1.3",
+            "chilling",
+            "4.1",
+        )
+    ]
+    equipment = [
+        _equipment(
+            equipment_id=1,
+            asset_code="FR-001",
+            name="Main Kitchen Fridge",
+            equipment_type="fridge",
+        ),
+        _equipment(
+            equipment_id=2,
+            asset_code="FZ-001",
+            name="Chest Freezer",
+            equipment_type="freezer",
+            check_method="probe_between_packs",
+        ),
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "4.1.1.3",
+        ],
+        active_chilling_equipment=equipment,
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "3.5",
+    )
+
+    assert [
+        block.role
+        for block in subsection.content_blocks
+    ] == [
+        "monitoring",
+        "equipment",
+        "corrective_action",
+    ]
+
+    table = subsection.content_blocks[1]
+
+    assert table.headers == [
+        "Asset code",
+        "Equipment",
+        "Type",
+        "Use",
+        "Check method",
+        "Required limit",
+    ]
+    assert table.rows == [
+        [
+            "FR-001",
+            "Main Kitchen Fridge",
+            "Fridge",
+            "Storage",
+            "Digital or dial display",
+            "8°C or below",
+        ],
+        [
+            "FZ-001",
+            "Chest Freezer",
+            "Freezer",
+            "Storage",
+            "Probe between packs",
+            "−18°C or below",
+        ],
+    ]
+    assert table.source.safety_point_ids == [
+        "4.1.1.3"
+    ]
+
+
+def test_temperature_monitoring_requires_approved_control(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "4.1.1.1",
+            "chilling",
+            "4.1",
+        ),
+        _safety_point(
+            "4.1.1.3",
+            "chilling",
+            "4.1",
+        ),
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "4.1.1.1",
+        ],
+        active_chilling_equipment=[
+            _equipment(
+                equipment_id=1,
+                asset_code="FR-001",
+                name="Main Fridge",
+                equipment_type="fridge",
+            )
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+
+    section = _document_section(document, "3")
+
+    assert "3.5" not in {
+        subsection.subsection_number
+        for subsection in section.subsections
+    }
+
+
+def test_temperature_monitoring_requires_active_equipment(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "4.1.1.3",
+            "chilling",
+            "4.1",
+        )
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "4.1.1.3",
+        ],
+        active_chilling_equipment=[],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+
+    section = _document_section(document, "3")
+
+    assert "3.5" not in {
+        subsection.subsection_number
+        for subsection in section.subsections
+    }
+    assert "3.6" not in {
+        subsection.subsection_number
+        for subsection in section.subsections
+    }
+
+
+def test_checklist_is_included_for_other_chilling_control(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "4.2.1.1",
+            "chilling",
+            "4.2",
+        )
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "4.2.1.1",
+        ],
+        active_chilling_equipment=[
+            _equipment(
+                equipment_id=1,
+                asset_code="FR-001",
+                name="Main Fridge",
+                equipment_type="fridge",
+            )
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+
+    section = _document_section(document, "3")
+
+    assert "3.5" not in {
+        subsection.subsection_number
+        for subsection in section.subsections
+    }
+    assert "3.6" in {
+        subsection.subsection_number
+        for subsection in section.subsections
+    }
+
+
+def test_checklist_contains_blank_fields_and_instruction(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "4.1.1.3",
+            "chilling",
+            "4.1",
+        )
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "4.1.1.3",
+        ],
+        active_chilling_equipment=[
+            _equipment(
+                equipment_id=1,
+                asset_code="FR-001",
+                name="Main Fridge",
+                equipment_type="fridge",
+            )
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "3.6",
+    )
+
+    assert [
+        block.role
+        for block in subsection.content_blocks
+    ] == [
+        "monitoring",
+        "checklist",
+        "monitoring",
+    ]
+
+    assert subsection.content_blocks[0].text == (
+        "Date: ____________________\n"
+        "Shift / service: ____________________\n"
+        "Person in charge: ____________________"
+    )
+
+    checklist = subsection.content_blocks[1]
+
+    assert checklist.rows == [
+        [
+            "Main Fridge",
+            "8°C or below",
+            "",
+            "",
+            "",
+        ]
+    ]
+
+    assert subsection.content_blocks[2].text == (
+        "Record the actual temperature shown or measured. "
+        "Where a reading exceeds the required limit, follow "
+        "the corrective-action procedure immediately and "
+        "record the incident and action taken."
+    )
+
+
+@pytest.mark.parametrize(
+    ("equipment_type", "expected_limit"),
+    [
+        ("fridge", "8°C or below"),
+        ("freezer", "−18°C or below"),
+    ],
+)
+def test_equipment_limit_uses_existing_compliance_threshold(
+    equipment_type,
+    expected_limit,
+):
+    assert (
+        service._equipment_required_limit(
+            equipment_type
+        )
+        == expected_limit
+    )
