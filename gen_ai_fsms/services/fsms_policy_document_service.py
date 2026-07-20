@@ -7,9 +7,13 @@ from sqlalchemy.orm import Session
 
 from gen_ai_fsms.db.models.business_profile import BusinessProfile
 from gen_ai_fsms.schemas.fsms_policy_document import (
+    FSMSContentSource,
+    FSMSListBlock,
+    FSMSPolicyContentBlock,
     FSMSPolicyDocument,
     FSMSPolicySection,
     FSMSPolicySubsection,
+    FSMSTextBlock,
 )
 from gen_ai_fsms.services.safety_point_approval_service import (
     get_approved_methods_for_profile,
@@ -70,11 +74,12 @@ def generate_fsms_policy_document_for_profile(
     structure_config: Optional[Dict[str, Any]] = None,
 ) -> FSMSPolicyDocument:
     """
-    Build the new policy-document shell from current stored data.
+    Build the new policy document from current stored data.
 
     This transitional service does not replace the live FSMS
-    endpoint or PDF renderer. Later implementation steps will
-    populate the section content blocks.
+    endpoint or PDF renderer. It currently populates the
+    controlled Food Safety Policy content; later implementation
+    steps will populate the remaining sections.
     """
     profile = (
         db.query(BusinessProfile)
@@ -181,6 +186,7 @@ def generate_fsms_policy_document_for_profile(
         approved_applicable_points=(
             approved_applicable_points
         ),
+        profile=profile,
     )
 
     return FSMSPolicyDocument(
@@ -216,6 +222,7 @@ def _build_policy_sections(
     approved_applicable_points: List[
         Dict[str, Any]
     ],
+    profile: BusinessProfile,
 ) -> List[FSMSPolicySection]:
     approved_points_by_section: Dict[
         str,
@@ -251,7 +258,8 @@ def _build_policy_sections(
         }:
             subsections = [
                 _build_policy_subsection(
-                    subsection_config
+                    subsection_config,
+                    profile=profile,
                 )
                 for subsection_config
                 in _configured_subsections(
@@ -308,7 +316,8 @@ def _build_policy_sections(
 
                 subsections.append(
                     _build_policy_subsection(
-                        subsection_config
+                        subsection_config,
+                        profile=profile,
                     )
                 )
 
@@ -355,6 +364,8 @@ def _configured_subsections(
 
 def _build_policy_subsection(
     subsection_config: Dict[str, Any],
+    *,
+    profile: BusinessProfile,
 ) -> FSMSPolicySubsection:
     return FSMSPolicySubsection(
         subsection_number=_required_structure_text(
@@ -365,7 +376,227 @@ def _build_policy_subsection(
             subsection_config,
             "title",
         ),
+        content_blocks=_build_configured_content_blocks(
+            subsection_config,
+            profile=profile,
+        ),
     )
+
+
+def _build_configured_content_blocks(
+    configured_object: Dict[str, Any],
+    *,
+    profile: BusinessProfile,
+) -> List[FSMSPolicyContentBlock]:
+    definitions = configured_object.get(
+        "content_definitions",
+        [],
+    )
+
+    if not isinstance(definitions, list):
+        raise ValueError(
+            "Configured FSMS content definitions must "
+            "be a list."
+        )
+
+    template_values = _policy_template_values(profile)
+    content_blocks: List[FSMSPolicyContentBlock] = []
+
+    for definition in definitions:
+        if not isinstance(definition, dict):
+            raise ValueError(
+                "Each configured FSMS content definition "
+                "must be a JSON object."
+            )
+
+        block_type = _required_structure_text(
+            definition,
+            "block_type",
+        )
+        role = _required_structure_text(
+            definition,
+            "role",
+        )
+        source = FSMSContentSource(
+            source_references=(
+                _configured_source_references(definition)
+            )
+        )
+
+        if block_type == "text":
+            raw_text = definition.get("template")
+
+            if raw_text is None:
+                raw_text = definition.get("text")
+
+            if raw_text is None:
+                continue
+
+            if (
+                not isinstance(raw_text, str)
+                or not raw_text.strip()
+            ):
+                raise ValueError(
+                    "Configured FSMS text content must "
+                    "be a non-empty string."
+                )
+
+            content_blocks.append(
+                FSMSTextBlock(
+                    role=role,
+                    text=_render_policy_template(
+                        raw_text,
+                        template_values,
+                    ),
+                    source=source,
+                )
+            )
+            continue
+
+        if block_type == "list":
+            configured_items = definition.get("items")
+
+            if configured_items is None:
+                continue
+
+            if (
+                not isinstance(configured_items, list)
+                or not configured_items
+            ):
+                raise ValueError(
+                    "Configured FSMS list content must "
+                    "contain at least one item."
+                )
+
+            rendered_items = []
+
+            for item in configured_items:
+                if (
+                    not isinstance(item, str)
+                    or not item.strip()
+                ):
+                    raise ValueError(
+                        "Each configured FSMS list item "
+                        "must be a non-empty string."
+                    )
+
+                rendered_items.append(
+                    _render_policy_template(
+                        item,
+                        template_values,
+                    )
+                )
+
+            content_blocks.append(
+                FSMSListBlock(
+                    role=role,
+                    items=rendered_items,
+                    source=source,
+                )
+            )
+            continue
+
+        raise ValueError(
+            "Unsupported configured FSMS content block "
+            f"type: '{block_type}'."
+        )
+
+    return content_blocks
+
+
+def _policy_template_values(
+    profile: BusinessProfile,
+) -> Dict[str, str]:
+    return {
+        "business_name": _required_profile_text(
+            profile,
+            "business_name",
+        ),
+        "site_name": _required_profile_text(
+            profile,
+            "site_name",
+        ),
+        "business_type_with_article": (
+            _business_type_with_article(
+                getattr(profile, "business_type", None)
+            )
+        ),
+    }
+
+
+def _render_policy_template(
+    template: str,
+    values: Dict[str, str],
+) -> str:
+    try:
+        rendered = template.strip().format_map(values)
+    except KeyError as error:
+        missing_value = error.args[0]
+        raise ValueError(
+            "FSMS policy content template refers to "
+            f"unknown value '{missing_value}'."
+        ) from error
+
+    if not rendered:
+        raise ValueError(
+            "Rendered FSMS policy content must not "
+            "be empty."
+        )
+
+    return rendered
+
+
+def _configured_source_references(
+    definition: Dict[str, Any],
+) -> List[str]:
+    references = definition.get(
+        "source_references",
+        [],
+    )
+
+    if not isinstance(references, list):
+        raise ValueError(
+            "Configured FSMS source references must "
+            "be a list."
+        )
+
+    cleaned_references = []
+
+    for reference in references:
+        if (
+            not isinstance(reference, str)
+            or not reference.strip()
+        ):
+            raise ValueError(
+                "Each configured FSMS source reference "
+                "must be a non-empty string."
+            )
+
+        cleaned_references.append(reference.strip())
+
+    return cleaned_references
+
+
+def _business_type_with_article(
+    business_type: Optional[str],
+) -> str:
+    formatted_type = _format_business_type(
+        business_type
+    )
+
+    if (
+        formatted_type is None
+        or formatted_type.lower() == "other"
+    ):
+        return "a food business"
+
+    article = (
+        "an"
+        if formatted_type[0].lower() in "aeiou"
+        else "a"
+    )
+
+    return f"{article} {formatted_type.lower()}"
 
 
 def _safety_point_ids(

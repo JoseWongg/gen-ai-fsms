@@ -23,6 +23,12 @@
                 "business_name",
                 "site_name",
                 "business_type"
+              ],
+              "template": "This Food Safety Management System applies to {business_name} at {site_name}. The site operates as {business_type_with_article}. It explains the food safety controls, responsibilities, monitoring and corrective actions used for the chilling, temperature-control, cooking and reheating activities that apply to the business. It must be followed by all staff whose work can affect food safety.",
+              "source_references": [
+                "business_profile.business_name",
+                "business_profile.site_name",
+                "business_profile.business_type"
               ]
             }
           ]
@@ -40,6 +46,11 @@
               "dynamic_sources": [
                 "business_name",
                 "site_name"
+              ],
+              "template": "{business_name} is committed to producing, handling and serving food safely at {site_name}. The business will provide suitable procedures, equipment, training and supervision; ensure that required checks and records are completed; and act promptly when a food safety control is not met. Food will not be served when its safety cannot be established.",
+              "source_references": [
+                "business_profile.business_name",
+                "business_profile.site_name"
               ]
             }
           ]
@@ -53,12 +64,19 @@
             {
               "content_key": "responsibilities_introduction",
               "block_type": "text",
-              "role": "responsibilities"
+              "role": "responsibilities",
+              "text": "Food safety is a shared responsibility. Everyone working for the business must understand and carry out the responsibilities relevant to their role."
             },
             {
               "content_key": "responsibilities_list",
               "block_type": "list",
-              "role": "responsibilities"
+              "role": "responsibilities",
+              "items": [
+                "The business owner or responsible manager must maintain this FSMS, provide suitable resources, ensure staff are trained and supervised, and review the system when operations or risks change.",
+                "The person in charge of each shift must ensure that required checks are completed, records are accurate, and problems are acted on or escalated.",
+                "Food handlers must follow the approved procedures, complete assigned checks, report problems immediately and protect food from contamination or unsafe temperatures.",
+                "No member of staff may serve or continue using food when its safety is uncertain. The matter must be referred to the person in charge."
+              ]
             }
           ]
         },
@@ -71,17 +89,20 @@
             {
               "content_key": "policy_monitoring",
               "block_type": "text",
-              "role": "monitoring"
+              "role": "monitoring",
+              "text": "Relevant food safety controls are monitored through routine operational checks and records. Checks must be completed at the time they are carried out and must identify the result, the person responsible and the date or time where required. Supervisors must review records and follow up omissions or repeated failures."
             },
             {
               "content_key": "policy_corrective_action",
               "block_type": "text",
-              "role": "corrective_action"
+              "role": "corrective_action",
+              "text": "When a required control is not met, staff must first protect customers by stopping the affected activity where necessary and isolating affected food. The problem, decision and action taken must be recorded and reported to the person in charge. Food must be discarded when it cannot be shown to be safe."
             },
             {
               "content_key": "policy_review",
               "block_type": "text",
-              "role": "review"
+              "role": "review",
+              "text": "This FSMS must be reviewed when the business changes its menu, processes, equipment or premises; after a food safety incident or repeated control failure; when relevant requirements or guidance change; and at suitable intervals to confirm that the controls remain effective."
             }
           ]
         }
