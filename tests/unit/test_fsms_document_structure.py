@@ -160,3 +160,28 @@ def test_document_structure_has_controlled_document_title():
     assert structure["document_title"] == (
         "Food Safety Management System"
     )
+
+
+
+def test_summary_sections_have_controlled_content():
+    sections = load_json(STRUCTURE_PATH)["sections"]
+    summary_sections = {
+        section["section_id"]: section
+        for section in sections
+        if section["section_id"] in {
+            "food_safety_policy",
+            "business_and_hazard_overview",
+        }
+    }
+
+    assert set(summary_sections) == {
+        "food_safety_policy",
+        "business_and_hazard_overview",
+    }
+
+    for section in summary_sections.values():
+        summary_config = section["summary_subsection"]
+
+        assert summary_config["subsection_id"].strip()
+        assert summary_config["title"].strip()
+        assert summary_config["introduction"].strip()

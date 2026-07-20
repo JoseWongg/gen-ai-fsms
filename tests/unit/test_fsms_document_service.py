@@ -23,6 +23,18 @@ STRUCTURE_CONFIG = {
             "always_applicable": True,
             "counts_towards_business_completion": True,
             "introduction": "Policy introduction.",
+        "summary_subsection": {
+            "subsection_id": "1.1",
+            "title": "Food Safety Commitment",
+            "introduction": "Policy subsection introduction.",
+            "arrangement_title": "Policy statement",
+            "policy_statements": [
+                (
+                    "{business_name} commits to applying the "
+                    "approved food safety controls at {site_name}."
+                )
+            ],
+        },
         },
         {
             "section_id": "business_and_hazard_overview",
@@ -34,6 +46,25 @@ STRUCTURE_CONFIG = {
             "always_applicable": True,
             "counts_towards_business_completion": True,
             "introduction": "Business overview introduction.",
+        "summary_subsection": {
+            "subsection_id": "2.1",
+            "title": (
+                "Business Activities and Food Safety Profile"
+            ),
+            "introduction": (
+                "Business profile subsection introduction."
+            ),
+            "business_arrangement_title": (
+                "Business overview"
+            ),
+            "screening_arrangement_title": (
+                "Food Safety Profile"
+            ),
+            "screening_table_headers": [
+                "Food Safety Profile question",
+                "Recorded answer",
+            ],
+        },
         },
         {
             "section_id": "temperature_control",
@@ -141,6 +172,7 @@ def _patch_document_sources(
     monkeypatch,
     *,
     screening_complete=True,
+    condition_values=None,
     applicable_safety_points=None,
     approved_safety_points=None,
 ):
@@ -150,6 +182,15 @@ def _patch_document_sources(
         lambda **kwargs: {
             "is_complete": screening_complete,
         },
+    )
+    monkeypatch.setattr(
+        service,
+        "get_condition_values_for_profile",
+        lambda **kwargs: (
+            condition_values
+            if condition_values is not None
+            else {}
+        ),
     )
     monkeypatch.setattr(
         service,
@@ -327,3 +368,98 @@ def test_unknown_summary_completion_rule_is_rejected(
             business_profile_id=1,
             structure_config=invalid_structure,
         )
+
+
+
+def test_summary_sections_include_substantive_content(
+    monkeypatch,
+):
+    _patch_document_sources(
+        monkeypatch,
+        condition_values={
+            "chills_food": "true",
+            "cooks_food": "false",
+            "displays_chilled_food": "false",
+        },
+    )
+
+    document = service.generate_fsms_document_for_profile(
+        db=FakeSession(_profile()),
+        business_profile_id=1,
+        structure_config=STRUCTURE_CONFIG,
+    )
+
+    policy_section = document.sections[0]
+    overview_section = document.sections[1]
+
+    assert policy_section.subsections[0].safe_method_id == "1.1"
+    assert (
+        policy_section
+        .subsections[0]
+        .business_specific_arrangements[0]
+        .statements
+        == [
+            (
+                "Example Foods Ltd commits to applying the "
+                "approved food safety controls at "
+                "Example Kitchen."
+            )
+        ]
+    )
+
+    overview_arrangements = (
+        overview_section
+        .subsections[0]
+        .business_specific_arrangements
+    )
+
+    assert overview_arrangements[0].statements == [
+        "Example Kitchen is operated by Example Foods Ltd.",
+        "The recorded business type is Restaurant.",
+        (
+            "Business description: A small restaurant "
+            "serving cooked meals."
+        ),
+    ]
+
+    assert [
+        (
+            "Do you keep any food chilled in fridges or "
+            "chilled display units?"
+        ),
+        "Yes",
+    ] in overview_arrangements[1].table_rows
+
+    display_rows = [
+        row
+        for row in overview_arrangements[1].table_rows
+        if row[0].startswith(
+            "Do you display chilled food for customers"
+        )
+    ]
+
+    assert len(display_rows) == 1
+    assert display_rows[0][1] == "No"
+
+
+def test_screening_profile_rows_follow_question_dependencies():
+    rows = service._build_screening_profile_rows(
+        {
+            "chills_food": "true",
+            "cooks_food": "false",
+            "displays_chilled_food": "true",
+        }
+    )
+
+    questions = {
+        row[0]
+        for row in rows
+    }
+
+    assert any(
+        question.startswith(
+            "Do you display chilled food for customers"
+        )
+        for question in questions
+    )
+    assert "Do you handle raw meat or poultry?" not in questions

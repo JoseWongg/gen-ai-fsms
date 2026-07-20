@@ -14,7 +14,16 @@
       "always_applicable": true,
       "counts_towards_business_completion": true,
       "counts_towards_product_coverage": true,
-      "introduction": "This section records the business's commitment to follow the food safety methods contained in this document within the areas currently supported by the system."
+      "introduction": "This section records the business's commitment to follow the food safety methods contained in this document within the areas currently supported by the system.",
+      "summary_subsection": {
+        "subsection_id": "1.1",
+        "title": "Food Safety Commitment",
+        "introduction": "This subsection records the food safety commitment represented by this document.",
+        "arrangement_title": "Policy statement",
+        "policy_statements": [
+          "{business_name} commits to applying the approved food safety controls recorded in this document at {site_name} for the activities and sections currently supported by the system."
+        ]
+      }
     },
     {
       "section_id": "business_and_hazard_overview",
@@ -26,7 +35,18 @@
       "always_applicable": true,
       "counts_towards_business_completion": true,
       "counts_towards_product_coverage": true,
-      "introduction": "This section summarises the business activities and the Food Safety Profile information used to identify which food safety controls apply."
+      "introduction": "This section summarises the business activities and the Food Safety Profile information used to identify which food safety controls apply.",
+      "summary_subsection": {
+        "subsection_id": "2.1",
+        "title": "Business Activities and Food Safety Profile",
+        "introduction": "This subsection records the business context and screening information used to determine which food safety controls apply.",
+        "business_arrangement_title": "Business overview",
+        "screening_arrangement_title": "Food Safety Profile",
+        "screening_table_headers": [
+          "Food Safety Profile question",
+          "Recorded answer"
+        ]
+      }
     },
     {
       "section_id": "temperature_control",
