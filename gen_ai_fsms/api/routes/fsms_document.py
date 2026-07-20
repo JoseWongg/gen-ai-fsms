@@ -9,11 +9,17 @@ from gen_ai_fsms.api.routes.onboarding_screening import (
 )
 from gen_ai_fsms.db.models import User
 from gen_ai_fsms.schemas.fsms_document import FSMSDocument
+from gen_ai_fsms.schemas.fsms_policy_document import (
+    FSMSPolicyDocument,
+)
 from gen_ai_fsms.services.fsms_document_pdf import (
     render_fsms_document_pdf,
 )
 from gen_ai_fsms.services.fsms_document_service import (
     generate_fsms_document_for_profile,
+)
+from gen_ai_fsms.services.fsms_policy_document_service import (
+    generate_fsms_policy_document_for_profile,
 )
 
 
@@ -37,6 +43,32 @@ def get_current_fsms_document(
     profile = get_current_user_profile(db, current_user)
 
     return generate_fsms_document_for_profile(
+        db=db,
+        business_profile_id=profile.id,
+    )
+
+
+@router.get(
+    "/policy",
+    response_model=FSMSPolicyDocument,
+)
+def get_current_fsms_policy_document(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Return the policy-format FSMS document for the
+    authenticated user's business.
+
+    The document is rebuilt from current stored information
+    and is not persisted as a separate snapshot.
+    """
+    profile = get_current_user_profile(
+        db,
+        current_user,
+    )
+
+    return generate_fsms_policy_document_for_profile(
         db=db,
         business_profile_id=profile.id,
     )
