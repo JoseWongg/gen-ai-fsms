@@ -649,25 +649,39 @@ def _reference_flowables(
     return flowables
 
 
+def _status_content(
+    *,
+    status: str,
+    message,
+) -> str:
+    label = STATUS_LABELS.get(
+        status,
+        status.replace("_", " ").title(),
+    )
+    cleaned_message = _normalise_text(message)
+
+    if not cleaned_message or cleaned_message == label:
+        return f"<b>{_escape_text(label)}</b>"
+
+    return (
+        f"<b>{_escape_text(label)}</b><br/>"
+        f"{_escape_text(cleaned_message)}"
+    )
+
+
 def _status_table(
     *,
     status: str,
     message,
     styles: Dict[str, ParagraphStyle],
 ) -> Table:
-    label = STATUS_LABELS.get(
-        status,
-        status.replace("_", " ").title(),
-    )
-    status_message = message or label
-
     table = Table(
         [
             [
                 Paragraph(
-                    (
-                        f"<b>{_escape_text(label)}</b><br/>"
-                        f"{_escape_text(status_message)}"
+                    _status_content(
+                        status=status,
+                        message=message,
                     ),
                     styles["status_box"],
                 )

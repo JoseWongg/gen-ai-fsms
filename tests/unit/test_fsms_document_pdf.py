@@ -16,6 +16,7 @@ from gen_ai_fsms.services.fsms_document_pdf import (
     _build_story,
     _build_styles,
     _normalise_text,
+    _status_content,
     render_fsms_document_pdf,
 )
 
@@ -201,3 +202,32 @@ def test_renderer_handles_empty_appendix_content():
 
     assert pdf_bytes.startswith(b"%PDF-")
     assert pdf_bytes.rstrip().endswith(b"%%EOF")
+
+
+
+def test_completed_status_is_not_repeated():
+    assert _status_content(
+        status="completed",
+        message=None,
+    ) == "<b>Completed</b>"
+
+
+def test_matching_status_message_is_not_repeated():
+    assert _status_content(
+        status="beyond_prototype_scope",
+        message="Beyond prototype scope",
+    ) == "<b>Beyond prototype scope</b>"
+
+
+def test_distinct_completion_message_is_preserved():
+    assert _status_content(
+        status="not_completed",
+        message=(
+            "Not completed: 2 applicable safety points "
+            "still require approval."
+        ),
+    ) == (
+        "<b>Not completed</b><br/>"
+        "Not completed: 2 applicable safety points "
+        "still require approval."
+    )
