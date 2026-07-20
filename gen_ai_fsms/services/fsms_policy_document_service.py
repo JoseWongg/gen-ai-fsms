@@ -347,6 +347,14 @@ def _build_policy_sections(
                         section_config
                     )
                 ]
+        elif inclusion == "beyond_current_project_scope":
+            section_content_blocks = (
+                _build_configured_content_blocks(
+                    section_config,
+                    profile=profile,
+                )
+            )
+            subsections = []
         elif inclusion == "approved_applicable_content":
             section_points = [
                 safety_point
@@ -2109,6 +2117,10 @@ def _build_configured_content_blocks(
             content_blocks.append(
                 FSMSTextBlock(
                     role=role,
+                    heading=_optional_structure_text(
+                        definition,
+                        "heading",
+                    ),
                     text=_render_policy_template(
                         raw_text,
                         template_values,
