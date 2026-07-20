@@ -479,6 +479,85 @@ def format_dashboard_percentage(value):
     return f"{numeric_value:.1f}%"
 
 
+def load_fsms_document_dashboard_progress(token):
+    default_card = {
+        "icon_label": "DOC",
+        "title": "FSMS Document",
+        "value": "0%",
+        "caption": "Progress unavailable",
+        "colour_class": "",
+    }
+
+    if not token:
+        return default_card
+
+    response = api_request(
+        "GET",
+        "/fsms-document/policy/progress",
+        token=token,
+    )
+
+    if response is None:
+        return default_card
+
+    if response.status_code != 200:
+        return default_card
+
+    data = response.json()
+
+    completion_percentage = (
+        data.get("completion_percentage", 0)
+        or 0
+    )
+    completed_count = (
+        data.get(
+            "completed_applicable_section_count",
+            0,
+        )
+        or 0
+    )
+    applicable_count = (
+        data.get(
+            "applicable_supported_section_count",
+            0,
+        )
+        or 0
+    )
+    supported_count = (
+        data.get("supported_section_count", 0)
+        or 0
+    )
+    planned_count = (
+        data.get("planned_section_count", 0)
+        or 0
+    )
+
+    try:
+        numeric_percentage = float(
+            completion_percentage
+        )
+    except (TypeError, ValueError):
+        numeric_percentage = 0
+
+    return {
+        "icon_label": "DOC",
+        "title": "FSMS Document",
+        "value": format_dashboard_percentage(
+            numeric_percentage
+        ),
+        "caption": (
+            f"{completed_count}/{applicable_count} "
+            f"current · {supported_count}/"
+            f"{planned_count} supported"
+        ),
+        "colour_class": (
+            "green"
+            if numeric_percentage >= 100
+            else ""
+        ),
+    }
+
+
 def load_fridge_temperature_dashboard_progress(token):
     if not token:
         return {
@@ -946,6 +1025,9 @@ def show():
 
     profile_progress = load_food_safety_profile_progress(token)
     fsms_progress = load_fsms_builder_progress(token)
+    fsms_document_progress = (
+        load_fsms_document_dashboard_progress(token)
+    )
     fridge_temperature_progress = load_fridge_temperature_dashboard_progress(token)
     incident_summary_cards = load_daily_shift_incident_summary_cards(token)
 
@@ -972,18 +1054,25 @@ def show():
         incident_summary_cards["temp_alerts"]["caption"],
         incident_summary_cards["temp_alerts"]["colour_class"],
     )
+    fsms_document_card = dummy_status_card_html(
+        fsms_document_progress["icon_label"],
+        fsms_document_progress["title"],
+        fsms_document_progress["value"],
+        fsms_document_progress["caption"],
+        fsms_document_progress["colour_class"],
+    )
 
     status_cards_html = f"""
         <div class="section-title"></div>
         <div class="status-grid">
             {workflow_card_html(profile_progress)}
             {workflow_card_html(fsms_progress)}
+            {fsms_document_card}
             {fridge_temperature_card}
-            {dummy_status_card_html("TRN", "Staff Trained", "4", "Trained today", "green")}
             {unresolved_incidents_card}
             {temp_alerts_card}
             {dummy_status_card_html("REP", "Repairs Logged", "3", "Open repair records")}
-            {dummy_status_card_html("DOC", "Documents Ready", "6", "Inspection documents")}
+            {dummy_status_card_html("TRN", "Staff Trained", "4", "Trained today", "green")}
         </div>
     """
 
