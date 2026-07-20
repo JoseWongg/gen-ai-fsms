@@ -91,8 +91,9 @@ def generate_fsms_policy_document_for_profile(
     endpoint or PDF renderer. It currently populates the
     controlled Food Safety Policy, Business Scope and approved
     chilling, equipment-monitoring and approved cooking
-    operational content. Later implementation steps will
-    populate consolidated cooking checks.
+    operational content and consolidated cooking checks.
+    Later implementation steps will expose and render the
+    completed policy document.
     """
     profile = (
         db.query(BusinessProfile)
@@ -482,40 +483,217 @@ def _build_cooking_operational_subsections(
     for subsection_config in _configured_subsections(
         section_config
     ):
+        inclusion = subsection_config.get("inclusion")
+
+        if inclusion == "approved_applicable_content":
+            configured_method_ids = set(
+                _configured_string_list(
+                    subsection_config,
+                    "source_safe_method_ids",
+                )
+            )
+            subsection_points = [
+                safety_point
+                for safety_point in safety_points
+                if _required_safety_point_text(
+                    safety_point,
+                    "safe_method_id",
+                )
+                in configured_method_ids
+            ]
+
+            if not subsection_points:
+                continue
+
+            subsections.append(
+                _build_operational_subsection(
+                    subsection_config=(
+                        subsection_config
+                    ),
+                    profile=profile,
+                    safety_points=subsection_points,
+                )
+            )
+            continue
+
         if (
-            subsection_config.get("inclusion")
-            != "approved_applicable_content"
+            inclusion
+            == (
+                "approved_monitoring_or_"
+                "corrective_action_content"
+            )
         ):
+            subsections.append(
+                _build_cooking_checks_subsection(
+                    subsection_config=(
+                        subsection_config
+                    ),
+                    safety_points=safety_points,
+                )
+            )
             continue
 
-        configured_method_ids = set(
-            _configured_string_list(
-                subsection_config,
-                "source_safe_method_ids",
-            )
-        )
-        subsection_points = [
-            safety_point
-            for safety_point in safety_points
-            if _required_safety_point_text(
-                safety_point,
-                "safe_method_id",
-            )
-            in configured_method_ids
-        ]
-
-        if not subsection_points:
-            continue
-
-        subsections.append(
-            _build_operational_subsection(
-                subsection_config=subsection_config,
-                profile=profile,
-                safety_points=subsection_points,
-            )
+        raise ValueError(
+            "Unsupported cooking subsection inclusion "
+            f"rule: '{inclusion}'."
         )
 
     return subsections
+
+
+def _build_cooking_checks_subsection(
+    *,
+    subsection_config: Dict[str, Any],
+    safety_points: List[Dict[str, Any]],
+) -> FSMSPolicySubsection:
+    definitions = subsection_config.get(
+        "content_definitions"
+    )
+
+    if not isinstance(definitions, list):
+        raise ValueError(
+            "Cooking checks definitions must be a list."
+        )
+
+    content_blocks: List[
+        FSMSPolicyContentBlock
+    ] = []
+
+    for definition in definitions:
+        if not isinstance(definition, dict):
+            raise ValueError(
+                "Each cooking checks definition must "
+                "be a JSON object."
+            )
+
+        required_safety_point_ids = set(
+            _configured_string_list(
+                definition,
+                "source_safety_point_ids",
+            )
+        )
+        source_points = safety_points
+
+        if required_safety_point_ids:
+            source_points = [
+                safety_point
+                for safety_point in safety_points
+                if _required_safety_point_text(
+                    safety_point,
+                    "safety_point_id",
+                )
+                in required_safety_point_ids
+            ]
+
+            if not source_points:
+                continue
+
+        block_type = _required_structure_text(
+            definition,
+            "block_type",
+        )
+        source = _operational_content_source(
+            safety_points=source_points,
+            definition=definition,
+        )
+
+        if block_type == "text":
+            content_blocks.append(
+                FSMSTextBlock(
+                    role=_required_structure_text(
+                        definition,
+                        "role",
+                    ),
+                    heading=_optional_structure_text(
+                        definition,
+                        "heading",
+                    ),
+                    text=_required_structure_text(
+                        definition,
+                        "text",
+                    ),
+                    source=source,
+                )
+            )
+            continue
+
+        if block_type == "table":
+            content_blocks.append(
+                FSMSTableBlock(
+                    role=_required_structure_text(
+                        definition,
+                        "role",
+                    ),
+                    heading=_optional_structure_text(
+                        definition,
+                        "heading",
+                    ),
+                    headers=_configured_table_headers(
+                        definition
+                    ),
+                    rows=_configured_table_rows(
+                        definition
+                    ),
+                    source=source,
+                )
+            )
+            continue
+
+        raise ValueError(
+            "Cooking checks content supports only "
+            "text and table blocks."
+        )
+
+    return FSMSPolicySubsection(
+        subsection_number=_required_structure_text(
+            subsection_config,
+            "subsection_number",
+        ),
+        title=_required_structure_text(
+            subsection_config,
+            "title",
+        ),
+        content_blocks=content_blocks,
+    )
+
+
+def _configured_table_rows(
+    definition: Dict[str, Any],
+) -> List[List[str]]:
+    rows = definition.get("rows")
+
+    if not isinstance(rows, list) or not rows:
+        raise ValueError(
+            "Configured FSMS table rows must contain "
+            "at least one row."
+        )
+
+    cleaned_rows = []
+
+    for row in rows:
+        if not isinstance(row, list):
+            raise ValueError(
+                "Each configured FSMS table row must "
+                "be a list."
+            )
+
+        cleaned_row = []
+
+        for value in row:
+            if (
+                not isinstance(value, str)
+                or not value.strip()
+            ):
+                raise ValueError(
+                    "Each configured FSMS table value "
+                    "must be a non-empty string."
+                )
+
+            cleaned_row.append(value.strip())
+
+        cleaned_rows.append(cleaned_row)
+
+    return cleaned_rows
 
 
 def _build_chilling_operational_subsections(
@@ -1271,11 +1449,8 @@ def _build_operational_procedure_block(
     safety_points: List[Dict[str, Any]],
 ) -> FSMSListBlock:
     items = [
-        _normalise_operational_text(
-            _required_safety_point_text(
-                safety_point,
-                "instruction",
-            )
+        _operational_instruction_text(
+            safety_point
         )
         for safety_point in safety_points
     ]
@@ -1443,6 +1618,32 @@ def _operational_source_references(
                 )
 
     return references
+
+
+def _operational_instruction_text(
+    safety_point: Dict[str, Any],
+) -> str:
+    instruction = _required_safety_point_text(
+        safety_point,
+        "instruction",
+    )
+    safety_point_id = _required_safety_point_text(
+        safety_point,
+        "safety_point_id",
+    )
+
+    if safety_point_id in {
+        "5.1.1.12",
+        "5.3.1.1",
+    }:
+        instruction = instruction.split(
+            "Safe time/temperature combinations",
+            1,
+        )[0]
+
+    return _normalise_operational_text(
+        instruction
+    )
 
 
 def _normalise_operational_text(value: str) -> str:

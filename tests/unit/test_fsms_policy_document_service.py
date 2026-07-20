@@ -276,7 +276,10 @@ def test_complete_profile_builds_approved_shell(
         subsection.subsection_number
         for subsection
         in document.sections[3].subsections
-    ] == ["4.1"]
+    ] == [
+        "4.1",
+        "4.6",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -412,7 +415,10 @@ def test_operational_subsections_follow_approved_methods(
         subsection.subsection_number
         for subsection
         in document.sections[3].subsections
-    ] == ["4.2"]
+    ] == [
+        "4.2",
+        "4.6",
+    ]
 
 
 def test_missing_business_profile_is_rejected():
@@ -2280,5 +2286,295 @@ def test_unapproved_cooking_point_is_not_documented(
     ]
     assert "monitoring" not in {
         block.role
+        for block in subsection.content_blocks
+    }
+
+def test_cooking_checks_are_included_for_approved_content(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "5.6.1.1",
+            "cooking",
+            "5.6",
+        )
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "5.6.1.1",
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "4.6",
+    )
+
+    assert [
+        block.role
+        for block in subsection.content_blocks
+    ] == [
+        "monitoring",
+        "procedure",
+        "corrective_action",
+    ]
+
+    assert subsection.content_blocks[0].text == (
+        "Cooking, reheating and hot-holding checks must "
+        "demonstrate that the approved control has worked. "
+        "The check must be appropriate to the food and may "
+        "include a time-and-temperature check, examination "
+        "of the centre or thickest part, testing several "
+        "locations, confirmation of texture or colour, or "
+        "verification of equipment performance."
+    )
+
+
+@pytest.mark.parametrize(
+    ("safety_point_id", "safe_method_id"),
+    [
+        (
+            "5.1.1.12",
+            "5.1",
+        ),
+        (
+            "5.3.1.1",
+            "5.3",
+        ),
+    ],
+)
+def test_cooking_checks_table_uses_approved_probe_control(
+    monkeypatch,
+    safety_point_id,
+    safe_method_id,
+):
+    applicable = [
+        _safety_point(
+            safety_point_id,
+            "cooking",
+            safe_method_id,
+        )
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            safety_point_id,
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "4.6",
+    )
+
+    assert [
+        block.role
+        for block in subsection.content_blocks
+    ] == [
+        "monitoring",
+        "monitoring",
+        "procedure",
+        "corrective_action",
+    ]
+
+    table = subsection.content_blocks[1]
+
+    assert table.heading == (
+        "Safe time and temperature combinations"
+    )
+    assert table.headers == [
+        "Temperature",
+        "Minimum holding time",
+    ]
+    assert table.rows == [
+        [
+            "80°C",
+            "6 seconds",
+        ],
+        [
+            "75°C",
+            "30 seconds",
+        ],
+        [
+            "70°C",
+            "2 minutes",
+        ],
+        [
+            "65°C",
+            "10 minutes",
+        ],
+        [
+            "60°C",
+            "45 minutes",
+        ],
+    ]
+    assert table.source.safety_point_ids == [
+        safety_point_id
+    ]
+    assert (
+        "data/sfbb_chilling_cooking.json"
+        in table.source.source_references
+    )
+
+
+@pytest.mark.parametrize(
+    (
+        "safety_point_id",
+        "safe_method_id",
+        "subsection_number",
+        "instruction",
+        "expected_item",
+    ),
+    [
+        (
+            "5.1.1.12",
+            "5.1",
+            "4.1",
+            (
+                "A disinfected temperature probe is used "
+                "to check that dishes are properly cooked "
+                "or reheated.\n\n"
+                "Safe time/temperature combinations for "
+                "cooking include:\n"
+                "- 80°C for at least 6 seconds\n"
+                "- 75°C for at least 30 seconds"
+            ),
+            (
+                "A disinfected temperature probe is used "
+                "to check that dishes are properly cooked "
+                "or reheated."
+            ),
+        ),
+        (
+            "5.3.1.1",
+            "5.3",
+            "4.3",
+            (
+                "Food is reheated properly.\n\n"
+                "A disinfected temperature probe is used "
+                "to check that dishes are properly "
+                "reheated.\n\n"
+                "Safe time/temperature combinations "
+                "include:\n"
+                "- 80°C for at least 6 seconds\n"
+                "- 75°C for at least 30 seconds"
+            ),
+            (
+                "Food is reheated properly. A disinfected "
+                "temperature probe is used to check that "
+                "dishes are properly reheated."
+            ),
+        ),
+    ],
+)
+def test_safe_combinations_are_not_repeated_in_procedures(
+    monkeypatch,
+    safety_point_id,
+    safe_method_id,
+    subsection_number,
+    instruction,
+    expected_item,
+):
+    applicable = [
+        _safety_point(
+            safety_point_id,
+            "cooking",
+            safe_method_id,
+            instruction=instruction,
+        )
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            safety_point_id,
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    operational_subsection = _document_subsection(
+        document,
+        subsection_number,
+    )
+    procedure = next(
+        block
+        for block in operational_subsection.content_blocks
+        if block.role == "procedure"
+    )
+
+    assert procedure.items == [
+        expected_item
+    ]
+    assert (
+        "Safe time/temperature combinations"
+        not in procedure.items[0]
+    )
+
+
+def test_cooking_checks_trace_all_approved_controls(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "5.1.1.2",
+            "cooking",
+            "5.1",
+        ),
+        _safety_point(
+            "5.5.1.5",
+            "cooking",
+            "5.5",
+        ),
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "5.1.1.2",
+            "5.5.1.5",
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "4.6",
+    )
+
+    assert (
+        subsection.content_blocks[0]
+        .source.safety_point_ids
+    ) == [
+        "5.1.1.2",
+        "5.5.1.5",
+    ]
+
+    assert "table" not in {
+        block.block_type
         for block in subsection.content_blocks
     }

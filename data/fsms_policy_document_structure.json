@@ -1077,18 +1077,64 @@
             "5.5",
             "5.6"
           ],
-          "content_pattern": [
+          "content_definitions": [
             {
+              "content_key": "cooking_checks_policy",
               "block_type": "text",
-              "role": "monitoring"
+              "role": "monitoring",
+              "text": "Cooking, reheating and hot-holding checks must demonstrate that the approved control has worked. The check must be appropriate to the food and may include a time-and-temperature check, examination of the centre or thickest part, testing several locations, confirmation of texture or colour, or verification of equipment performance."
             },
             {
-              "block_type": "list",
-              "role": "procedure"
+              "content_key": "safe_time_temperature_table",
+              "block_type": "table",
+              "role": "monitoring",
+              "heading": "Safe time and temperature combinations",
+              "headers": [
+                "Temperature",
+                "Minimum holding time"
+              ],
+              "rows": [
+                [
+                  "80\u00b0C",
+                  "6 seconds"
+                ],
+                [
+                  "75\u00b0C",
+                  "30 seconds"
+                ],
+                [
+                  "70\u00b0C",
+                  "2 minutes"
+                ],
+                [
+                  "65\u00b0C",
+                  "10 minutes"
+                ],
+                [
+                  "60\u00b0C",
+                  "45 minutes"
+                ]
+              ],
+              "source_safety_point_ids": [
+                "5.1.1.12",
+                "5.3.1.1"
+              ],
+              "source_references": [
+                "data/sfbb_chilling_cooking.json"
+              ]
             },
             {
+              "content_key": "cooking_check_procedure",
               "block_type": "text",
-              "role": "corrective_action"
+              "role": "procedure",
+              "heading": "Check procedure",
+              "text": "The probe must be clean and disinfected before use. The centre, thickest part or several representative locations must be checked as appropriate. The actual result must be recorded where the relevant procedure requires a record. Visual checks may support the approved method but must not replace a required temperature check."
+            },
+            {
+              "content_key": "cooking_checks_corrective_action",
+              "block_type": "text",
+              "role": "corrective_action",
+              "text": "Food that fails a cooking, reheating or hot-holding check must not be served. Staff must continue the process where this can be done safely, correct any equipment or method problem and repeat the check. The food must be discarded when the required control cannot be achieved or when its safety cannot be established. The failure, decision and action taken must be recorded where required."
             }
           ]
         }
