@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import re
 
 from reportlab.platypus import (
+    KeepTogether,
     PageBreak,
     Paragraph,
     Table,
@@ -9,12 +10,15 @@ from reportlab.platypus import (
 
 from gen_ai_fsms.schemas.fsms_policy_document import (
     FSMSPolicyDocument,
+    FSMSPolicySubsection,
 )
 from gen_ai_fsms.services.fsms_policy_document_pdf import (
     CONTENT_WIDTH,
     _build_story,
     _build_styles,
     _normalise_text,
+    _subsection_flowables,
+    _table_cell_paragraph,
     _table_column_widths,
     render_fsms_policy_document_pdf,
 )
@@ -376,3 +380,107 @@ def test_table_widths_fill_available_content_width():
         assert abs(
             sum(widths) - CONTENT_WIDTH
         ) < 0.001
+
+def test_checklist_subsection_keeps_heading_fields_and_table_together():
+    subsection = FSMSPolicySubsection(
+        subsection_number="3.6",
+        title="Fridge Temperature Checklist",
+        content_blocks=[
+            {
+                "block_type": "text",
+                "role": "monitoring",
+                "text": (
+                    "Date: ____________________\n"
+                    "Shift / service: ____________________\n"
+                    "Person in charge: ____________________"
+                ),
+            },
+            {
+                "block_type": "table",
+                "role": "checklist",
+                "heading": (
+                    "Daily chilling temperature checks"
+                ),
+                "headers": [
+                    "Equipment",
+                    "Required limit",
+                    "AM temperature",
+                    "PM temperature",
+                    (
+                        "Corrective action / "
+                        "diary reference"
+                    ),
+                ],
+                "rows": [
+                    [
+                        "Fridge 1",
+                        "8°C or below",
+                        "",
+                        "",
+                        "",
+                    ],
+                ],
+            },
+            {
+                "block_type": "text",
+                "role": "monitoring",
+                "text": (
+                    "Record the actual temperature "
+                    "shown or measured."
+                ),
+            },
+        ],
+    )
+
+    flowables = _subsection_flowables(
+        subsection=subsection,
+        styles=_build_styles(),
+    )
+
+    assert isinstance(flowables[0], KeepTogether)
+
+    grouped_text = "\n".join(
+        _flowable_text(
+            flowables[0]._content
+        )
+    )
+    trailing_text = "\n".join(
+        _flowable_text(flowables[1:])
+    )
+
+    assert (
+        "3.6 Fridge Temperature Checklist"
+        in grouped_text
+    )
+    assert "Date:" in grouped_text
+    assert "Shift / service:" in grouped_text
+    assert "Person in charge:" in grouped_text
+    assert (
+        "Daily chilling temperature checks"
+        in grouped_text
+    )
+    assert "Fridge 1" in grouped_text
+    assert (
+        "Record the actual temperature"
+        not in grouped_text
+    )
+    assert (
+        "Record the actual temperature"
+        in trailing_text
+    )
+
+
+def test_six_column_asset_code_remains_on_one_line():
+    styles = _build_styles()
+    widths = _table_column_widths(6)
+    paragraph = _table_cell_paragraph(
+        "CHILL-20260622-0010",
+        styles=styles,
+    )
+
+    _, height = paragraph.wrap(
+        widths[0] - 8,
+        100,
+    )
+
+    assert height == styles["table_body"].leading

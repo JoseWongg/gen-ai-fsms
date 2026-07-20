@@ -11,6 +11,7 @@ from reportlab.lib.styles import (
 )
 from reportlab.lib.units import mm
 from reportlab.platypus import (
+    KeepTogether,
     PageBreak,
     Paragraph,
     SimpleDocTemplate,
@@ -373,22 +374,65 @@ def _subsection_flowables(
     subsection: FSMSPolicySubsection,
     styles: Dict[str, ParagraphStyle],
 ):
-    flowables = [
-        Paragraph(
-            _escape_text(
-                f"{subsection.subsection_number} "
-                f"{subsection.title}"
-            ),
-            styles["subsection_heading"],
+    heading = Paragraph(
+        _escape_text(
+            f"{subsection.subsection_number} "
+            f"{subsection.title}"
         ),
-    ]
-
-    flowables.extend(
-        _content_blocks_flowables(
-            subsection.content_blocks,
-            styles=styles,
-        )
+        styles["subsection_heading"],
     )
+
+    checklist_index = next(
+        (
+            index
+            for index, block in enumerate(
+                subsection.content_blocks
+            )
+            if (
+                block.block_type == "table"
+                and block.role == "checklist"
+            )
+        ),
+        None,
+    )
+
+    if checklist_index is None:
+        flowables = [heading]
+        flowables.extend(
+            _content_blocks_flowables(
+                subsection.content_blocks,
+                styles=styles,
+            )
+        )
+    else:
+        grouped_blocks = (
+            subsection.content_blocks[
+                : checklist_index + 1
+            ]
+        )
+        remaining_blocks = (
+            subsection.content_blocks[
+                checklist_index + 1 :
+            ]
+        )
+
+        flowables = [
+            KeepTogether(
+                [
+                    heading,
+                    *_content_blocks_flowables(
+                        grouped_blocks,
+                        styles=styles,
+                    ),
+                ]
+            )
+        ]
+        flowables.extend(
+            _content_blocks_flowables(
+                remaining_blocks,
+                styles=styles,
+            )
+        )
 
     flowables.append(Spacer(1, 3 * mm))
 
@@ -650,11 +694,11 @@ def _table_column_widths(
             0.37,
         ],
         6: [
-            0.12,
-            0.20,
-            0.11,
-            0.12,
-            0.27,
+            0.19,
+            0.17,
+            0.10,
+            0.10,
+            0.26,
             0.18,
         ],
     }
