@@ -265,3 +265,22 @@ def test_list_blocks_support_overview_roles(role):
     )
 
     assert block.role == role
+
+def test_table_blocks_support_responsibilities_role():
+    block = FSMSTableBlock(
+        role="responsibilities",
+        headers=[
+            "Role",
+            "Named person(s)",
+            "Main responsibility",
+        ],
+        rows=[
+            [
+                "Responsible manager",
+                "Not yet recorded",
+                "Maintain the FSMS.",
+            ],
+        ],
+    )
+
+    assert block.role == "responsibilities"

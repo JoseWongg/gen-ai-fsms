@@ -50,6 +50,7 @@ FSMSTableRole = Literal[
     "equipment",
     "monitoring",
     "checklist",
+    "responsibilities",
 ]
 
 

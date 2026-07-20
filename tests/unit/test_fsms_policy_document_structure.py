@@ -163,6 +163,7 @@ ALLOWED_ROLES = {
         "equipment",
         "monitoring",
         "checklist",
+        "responsibilities",
     },
 }
 
@@ -405,3 +406,101 @@ def test_beyond_scope_sections_use_controlled_notice():
                 ),
             }
         ]
+
+def test_named_responsibilities_content_is_controlled():
+    structure = load_json(STRUCTURE_PATH)
+
+    policy_section = next(
+        section
+        for section in structure["sections"]
+        if section["section_id"]
+        == "food_safety_policy"
+    )
+    responsibilities = next(
+        subsection
+        for subsection in policy_section["subsections"]
+        if subsection["subsection_id"]
+        == "responsibilities"
+    )
+
+    definitions = responsibilities[
+        "content_definitions"
+    ]
+
+    assert [
+        definition["content_key"]
+        for definition in definitions
+    ] == [
+        "responsibilities_introduction",
+        "responsibilities_list",
+        "named_responsibilities_pending_notice",
+        "named_responsibilities_table",
+    ]
+
+    assert definitions[2] == {
+        "content_key": (
+            "named_responsibilities_pending_notice"
+        ),
+        "block_type": "text",
+        "role": "responsibilities",
+        "heading": (
+            "Pending feature — named responsibility "
+            "assignments"
+        ),
+        "text": (
+            "The current application does not yet "
+            "capture the names of the people assigned "
+            "to these roles. This table is included "
+            "to show how named responsibilities will "
+            "appear in the completed Food Safety "
+            "Management System."
+        ),
+    }
+
+    assert definitions[3] == {
+        "content_key": "named_responsibilities_table",
+        "block_type": "table",
+        "role": "responsibilities",
+        "headers": [
+            "Role",
+            "Named person(s)",
+            "Main responsibility",
+        ],
+        "rows": [
+            [
+                (
+                    "Business owner or responsible "
+                    "manager"
+                ),
+                "Not yet recorded",
+                (
+                    "Maintain the FSMS, provide suitable "
+                    "resources, ensure staff are trained "
+                    "and supervised, and review the "
+                    "system when operations or risks "
+                    "change."
+                ),
+            ],
+            [
+                "Person in charge of each shift",
+                "Not yet recorded",
+                (
+                    "Ensure required checks are "
+                    "completed, records are accurate, "
+                    "and food-safety problems are acted "
+                    "on or escalated."
+                ),
+            ],
+            [
+                "Food handlers",
+                "Not yet recorded",
+                (
+                    "Follow approved procedures, "
+                    "complete assigned checks, report "
+                    "problems immediately and protect "
+                    "food from contamination or unsafe "
+                    "temperatures."
+                ),
+            ],
+        ],
+    }

@@ -512,6 +512,8 @@ def test_food_safety_policy_content_order_and_personalisation(
         [
             "responsibilities",
             "responsibilities",
+            "responsibilities",
+            "responsibilities",
         ],
         [
             "monitoring",
@@ -607,6 +609,71 @@ def test_food_safety_policy_responsibilities_and_review(
             "food when its safety is uncertain. The matter "
             "must be referred to the person in charge."
         ),
+    ]
+
+    pending_notice = responsibilities.content_blocks[2]
+
+    assert pending_notice.block_type == "text"
+    assert pending_notice.role == "responsibilities"
+    assert pending_notice.heading == (
+        "Pending feature — named responsibility "
+        "assignments"
+    )
+    assert pending_notice.text == (
+        "The current application does not yet capture "
+        "the names of the people assigned to these "
+        "roles. This table is included to show how "
+        "named responsibilities will appear in the "
+        "completed Food Safety Management System."
+    )
+
+    named_responsibilities = (
+        responsibilities.content_blocks[3]
+    )
+
+    assert named_responsibilities.block_type == "table"
+    assert (
+        named_responsibilities.role
+        == "responsibilities"
+    )
+    assert named_responsibilities.headers == [
+        "Role",
+        "Named person(s)",
+        "Main responsibility",
+    ]
+    assert named_responsibilities.rows == [
+        [
+            (
+                "Business owner or responsible "
+                "manager"
+            ),
+            "Not yet recorded",
+            (
+                "Maintain the FSMS, provide suitable "
+                "resources, ensure staff are trained "
+                "and supervised, and review the system "
+                "when operations or risks change."
+            ),
+        ],
+        [
+            "Person in charge of each shift",
+            "Not yet recorded",
+            (
+                "Ensure required checks are completed, "
+                "records are accurate, and food-safety "
+                "problems are acted on or escalated."
+            ),
+        ],
+        [
+            "Food handlers",
+            "Not yet recorded",
+            (
+                "Follow approved procedures, complete "
+                "assigned checks, report problems "
+                "immediately and protect food from "
+                "contamination or unsafe temperatures."
+            ),
+        ],
     ]
 
     assert monitoring_and_review.content_blocks[0].text == (

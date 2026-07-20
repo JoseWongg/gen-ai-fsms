@@ -2173,6 +2173,96 @@ def _build_configured_content_blocks(
             )
             continue
 
+        if block_type == "table":
+            configured_headers = definition.get(
+                "headers"
+            )
+            configured_rows = definition.get(
+                "rows",
+                [],
+            )
+
+            if (
+                not isinstance(configured_headers, list)
+                or not configured_headers
+            ):
+                raise ValueError(
+                    "Configured FSMS table content must "
+                    "contain at least one header."
+                )
+
+            rendered_headers = []
+
+            for header in configured_headers:
+                if (
+                    not isinstance(header, str)
+                    or not header.strip()
+                ):
+                    raise ValueError(
+                        "Each configured FSMS table "
+                        "header must be a non-empty "
+                        "string."
+                    )
+
+                rendered_headers.append(
+                    _render_policy_template(
+                        header,
+                        template_values,
+                    )
+                )
+
+            if not isinstance(configured_rows, list):
+                raise ValueError(
+                    "Configured FSMS table rows must "
+                    "be a list."
+                )
+
+            rendered_rows = []
+
+            for row in configured_rows:
+                if (
+                    not isinstance(row, list)
+                    or len(row)
+                    != len(rendered_headers)
+                ):
+                    raise ValueError(
+                        "Each configured FSMS table row "
+                        "must contain the same number of "
+                        "values as the headers."
+                    )
+
+                rendered_row = []
+
+                for value in row:
+                    if not isinstance(value, str):
+                        raise ValueError(
+                            "Each configured FSMS table "
+                            "value must be a string."
+                        )
+
+                    rendered_row.append(
+                        _render_policy_template(
+                            value,
+                            template_values,
+                        )
+                    )
+
+                rendered_rows.append(rendered_row)
+
+            content_blocks.append(
+                FSMSTableBlock(
+                    role=role,
+                    heading=_optional_structure_text(
+                        definition,
+                        "heading",
+                    ),
+                    headers=rendered_headers,
+                    rows=rendered_rows,
+                    source=source,
+                )
+            )
+            continue
+
         raise ValueError(
             "Unsupported configured FSMS content block "
             f"type: '{block_type}'."

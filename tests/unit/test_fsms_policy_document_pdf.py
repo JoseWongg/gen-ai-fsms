@@ -484,3 +484,20 @@ def test_six_column_asset_code_remains_on_one_line():
     )
 
     assert height == styles["table_body"].leading
+
+def test_three_column_responsibility_table_uses_wide_description_column():
+    widths = _table_column_widths(3)
+
+    assert len(widths) == 3
+    assert abs(
+        widths[0] - CONTENT_WIDTH * 0.24
+    ) < 0.001
+    assert abs(
+        widths[1] - CONTENT_WIDTH * 0.17
+    ) < 0.001
+    assert abs(
+        widths[2] - CONTENT_WIDTH * 0.59
+    ) < 0.001
+
+    assert widths[2] > widths[0]
+    assert widths[2] > widths[1]
