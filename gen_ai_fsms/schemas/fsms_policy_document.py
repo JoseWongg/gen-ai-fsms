@@ -22,6 +22,11 @@ FSMSPolicyDocumentStatus = Literal[
     "draft",
     "approved",
 ]
+FSMSPolicyDocumentProgressStatus = Literal[
+    "not_started",
+    "in_progress",
+    "completed",
+]
 
 FSMSTextRole = Literal[
     "introduction",
@@ -145,6 +150,25 @@ class FSMSPolicySection(FSMSPolicyModel):
     subsections: list[FSMSPolicySubsection] = Field(
         default_factory=list
     )
+
+
+class FSMSPolicyDocumentProgress(FSMSPolicyModel):
+    completed_applicable_section_count: int = Field(
+        ge=0
+    )
+    applicable_supported_section_count: int = Field(
+        ge=0
+    )
+    completion_percentage: int = Field(
+        ge=0,
+        le=100,
+    )
+    supported_section_count: int = Field(ge=0)
+    planned_section_count: int = Field(ge=0)
+    document_status: FSMSPolicyDocumentProgressStatus
+    main_value: NonEmptyText
+    completion_caption: NonEmptyText
+    coverage_caption: NonEmptyText
 
 
 class FSMSPolicyDocument(FSMSPolicyModel):

@@ -12,6 +12,7 @@ from gen_ai_fsms.db.models import User
 from gen_ai_fsms.schemas.fsms_document import FSMSDocument
 from gen_ai_fsms.schemas.fsms_policy_document import (
     FSMSPolicyDocument,
+    FSMSPolicyDocumentProgress,
 )
 from gen_ai_fsms.services.fsms_document_pdf import (
     render_fsms_document_pdf,
@@ -21,6 +22,9 @@ from gen_ai_fsms.services.fsms_document_service import (
 )
 from gen_ai_fsms.services.fsms_policy_document_pdf import (
     render_fsms_policy_document_pdf,
+)
+from gen_ai_fsms.services.fsms_policy_document_progress import (
+    generate_fsms_policy_document_progress_for_profile,
 )
 from gen_ai_fsms.services.fsms_policy_document_service import (
     generate_fsms_policy_document_for_profile,
@@ -75,6 +79,31 @@ def get_current_fsms_policy_document(
     return generate_fsms_policy_document_for_profile(
         db=db,
         business_profile_id=profile.id,
+    )
+
+
+@router.get(
+    "/policy/progress",
+    response_model=FSMSPolicyDocumentProgress,
+)
+def get_current_fsms_policy_document_progress(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Return live FSMS policy completion and product
+    coverage for the authenticated user's business.
+    """
+    profile = get_current_user_profile(
+        db,
+        current_user,
+    )
+
+    return (
+        generate_fsms_policy_document_progress_for_profile(
+            db=db,
+            business_profile_id=profile.id,
+        )
     )
 
 
