@@ -531,6 +531,9 @@ def load_fsms_document_dashboard_progress(token):
         data.get("planned_section_count", 0)
         or 0
     )
+    screening_complete = (
+        data.get("screening_complete") is True
+    )
 
     try:
         numeric_percentage = float(
@@ -539,17 +542,26 @@ def load_fsms_document_dashboard_progress(token):
     except (TypeError, ValueError):
         numeric_percentage = 0
 
+    if screening_complete:
+        caption = (
+            f"{completed_count}/{applicable_count} "
+            f"current · {supported_count}/"
+            f"{planned_count} supported"
+        )
+    else:
+        caption = (
+            "Food Safety Profile not completed · "
+            f"{supported_count}/{planned_count} "
+            "supported"
+        )
+
     return {
         "icon_label": "DOC",
         "title": "FSMS Document",
         "value": format_dashboard_percentage(
             numeric_percentage
         ),
-        "caption": (
-            f"{completed_count}/{applicable_count} "
-            f"current · {supported_count}/"
-            f"{planned_count} supported"
-        ),
+        "caption": caption,
         "colour_class": (
             "green"
             if numeric_percentage >= 100

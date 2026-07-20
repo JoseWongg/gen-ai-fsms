@@ -179,6 +179,7 @@ def calculate_fsms_policy_document_progress(
     )
 
     return FSMSPolicyDocumentProgress(
+        screening_complete=screening_complete,
         completed_applicable_section_count=(
             completed_applicable_count
         ),
@@ -191,9 +192,13 @@ def calculate_fsms_policy_document_progress(
         document_status=document_status,
         main_value=f"{completion_percentage}%",
         completion_caption=(
-            f"{completed_applicable_count} of "
-            f"{applicable_supported_count} current "
-            "sections complete"
+            (
+                f"{completed_applicable_count} of "
+                f"{applicable_supported_count} current "
+                "sections complete"
+            )
+            if screening_complete
+            else "Food Safety Profile not completed"
         ),
         coverage_caption=(
             f"{supported_section_count} of "

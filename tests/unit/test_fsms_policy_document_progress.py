@@ -84,6 +84,7 @@ def test_not_started_counts_applicable_current_sections():
     )
 
     assert result == FSMSPolicyDocumentProgress(
+        screening_complete=False,
         completed_applicable_section_count=0,
         applicable_supported_section_count=4,
         completion_percentage=0,
@@ -92,7 +93,7 @@ def test_not_started_counts_applicable_current_sections():
         document_status="not_started",
         main_value="0%",
         completion_caption=(
-            "0 of 4 current sections complete"
+            "Food Safety Profile not completed"
         ),
         coverage_caption=(
             "4 of 10 planned sections supported"
@@ -126,6 +127,7 @@ def test_partial_approval_returns_in_progress_status():
         result.applicable_supported_section_count
         == 4
     )
+    assert result.screening_complete is True
     assert result.completion_percentage == 75
     assert result.document_status == "in_progress"
     assert result.main_value == "75%"
@@ -382,6 +384,7 @@ def test_invalid_applicable_safety_point_is_rejected():
 def test_progress_schema_rejects_invalid_percentage():
     with pytest.raises(ValidationError):
         FSMSPolicyDocumentProgress(
+            screening_complete=False,
             completed_applicable_section_count=0,
             applicable_supported_section_count=4,
             completion_percentage=101,

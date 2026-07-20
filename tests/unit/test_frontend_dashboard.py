@@ -45,6 +45,7 @@ def test_load_fsms_document_progress_uses_policy_endpoint(
         return FakeResponse(
             status_code=200,
             payload={
+                "screening_complete": True,
                 "completed_applicable_section_count": 3,
                 "applicable_supported_section_count": 4,
                 "completion_percentage": 75,
@@ -101,6 +102,7 @@ def test_completed_fsms_document_card_is_green(
         lambda *args, **kwargs: FakeResponse(
             status_code=200,
             payload={
+                "screening_complete": True,
                 "completed_applicable_section_count": 3,
                 "applicable_supported_section_count": 3,
                 "completion_percentage": 100,
@@ -127,6 +129,52 @@ def test_completed_fsms_document_card_is_green(
         "colour_class": "green",
     }
 
+
+
+def test_incomplete_profile_uses_clear_document_caption(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        dashboard,
+        "api_request",
+        lambda *args, **kwargs: FakeResponse(
+            status_code=200,
+            payload={
+                "screening_complete": False,
+                "completed_applicable_section_count": 0,
+                "applicable_supported_section_count": 2,
+                "completion_percentage": 0,
+                "supported_section_count": 4,
+                "planned_section_count": 10,
+                "document_status": "not_started",
+                "main_value": "0%",
+                "completion_caption": (
+                    "Food Safety Profile not completed"
+                ),
+                "coverage_caption": (
+                    "4 of 10 planned sections supported"
+                ),
+            },
+        ),
+    )
+
+    result = (
+        dashboard
+        .load_fsms_document_dashboard_progress(
+            "test-token"
+        )
+    )
+
+    assert result == {
+        "icon_label": "DOC",
+        "title": "FSMS Document",
+        "value": "0%",
+        "caption": (
+            "Food Safety Profile not completed · "
+            "4/10 supported"
+        ),
+        "colour_class": "",
+    }
 
 def test_fsms_document_progress_without_token_is_unavailable(
     monkeypatch,

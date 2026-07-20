@@ -635,6 +635,7 @@ def test_policy_pdf_route_is_registered_and_authenticated():
 
 def _policy_progress():
     return FSMSPolicyDocumentProgress(
+        screening_complete=True,
         completed_applicable_section_count=3,
         applicable_supported_section_count=4,
         completion_percentage=75,
@@ -816,6 +817,7 @@ def test_policy_progress_route_serializes_complete_contract(
     payload = jsonable_encoder(result)
 
     assert payload == {
+        "screening_complete": True,
         "completed_applicable_section_count": 3,
         "applicable_supported_section_count": 4,
         "completion_percentage": 75,
