@@ -10,7 +10,7 @@ from shared import api_request
 def load_fsms_document(token):
     response = api_request(
         "GET",
-        "/fsms-document/policy",
+        "/fsms-document",
         token=token,
     )
 
@@ -46,7 +46,7 @@ def load_fsms_document(token):
 def load_fsms_document_pdf(token):
     response = api_request(
         "GET",
-        "/fsms-document/policy/pdf",
+        "/fsms-document/pdf",
         token=token,
     )
 

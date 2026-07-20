@@ -28,7 +28,7 @@ class FakeResponse:
         return self.payload
 
 
-def test_load_fsms_document_progress_uses_policy_endpoint(
+def test_load_fsms_document_progress_uses_canonical_endpoint(
     monkeypatch,
 ):
     calls = {}
@@ -78,7 +78,7 @@ def test_load_fsms_document_progress_uses_policy_endpoint(
     assert calls == {
         "method": "GET",
         "endpoint": (
-            "/fsms-document/policy/progress"
+            "/fsms-document/progress"
         ),
         "token": "test-token",
     }

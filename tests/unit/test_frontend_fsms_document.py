@@ -30,7 +30,7 @@ class FakeResponse:
         return self.payload
 
 
-def test_load_fsms_document_uses_policy_endpoint(
+def test_load_fsms_document_uses_canonical_endpoint(
     monkeypatch,
 ):
     calls = {}
@@ -66,7 +66,7 @@ def test_load_fsms_document_uses_policy_endpoint(
     }
     assert calls == {
         "method": "GET",
-        "endpoint": "/fsms-document/policy",
+        "endpoint": "/fsms-document",
         "token": "test-token",
     }
 
@@ -134,7 +134,7 @@ def test_load_fsms_document_reports_backend_error(
     ]
 
 
-def test_load_fsms_document_pdf_uses_policy_endpoint(
+def test_load_fsms_document_pdf_uses_canonical_endpoint(
     monkeypatch,
 ):
     calls = {}
@@ -168,7 +168,7 @@ def test_load_fsms_document_pdf_uses_policy_endpoint(
     assert result == b"%PDF-test"
     assert calls == {
         "method": "GET",
-        "endpoint": "/fsms-document/policy/pdf",
+        "endpoint": "/fsms-document/pdf",
         "token": "test-token",
     }
 

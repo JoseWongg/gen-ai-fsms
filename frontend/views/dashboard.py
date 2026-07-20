@@ -493,7 +493,7 @@ def load_fsms_document_dashboard_progress(token):
 
     response = api_request(
         "GET",
-        "/fsms-document/policy/progress",
+        "/fsms-document/progress",
         token=token,
     )
 
