@@ -1,0 +1,575 @@
+{
+  "schema_version": "2.0",
+  "document_title": "Food Safety Management System",
+  "draft_notice": "This document is incomplete and must not be treated as the final approved Food Safety Management System.",
+  "sections": [
+    {
+      "section_id": "food_safety_policy",
+      "section_number": "1",
+      "title": "Food Safety Policy",
+      "inclusion": "always",
+      "subsections": [
+        {
+          "subsection_id": "purpose_and_scope",
+          "subsection_number": "1.1",
+          "title": "Purpose and Scope",
+          "inclusion": "always",
+          "content_definitions": [
+            {
+              "content_key": "policy_purpose_and_scope",
+              "block_type": "text",
+              "role": "introduction",
+              "dynamic_sources": [
+                "business_name",
+                "site_name",
+                "business_type"
+              ]
+            }
+          ]
+        },
+        {
+          "subsection_id": "food_safety_commitment",
+          "subsection_number": "1.2",
+          "title": "Food Safety Commitment",
+          "inclusion": "always",
+          "content_definitions": [
+            {
+              "content_key": "food_safety_commitment",
+              "block_type": "text",
+              "role": "policy",
+              "dynamic_sources": [
+                "business_name",
+                "site_name"
+              ]
+            }
+          ]
+        },
+        {
+          "subsection_id": "responsibilities",
+          "subsection_number": "1.3",
+          "title": "Responsibilities",
+          "inclusion": "always",
+          "content_definitions": [
+            {
+              "content_key": "responsibilities_introduction",
+              "block_type": "text",
+              "role": "responsibilities"
+            },
+            {
+              "content_key": "responsibilities_list",
+              "block_type": "list",
+              "role": "responsibilities"
+            }
+          ]
+        },
+        {
+          "subsection_id": "monitoring_corrective_action_review",
+          "subsection_number": "1.4",
+          "title": "Monitoring, Corrective Action and Review",
+          "inclusion": "always",
+          "content_definitions": [
+            {
+              "content_key": "policy_monitoring",
+              "block_type": "text",
+              "role": "monitoring"
+            },
+            {
+              "content_key": "policy_corrective_action",
+              "block_type": "text",
+              "role": "corrective_action"
+            },
+            {
+              "content_key": "policy_review",
+              "block_type": "text",
+              "role": "review"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "business_scope_and_food_safety_overview",
+      "section_number": "2",
+      "title": "Business Scope and Food Safety Overview",
+      "inclusion": "business_profile_exists",
+      "subsections": [
+        {
+          "subsection_id": "business_and_food_operations",
+          "subsection_number": "2.1",
+          "title": "Business and Food Operations",
+          "inclusion": "business_profile_exists",
+          "content_definitions": [
+            {
+              "content_key": "business_operations_summary",
+              "block_type": "text",
+              "role": "business_context",
+              "dynamic_sources": [
+                "business_name",
+                "site_name",
+                "business_type",
+                "business_description",
+                "positive_conditions"
+              ]
+            }
+          ]
+        },
+        {
+          "subsection_id": "activities_covered_by_fsms",
+          "subsection_number": "2.2",
+          "title": "Activities Covered by This FSMS",
+          "inclusion": "positive_conditions_exist",
+          "content_definitions": [
+            {
+              "content_key": "applicable_activity_statements",
+              "block_type": "text",
+              "role": "business_context",
+              "dynamic_sources": [
+                "positive_conditions"
+              ]
+            }
+          ]
+        },
+        {
+          "subsection_id": "main_food_safety_hazards",
+          "subsection_number": "2.3",
+          "title": "Main Food Safety Hazards",
+          "inclusion": "applicable_operational_content",
+          "content_definitions": [
+            {
+              "content_key": "applicable_hazard_summary",
+              "block_type": "text",
+              "role": "food_safety_importance",
+              "dynamic_sources": [
+                "applicable_safety_point_rationales",
+                "applicable_safety_point_text"
+              ]
+            }
+          ]
+        },
+        {
+          "subsection_id": "control_approach",
+          "subsection_number": "2.4",
+          "title": "Control Approach",
+          "inclusion": "always",
+          "content_definitions": [
+            {
+              "content_key": "control_approach",
+              "block_type": "text",
+              "role": "introduction",
+              "dynamic_sources": [
+                "applicable_operational_sections"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "chilling_and_temperature_control",
+      "section_number": "3",
+      "title": "Chilling and Temperature Control",
+      "inclusion": "approved_applicable_content",
+      "source_section_ids": [
+        "chilling"
+      ],
+      "content_definitions": [
+        {
+          "content_key": "chilling_section_introduction",
+          "block_type": "text",
+          "role": "introduction"
+        },
+        {
+          "content_key": "chilling_overall_policy",
+          "block_type": "text",
+          "role": "policy",
+          "dynamic_sources": [
+            "business_name",
+            "site_name"
+          ]
+        }
+      ],
+      "subsections": [
+        {
+          "subsection_id": "chilled_storage_and_display",
+          "subsection_number": "3.1",
+          "title": "Chilled Storage and Display",
+          "inclusion": "approved_applicable_content",
+          "source_safe_method_ids": [
+            "4.1"
+          ],
+          "content_pattern": [
+            {
+              "block_type": "text",
+              "role": "food_safety_importance"
+            },
+            {
+              "block_type": "text",
+              "role": "policy"
+            },
+            {
+              "block_type": "list",
+              "role": "procedure"
+            },
+            {
+              "block_type": "text",
+              "role": "monitoring"
+            },
+            {
+              "block_type": "text",
+              "role": "corrective_action"
+            }
+          ]
+        },
+        {
+          "subsection_id": "cooling_hot_food",
+          "subsection_number": "3.2",
+          "title": "Cooling Hot Food",
+          "inclusion": "approved_applicable_content",
+          "source_safe_method_ids": [
+            "4.2"
+          ],
+          "content_pattern": [
+            {
+              "block_type": "text",
+              "role": "food_safety_importance"
+            },
+            {
+              "block_type": "text",
+              "role": "policy"
+            },
+            {
+              "block_type": "list",
+              "role": "procedure"
+            },
+            {
+              "block_type": "text",
+              "role": "monitoring"
+            },
+            {
+              "block_type": "text",
+              "role": "corrective_action"
+            }
+          ]
+        },
+        {
+          "subsection_id": "defrosting",
+          "subsection_number": "3.3",
+          "title": "Defrosting",
+          "inclusion": "approved_applicable_content",
+          "source_safe_method_ids": [
+            "4.3"
+          ],
+          "content_pattern": [
+            {
+              "block_type": "text",
+              "role": "food_safety_importance"
+            },
+            {
+              "block_type": "text",
+              "role": "policy"
+            },
+            {
+              "block_type": "list",
+              "role": "procedure"
+            },
+            {
+              "block_type": "text",
+              "role": "monitoring"
+            },
+            {
+              "block_type": "text",
+              "role": "corrective_action"
+            }
+          ]
+        },
+        {
+          "subsection_id": "freezing",
+          "subsection_number": "3.4",
+          "title": "Freezing",
+          "inclusion": "approved_applicable_content",
+          "source_safe_method_ids": [
+            "4.4"
+          ],
+          "content_pattern": [
+            {
+              "block_type": "text",
+              "role": "food_safety_importance"
+            },
+            {
+              "block_type": "text",
+              "role": "policy"
+            },
+            {
+              "block_type": "list",
+              "role": "procedure"
+            },
+            {
+              "block_type": "text",
+              "role": "monitoring"
+            },
+            {
+              "block_type": "text",
+              "role": "corrective_action"
+            }
+          ]
+        },
+        {
+          "subsection_id": "temperature_monitoring",
+          "subsection_number": "3.5",
+          "title": "Temperature Monitoring",
+          "inclusion": "approved_monitoring_content_and_equipment",
+          "source_safe_method_ids": [
+            "4.1",
+            "4.2",
+            "4.3",
+            "4.4"
+          ],
+          "dynamic_sources": [
+            "active_chilling_equipment"
+          ],
+          "content_pattern": [
+            {
+              "block_type": "text",
+              "role": "monitoring"
+            },
+            {
+              "block_type": "table",
+              "role": "equipment"
+            },
+            {
+              "block_type": "text",
+              "role": "corrective_action"
+            }
+          ]
+        },
+        {
+          "subsection_id": "fridge_temperature_checklist",
+          "subsection_number": "3.6",
+          "title": "Fridge Temperature Checklist",
+          "inclusion": "active_chilling_equipment",
+          "dynamic_sources": [
+            "active_chilling_equipment",
+            "fridge_temperature_checklist_definition"
+          ],
+          "content_pattern": [
+            {
+              "block_type": "table",
+              "role": "checklist"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "cooking_and_reheating",
+      "section_number": "4",
+      "title": "Cooking and Reheating",
+      "inclusion": "approved_applicable_content",
+      "source_section_ids": [
+        "cooking"
+      ],
+      "content_definitions": [
+        {
+          "content_key": "cooking_section_introduction",
+          "block_type": "text",
+          "role": "introduction"
+        },
+        {
+          "content_key": "cooking_overall_policy",
+          "block_type": "text",
+          "role": "policy",
+          "dynamic_sources": [
+            "business_name",
+            "site_name"
+          ]
+        }
+      ],
+      "subsections": [
+        {
+          "subsection_id": "cooking_safely",
+          "subsection_number": "4.1",
+          "title": "Cooking Safely",
+          "inclusion": "approved_applicable_content",
+          "source_safe_method_ids": [
+            "5.1"
+          ],
+          "content_pattern": [
+            {
+              "block_type": "text",
+              "role": "food_safety_importance"
+            },
+            {
+              "block_type": "text",
+              "role": "policy"
+            },
+            {
+              "block_type": "list",
+              "role": "procedure"
+            },
+            {
+              "block_type": "text",
+              "role": "monitoring"
+            },
+            {
+              "block_type": "text",
+              "role": "corrective_action"
+            }
+          ]
+        },
+        {
+          "subsection_id": "foods_requiring_additional_care",
+          "subsection_number": "4.2",
+          "title": "Foods Requiring Additional Care",
+          "inclusion": "approved_applicable_content",
+          "source_safe_method_ids": [
+            "5.2",
+            "5.4"
+          ],
+          "content_pattern": [
+            {
+              "block_type": "text",
+              "role": "food_safety_importance"
+            },
+            {
+              "block_type": "text",
+              "role": "policy"
+            },
+            {
+              "block_type": "list",
+              "role": "procedure"
+            },
+            {
+              "block_type": "text",
+              "role": "monitoring"
+            },
+            {
+              "block_type": "text",
+              "role": "corrective_action"
+            }
+          ]
+        },
+        {
+          "subsection_id": "reheating",
+          "subsection_number": "4.3",
+          "title": "Reheating",
+          "inclusion": "approved_applicable_content",
+          "source_safe_method_ids": [
+            "5.3"
+          ],
+          "content_pattern": [
+            {
+              "block_type": "text",
+              "role": "food_safety_importance"
+            },
+            {
+              "block_type": "text",
+              "role": "policy"
+            },
+            {
+              "block_type": "list",
+              "role": "procedure"
+            },
+            {
+              "block_type": "text",
+              "role": "monitoring"
+            },
+            {
+              "block_type": "text",
+              "role": "corrective_action"
+            }
+          ]
+        },
+        {
+          "subsection_id": "hot_holding",
+          "subsection_number": "4.4",
+          "title": "Hot Holding",
+          "inclusion": "approved_applicable_content",
+          "source_safe_method_ids": [
+            "5.5"
+          ],
+          "content_pattern": [
+            {
+              "block_type": "text",
+              "role": "food_safety_importance"
+            },
+            {
+              "block_type": "text",
+              "role": "policy"
+            },
+            {
+              "block_type": "list",
+              "role": "procedure"
+            },
+            {
+              "block_type": "text",
+              "role": "monitoring"
+            },
+            {
+              "block_type": "text",
+              "role": "corrective_action"
+            }
+          ]
+        },
+        {
+          "subsection_id": "ready_to_eat_food",
+          "subsection_number": "4.5",
+          "title": "Ready-to-Eat Food",
+          "inclusion": "approved_applicable_content",
+          "source_safe_method_ids": [
+            "5.6"
+          ],
+          "content_pattern": [
+            {
+              "block_type": "text",
+              "role": "food_safety_importance"
+            },
+            {
+              "block_type": "text",
+              "role": "policy"
+            },
+            {
+              "block_type": "list",
+              "role": "procedure"
+            },
+            {
+              "block_type": "text",
+              "role": "monitoring"
+            },
+            {
+              "block_type": "text",
+              "role": "corrective_action"
+            }
+          ]
+        },
+        {
+          "subsection_id": "cooking_checks_and_corrective_action",
+          "subsection_number": "4.6",
+          "title": "Cooking Checks and Corrective Action",
+          "inclusion": "approved_monitoring_or_corrective_action_content",
+          "source_safe_method_ids": [
+            "5.1",
+            "5.2",
+            "5.3",
+            "5.4",
+            "5.5",
+            "5.6"
+          ],
+          "content_pattern": [
+            {
+              "block_type": "text",
+              "role": "monitoring"
+            },
+            {
+              "block_type": "list",
+              "role": "procedure"
+            },
+            {
+              "block_type": "text",
+              "role": "corrective_action"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
