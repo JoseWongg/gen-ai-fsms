@@ -505,3 +505,129 @@ def test_policy_route_serializes_complete_contract(
             "controlled.policy",
         ]
     )
+
+def test_policy_pdf_route_returns_downloadable_pdf(
+    monkeypatch,
+):
+    db = object()
+    current_user = SimpleNamespace(id=12)
+    profile = SimpleNamespace(id=34)
+    document = _policy_document()
+    calls = {}
+
+    monkeypatch.setattr(
+        route_module,
+        "get_current_user_profile",
+        lambda received_db, received_user: profile,
+    )
+
+    def fake_generate_policy_document(
+        *,
+        db,
+        business_profile_id,
+    ):
+        calls["db"] = db
+        calls["business_profile_id"] = (
+            business_profile_id
+        )
+
+        return document
+
+    monkeypatch.setattr(
+        route_module,
+        "generate_fsms_policy_document_for_profile",
+        fake_generate_policy_document,
+    )
+    monkeypatch.setattr(
+        route_module,
+        "render_fsms_policy_document_pdf",
+        lambda received_document: b"%PDF-policy-test",
+    )
+
+    response = (
+        route_module
+        .download_current_fsms_policy_document_pdf(
+            db=db,
+            current_user=current_user,
+        )
+    )
+
+    assert response.body == b"%PDF-policy-test"
+    assert response.media_type == "application/pdf"
+    assert (
+        response.headers["content-disposition"]
+        == (
+            'attachment; '
+            'filename="example-kitchen-fsms.pdf"'
+        )
+    )
+    assert calls == {
+        "db": db,
+        "business_profile_id": 34,
+    }
+
+
+def test_policy_pdf_route_does_not_generate_without_profile(
+    monkeypatch,
+):
+    def reject_missing_profile(db, current_user):
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No business profile is linked to the "
+                "current user"
+            ),
+        )
+
+    def fail_if_service_called(**kwargs):
+        raise AssertionError(
+            "Policy document service must not run "
+            "without a profile."
+        )
+
+    monkeypatch.setattr(
+        route_module,
+        "get_current_user_profile",
+        reject_missing_profile,
+    )
+    monkeypatch.setattr(
+        route_module,
+        "generate_fsms_policy_document_for_profile",
+        fail_if_service_called,
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        (
+            route_module
+            .download_current_fsms_policy_document_pdf(
+                db=object(),
+                current_user=SimpleNamespace(id=12),
+            )
+        )
+
+    assert exc_info.value.status_code == 404
+
+
+def test_policy_pdf_route_is_registered_and_authenticated():
+    matching_routes = [
+        route
+        for route in app.routes
+        if (
+            isinstance(route, APIRoute)
+            and route.path
+            == "/fsms-document/policy/pdf"
+        )
+    ]
+
+    assert len(matching_routes) == 1
+
+    route = matching_routes[0]
+
+    assert route.methods == {"GET"}
+
+    dependency_calls = {
+        dependency.call
+        for dependency in route.dependant.dependencies
+    }
+
+    assert get_current_user in dependency_calls
