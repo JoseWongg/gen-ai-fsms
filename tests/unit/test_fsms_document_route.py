@@ -120,3 +120,84 @@ def test_fsms_document_route_is_registered_and_authenticated():
     }
 
     assert get_current_user in dependency_calls
+
+
+
+def test_pdf_route_returns_downloadable_pdf(
+    monkeypatch,
+):
+    db = object()
+    current_user = SimpleNamespace(id=12)
+    profile = SimpleNamespace(id=34)
+    document = SimpleNamespace(
+        business_name="Example Foods Ltd",
+        site_name="Example Kitchen",
+    )
+    calls = {}
+
+    monkeypatch.setattr(
+        route_module,
+        "get_current_user_profile",
+        lambda received_db, received_user: profile,
+    )
+
+    def fake_generate_fsms_document_for_profile(
+        *,
+        db,
+        business_profile_id,
+    ):
+        calls["db"] = db
+        calls["business_profile_id"] = business_profile_id
+        return document
+
+    monkeypatch.setattr(
+        route_module,
+        "generate_fsms_document_for_profile",
+        fake_generate_fsms_document_for_profile,
+    )
+    monkeypatch.setattr(
+        route_module,
+        "render_fsms_document_pdf",
+        lambda received_document: b"%PDF-test",
+    )
+
+    response = (
+        route_module.download_current_fsms_document_pdf(
+            db=db,
+            current_user=current_user,
+        )
+    )
+
+    assert response.body == b"%PDF-test"
+    assert response.media_type == "application/pdf"
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="example-kitchen-fsms.pdf"'
+    )
+    assert calls == {
+        "db": db,
+        "business_profile_id": 34,
+    }
+
+
+def test_fsms_document_pdf_route_is_registered_and_authenticated():
+    matching_routes = [
+        route
+        for route in app.routes
+        if (
+            isinstance(route, APIRoute)
+            and route.path == "/fsms-document/pdf"
+        )
+    ]
+
+    assert len(matching_routes) == 1
+
+    route = matching_routes[0]
+
+    assert route.methods == {"GET"}
+
+    dependency_calls = {
+        dependency.call
+        for dependency in route.dependant.dependencies
+    }
+
+    assert get_current_user in dependency_calls

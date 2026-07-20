@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from typing import Any
 
@@ -45,6 +46,60 @@ def load_fsms_document(token):
         return None
 
     return response.json()
+
+
+def load_fsms_document_pdf(token):
+    response = api_request(
+        "GET",
+        "/fsms-document/pdf",
+        token=token,
+    )
+
+    if response is None:
+        st.warning(
+            "The document preview is available, but the PDF "
+            "could not be generated because the backend did not "
+            "respond."
+        )
+        return None
+
+    if response.status_code != 200:
+        detail = None
+
+        try:
+            detail = response.json().get("detail")
+        except (ValueError, AttributeError):
+            pass
+
+        st.warning(
+            detail
+            or (
+                "The document preview is available, but the PDF "
+                f"could not be generated "
+                f"(HTTP {response.status_code})."
+            )
+        )
+        return None
+
+    return response.content
+
+
+def build_pdf_filename(document):
+    base_name = (
+        document.get("site_name")
+        or document.get("business_name")
+        or "food-safety-management-system"
+    )
+    cleaned_name = re.sub(
+        r"[^A-Za-z0-9]+",
+        "-",
+        str(base_name),
+    ).strip("-").lower()
+
+    if not cleaned_name:
+        cleaned_name = "food-safety-management-system"
+
+    return f"{cleaned_name}-fsms.pdf"
 
 
 def format_generated_at(value):
@@ -351,6 +406,16 @@ def show():
         "Live preview generated from the business's current "
         "profile, applicable safety points and approved methods."
     )
+
+    pdf_bytes = load_fsms_document_pdf(token)
+
+    if pdf_bytes:
+        st.download_button(
+            "Download PDF",
+            data=pdf_bytes,
+            file_name=build_pdf_filename(document),
+            mime="application/pdf",
+        )
 
     render_business_details(document)
     render_progress(document)

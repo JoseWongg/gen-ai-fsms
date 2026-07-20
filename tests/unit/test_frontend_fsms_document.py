@@ -16,10 +16,12 @@ class FakeResponse:
         self,
         *,
         status_code,
-        payload,
+        payload=None,
+        content=b"",
     ):
         self.status_code = status_code
-        self.payload = payload
+        self.payload = payload or {}
+        self.content = content
 
     def json(self):
         return self.payload
@@ -141,3 +143,77 @@ def test_frontend_navigation_registers_fsms_document():
         in app_text
     )
     assert 'sac.MenuItem("FSMS Document")' in app_text
+
+
+
+def test_load_fsms_document_pdf_uses_authenticated_endpoint(
+    monkeypatch,
+):
+    calls = {}
+
+    def fake_api_request(
+        method,
+        endpoint,
+        token=None,
+    ):
+        calls["method"] = method
+        calls["endpoint"] = endpoint
+        calls["token"] = token
+
+        return FakeResponse(
+            status_code=200,
+            content=b"%PDF-test",
+        )
+
+    monkeypatch.setattr(
+        fsms_document,
+        "api_request",
+        fake_api_request,
+    )
+
+    result = fsms_document.load_fsms_document_pdf(
+        "test-token"
+    )
+
+    assert result == b"%PDF-test"
+    assert calls == {
+        "method": "GET",
+        "endpoint": "/fsms-document/pdf",
+        "token": "test-token",
+    }
+
+
+def test_load_fsms_document_pdf_failure_does_not_block_preview(
+    monkeypatch,
+):
+    warnings = []
+
+    monkeypatch.setattr(
+        fsms_document,
+        "api_request",
+        lambda *args, **kwargs: FakeResponse(
+            status_code=500,
+            payload={"detail": "PDF generation failed."},
+        ),
+    )
+    monkeypatch.setattr(
+        fsms_document.st,
+        "warning",
+        warnings.append,
+    )
+
+    result = fsms_document.load_fsms_document_pdf(
+        "test-token"
+    )
+
+    assert result is None
+    assert warnings == ["PDF generation failed."]
+
+
+def test_build_pdf_filename_uses_site_name():
+    assert fsms_document.build_pdf_filename(
+        {
+            "business_name": "Example Foods Ltd",
+            "site_name": "Example Kitchen & Bar",
+        }
+    ) == "example-kitchen-bar-fsms.pdf"
