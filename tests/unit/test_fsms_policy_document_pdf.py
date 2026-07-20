@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from io import BytesIO
 import re
 
 from reportlab.platypus import (
@@ -7,19 +8,26 @@ from reportlab.platypus import (
     Paragraph,
     Table,
 )
+from reportlab.platypus.tableofcontents import (
+    TableOfContents,
+)
 
 from gen_ai_fsms.schemas.fsms_policy_document import (
     FSMSPolicyDocument,
+    FSMSPolicySection,
     FSMSPolicySubsection,
 )
 from gen_ai_fsms.services.fsms_policy_document_pdf import (
     CONTENT_WIDTH,
+    FSMSPolicyPDFTemplate,
+    _bookmark_key,
     _build_story,
     _build_styles,
     _normalise_text,
     _subsection_flowables,
     _table_cell_paragraph,
     _table_column_widths,
+    _toc_heading_paragraph,
     render_fsms_policy_document_pdf,
 )
 
@@ -288,7 +296,7 @@ def test_render_policy_pdf_returns_valid_pdf_bytes():
             rb"/Type\s*/Page\b",
             pdf_bytes,
         )
-    ) >= 2
+    ) >= 3
 
 
 def test_policy_story_contains_cover_break_and_tables():
@@ -501,3 +509,356 @@ def test_three_column_responsibility_table_uses_wide_description_column():
 
     assert widths[2] > widths[0]
     assert widths[2] > widths[1]
+
+def _full_outline_document():
+    document = _document()
+
+    additional_sections = [
+        (
+            "5",
+            "Cross-Contamination Control",
+        ),
+        (
+            "6",
+            "Cleaning and Disinfection",
+        ),
+        (
+            "7",
+            "Allergen Management",
+        ),
+        (
+            "8",
+            "Pest Control",
+        ),
+        (
+            "9",
+            "Deliveries and Traceability",
+        ),
+        (
+            "10",
+            "Training, Responsibilities and Review",
+        ),
+    ]
+
+    document.sections.extend(
+        [
+            FSMSPolicySection(
+                section_number=section_number,
+                title=title,
+            )
+            for section_number, title
+            in additional_sections
+        ]
+    )
+
+    return document
+
+
+def _nested_flowables(flowable):
+    yield flowable
+
+    if isinstance(flowable, KeepTogether):
+        for nested in flowable._content:
+            yield from _nested_flowables(nested)
+
+
+def _story_toc_headings(story):
+    headings = []
+
+    for flowable in story:
+        for nested in _nested_flowables(flowable):
+            if not isinstance(nested, Paragraph):
+                continue
+
+            level = getattr(
+                nested,
+                "_fsms_toc_level",
+                None,
+            )
+            bookmark_key = getattr(
+                nested,
+                "_fsms_bookmark_key",
+                None,
+            )
+
+            if level is None:
+                continue
+
+            headings.append(
+                (
+                    level,
+                    nested.getPlainText(),
+                    bookmark_key,
+                )
+            )
+
+    return headings
+
+
+def test_policy_story_contains_contents_page():
+    story = _build_story(
+        document=_document(),
+        styles=_build_styles(),
+    )
+
+    contents_indexes = [
+        index
+        for index, flowable in enumerate(story)
+        if (
+            isinstance(flowable, Paragraph)
+            and flowable.getPlainText()
+            == "Contents"
+        )
+    ]
+    toc_indexes = [
+        index
+        for index, flowable in enumerate(story)
+        if isinstance(flowable, TableOfContents)
+    ]
+    page_break_indexes = [
+        index
+        for index, flowable in enumerate(story)
+        if isinstance(flowable, PageBreak)
+    ]
+
+    assert len(contents_indexes) == 1
+    assert len(toc_indexes) == 1
+    assert len(page_break_indexes) >= 2
+
+    contents_index = contents_indexes[0]
+    toc_index = toc_indexes[0]
+
+    assert page_break_indexes[0] < contents_index
+    assert contents_index < toc_index
+    assert toc_index < page_break_indexes[1]
+
+
+def test_story_registers_all_sections_and_real_subsections():
+    story = _build_story(
+        document=_full_outline_document(),
+        styles=_build_styles(),
+    )
+
+    headings = _story_toc_headings(story)
+
+    assert headings == [
+        (
+            0,
+            "1. Food Safety Policy",
+            "section-1",
+        ),
+        (
+            1,
+            "1.1 Purpose and Scope",
+            "subsection-1-1",
+        ),
+        (
+            0,
+            (
+                "2. Business Scope and Food Safety "
+                "Overview"
+            ),
+            "section-2",
+        ),
+        (
+            0,
+            "3. Chilling and Temperature Control",
+            "section-3",
+        ),
+        (
+            0,
+            "4. Cooking and Reheating",
+            "section-4",
+        ),
+        (
+            0,
+            "5. Cross-Contamination Control",
+            "section-5",
+        ),
+        (
+            0,
+            "6. Cleaning and Disinfection",
+            "section-6",
+        ),
+        (
+            0,
+            "7. Allergen Management",
+            "section-7",
+        ),
+        (
+            0,
+            "8. Pest Control",
+            "section-8",
+        ),
+        (
+            0,
+            "9. Deliveries and Traceability",
+            "section-9",
+        ),
+        (
+            0,
+            (
+                "10. Training, Responsibilities "
+                "and Review"
+            ),
+            "section-10",
+        ),
+    ]
+
+
+def test_content_block_headings_are_not_registered_in_toc():
+    story = _build_story(
+        document=_document(),
+        styles=_build_styles(),
+    )
+
+    registered_text = {
+        text
+        for _, text, _ in _story_toc_headings(
+            story
+        )
+    }
+
+    assert "Responsibilities" not in registered_text
+    assert (
+        "Business-specific arrangement"
+        not in registered_text
+    )
+    assert (
+        "Active chilling equipment"
+        not in registered_text
+    )
+    assert (
+        "Daily chilling temperature checks"
+        not in registered_text
+    )
+    assert (
+        "Safe time and temperature combinations"
+        not in registered_text
+    )
+
+
+def test_pdf_template_registers_page_number_and_bookmark():
+    styles = _build_styles()
+    template = FSMSPolicyPDFTemplate(
+        BytesIO(),
+        page_footer=lambda canvas, document: None,
+    )
+    heading = _toc_heading_paragraph(
+        "3. Chilling and Temperature Control",
+        styles["section_heading"],
+        level=0,
+        bookmark_key="section-3",
+    )
+    canvas_calls = []
+    notifications = []
+
+    class FakeCanvas:
+        def bookmarkPage(self, key):
+            canvas_calls.append(
+                ("bookmark", key)
+            )
+
+        def addOutlineEntry(
+            self,
+            title,
+            key,
+            *,
+            level,
+            closed,
+        ):
+            canvas_calls.append(
+                (
+                    "outline",
+                    title,
+                    key,
+                    level,
+                    closed,
+                )
+            )
+
+    template.canv = FakeCanvas()
+    template.page = 7
+    template.notify = (
+        lambda kind, payload: notifications.append(
+            (kind, payload)
+        )
+    )
+
+    template.afterFlowable(heading)
+
+    assert canvas_calls == [
+        (
+            "bookmark",
+            "section-3",
+        ),
+        (
+            "outline",
+            "3. Chilling and Temperature Control",
+            "section-3",
+            0,
+            False,
+        ),
+    ]
+    assert notifications == [
+        (
+            "TOCEntry",
+            (
+                0,
+                "3. Chilling and Temperature Control",
+                7,
+                "section-3",
+            ),
+        )
+    ]
+
+
+def test_non_outline_heading_is_not_registered():
+    styles = _build_styles()
+    template = FSMSPolicyPDFTemplate(
+        BytesIO(),
+        page_footer=lambda canvas, document: None,
+    )
+    notifications = []
+
+    class FailCanvas:
+        def bookmarkPage(self, key):
+            raise AssertionError(
+                "Content headings must not create "
+                "bookmarks."
+            )
+
+        def addOutlineEntry(self, *args, **kwargs):
+            raise AssertionError(
+                "Content headings must not create "
+                "outline entries."
+            )
+
+    template.canv = FailCanvas()
+    template.page = 4
+    template.notify = (
+        lambda kind, payload: notifications.append(
+            (kind, payload)
+        )
+    )
+
+    template.afterFlowable(
+        Paragraph(
+            "Check procedure",
+            styles["content_heading"],
+        )
+    )
+
+    assert notifications == []
+
+
+def test_bookmark_keys_are_stable_and_pdf_safe():
+    assert _bookmark_key(
+        "subsection",
+        "3.6",
+    ) == "subsection-3-6"
+
+    assert _bookmark_key(
+        "section",
+        "10",
+    ) == "section-10"

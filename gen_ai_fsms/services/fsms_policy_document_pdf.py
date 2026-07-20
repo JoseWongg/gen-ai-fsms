@@ -11,13 +11,18 @@ from reportlab.lib.styles import (
 )
 from reportlab.lib.units import mm
 from reportlab.platypus import (
+    BaseDocTemplate,
+    Frame,
     KeepTogether,
     PageBreak,
+    PageTemplate,
     Paragraph,
-    SimpleDocTemplate,
     Spacer,
     Table,
     TableStyle,
+)
+from reportlab.platypus.tableofcontents import (
+    TableOfContents,
 )
 
 from gen_ai_fsms.schemas.fsms_policy_document import (
@@ -39,6 +44,84 @@ BOTTOM_MARGIN = 18 * mm
 CONTENT_WIDTH = PAGE_WIDTH - LEFT_MARGIN - RIGHT_MARGIN
 
 
+class FSMSPolicyPDFTemplate(BaseDocTemplate):
+    """
+    PDF template that records section headings for the
+    generated table of contents.
+    """
+
+    def __init__(
+        self,
+        filename,
+        *,
+        page_footer,
+        **kwargs,
+    ):
+        super().__init__(
+            filename,
+            **kwargs,
+        )
+
+        content_frame = Frame(
+            self.leftMargin,
+            self.bottomMargin,
+            self.width,
+            self.height,
+            id="fsms-policy-content",
+        )
+
+        self.addPageTemplates(
+            [
+                PageTemplate(
+                    id="fsms-policy-page",
+                    frames=[content_frame],
+                    onPage=page_footer,
+                    pagesize=self.pagesize,
+                )
+            ]
+        )
+
+    def afterFlowable(self, flowable):
+        if not isinstance(flowable, Paragraph):
+            return
+
+        toc_level = getattr(
+            flowable,
+            "_fsms_toc_level",
+            None,
+        )
+        bookmark_key = getattr(
+            flowable,
+            "_fsms_bookmark_key",
+            None,
+        )
+
+        if (
+            toc_level is None
+            or bookmark_key is None
+        ):
+            return
+
+        heading_text = flowable.getPlainText()
+
+        self.canv.bookmarkPage(bookmark_key)
+        self.canv.addOutlineEntry(
+            heading_text,
+            bookmark_key,
+            level=toc_level,
+            closed=False,
+        )
+        self.notify(
+            "TOCEntry",
+            (
+                toc_level,
+                heading_text,
+                self.page,
+                bookmark_key,
+            ),
+        )
+
+
 def render_fsms_policy_document_pdf(
     document: FSMSPolicyDocument,
 ) -> bytes:
@@ -47,26 +130,6 @@ def render_fsms_policy_document_pdf(
     """
     output = BytesIO()
     styles = _build_styles()
-
-    pdf = SimpleDocTemplate(
-        output,
-        pagesize=A4,
-        rightMargin=RIGHT_MARGIN,
-        leftMargin=LEFT_MARGIN,
-        topMargin=TOP_MARGIN,
-        bottomMargin=BOTTOM_MARGIN,
-        title=document.document_title,
-        author=document.business_name,
-        subject=(
-            "Food Safety Management System for "
-            f"{document.business_name}"
-        ),
-    )
-
-    story = _build_story(
-        document=document,
-        styles=styles,
-    )
 
     def draw_page_footer(canvas, template):
         canvas.saveState()
@@ -92,11 +155,28 @@ def render_fsms_policy_document_pdf(
         )
         canvas.restoreState()
 
-    pdf.build(
-        story,
-        onFirstPage=draw_page_footer,
-        onLaterPages=draw_page_footer,
+    pdf = FSMSPolicyPDFTemplate(
+        output,
+        page_footer=draw_page_footer,
+        pagesize=A4,
+        rightMargin=RIGHT_MARGIN,
+        leftMargin=LEFT_MARGIN,
+        topMargin=TOP_MARGIN,
+        bottomMargin=BOTTOM_MARGIN,
+        title=document.document_title,
+        author=document.business_name,
+        subject=(
+            "Food Safety Management System for "
+            f"{document.business_name}"
+        ),
     )
+
+    story = _build_story(
+        document=document,
+        styles=styles,
+    )
+
+    pdf.multiBuild(story)
 
     return output.getvalue()
 
@@ -138,7 +218,18 @@ def _build_story(
             ]
         )
 
-    story.append(PageBreak())
+    story.extend(
+        [
+            PageBreak(),
+            Paragraph(
+                "Contents",
+                styles["contents_heading"],
+            ),
+            Spacer(1, 4 * mm),
+            _table_of_contents(styles),
+            PageBreak(),
+        ]
+    )
 
     for index, section in enumerate(
         document.sections
@@ -336,18 +427,75 @@ def _draft_notice_table(
     return table
 
 
+def _table_of_contents(
+    styles: Dict[str, ParagraphStyle],
+) -> TableOfContents:
+    contents = TableOfContents()
+    contents.levelStyles = [
+        styles["toc_section"],
+        styles["toc_subsection"],
+    ]
+    contents.dotsMinLevel = 0
+
+    return contents
+
+
+def _toc_heading_paragraph(
+    text: str,
+    style: ParagraphStyle,
+    *,
+    level: int,
+    bookmark_key: str,
+) -> Paragraph:
+    paragraph = Paragraph(
+        _escape_text(text),
+        style,
+    )
+    paragraph._fsms_toc_level = level
+    paragraph._fsms_bookmark_key = bookmark_key
+
+    return paragraph
+
+
+def _bookmark_key(
+    prefix: str,
+    value,
+) -> str:
+    normalised_value = "".join(
+        character.lower()
+        if character.isalnum()
+        else "-"
+        for character in str(value)
+    )
+    normalised_value = "-".join(
+        part
+        for part in normalised_value.split("-")
+        if part
+    )
+
+    return (
+        f"{prefix}-"
+        f"{normalised_value or 'heading'}"
+    )
+
+
 def _section_flowables(
     *,
     section: FSMSPolicySection,
     styles: Dict[str, ParagraphStyle],
 ):
     flowables = [
-        Paragraph(
-            _escape_text(
+        _toc_heading_paragraph(
+            (
                 f"{section.section_number}. "
                 f"{section.title}"
             ),
             styles["section_heading"],
+            level=0,
+            bookmark_key=_bookmark_key(
+                "section",
+                section.section_number,
+            ),
         ),
     ]
 
@@ -374,12 +522,17 @@ def _subsection_flowables(
     subsection: FSMSPolicySubsection,
     styles: Dict[str, ParagraphStyle],
 ):
-    heading = Paragraph(
-        _escape_text(
+    heading = _toc_heading_paragraph(
+        (
             f"{subsection.subsection_number} "
             f"{subsection.title}"
         ),
         styles["subsection_heading"],
+        level=1,
+        bookmark_key=_bookmark_key(
+            "subsection",
+            subsection.subsection_number,
+        ),
     )
 
     checklist_index = next(
@@ -850,6 +1003,37 @@ def _build_styles() -> Dict[str, ParagraphStyle]:
             fontSize=9.5,
             leading=13,
             textColor=colors.HexColor("#5D4300"),
+        ),
+        "contents_heading": ParagraphStyle(
+            "FSMSPolicyContentsHeading",
+            parent=sample_styles["Heading1"],
+            fontName="Helvetica-Bold",
+            fontSize=18,
+            leading=22,
+            textColor=colors.HexColor("#17324D"),
+            spaceAfter=6,
+        ),
+        "toc_section": ParagraphStyle(
+            "FSMSPolicyTOCSection",
+            parent=sample_styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=10,
+            leading=14,
+            leftIndent=0,
+            firstLineIndent=0,
+            spaceBefore=4,
+            textColor=colors.HexColor("#17324D"),
+        ),
+        "toc_subsection": ParagraphStyle(
+            "FSMSPolicyTOCSubsection",
+            parent=sample_styles["BodyText"],
+            fontName="Helvetica",
+            fontSize=9,
+            leading=12,
+            leftIndent=10 * mm,
+            firstLineIndent=0,
+            spaceBefore=1,
+            textColor=colors.HexColor("#263746"),
         ),
         "section_heading": ParagraphStyle(
             "FSMSPolicySectionHeading",
