@@ -48,12 +48,26 @@ def _safety_point(
     safety_point_id,
     section_id,
     safe_method_id,
+    **overrides,
 ):
-    return {
+    values = {
         "safety_point_id": safety_point_id,
         "section_id": section_id,
         "safe_method_id": safe_method_id,
+        "instruction": (
+            f"Approved procedure for {safety_point_id}."
+        ),
+        "rationale": (
+            f"Food safety reason for {safety_point_id}."
+        ),
+        "source_references": [
+            f"Source for {safety_point_id}",
+        ],
+        "additional_source_references": [],
     }
+    values.update(overrides)
+
+    return values
 
 
 def _patch_sources(
@@ -62,6 +76,7 @@ def _patch_sources(
     screening_complete=True,
     applicable_safety_points=None,
     approved_safety_point_ids=None,
+    approved_safety_points=None,
     condition_values=None,
 ):
     monkeypatch.setattr(
@@ -90,22 +105,29 @@ def _patch_sources(
             else []
         ),
     )
+    resolved_approved_safety_points = (
+        approved_safety_points
+        if approved_safety_points is not None
+        else [
+            {
+                "safety_point_id": safety_point_id,
+            }
+            for safety_point_id
+            in (
+                approved_safety_point_ids
+                if approved_safety_point_ids
+                is not None
+                else []
+            )
+        ]
+    )
     monkeypatch.setattr(
         service,
         "get_approved_methods_for_profile",
         lambda **kwargs: {
-            "approved_safety_points": [
-                {
-                    "safety_point_id": safety_point_id,
-                }
-                for safety_point_id
-                in (
-                    approved_safety_point_ids
-                    if approved_safety_point_ids
-                    is not None
-                    else []
-                )
-            ]
+            "approved_safety_points": (
+                resolved_approved_safety_points
+            )
         },
     )
 
@@ -942,3 +964,440 @@ def test_hazards_subsection_is_omitted_without_applicable_category(
         subsection.subsection_number
         for subsection in scope_section.subsections
     }
+
+def _document_section(document, section_number):
+    return next(
+        section
+        for section in document.sections
+        if section.section_number == section_number
+    )
+
+
+def _document_subsection(
+    document,
+    subsection_number,
+):
+    section_number = subsection_number.split(".")[0]
+    section = _document_section(
+        document,
+        section_number,
+    )
+
+    return next(
+        subsection
+        for subsection in section.subsections
+        if subsection.subsection_number
+        == subsection_number
+    )
+
+
+def test_chilling_section_content_is_personalised(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "4.1.1.1",
+            "chilling",
+            "4.1",
+        )
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "4.1.1.1",
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    section = _document_section(document, "3")
+
+    assert [
+        block.role
+        for block in section.content_blocks
+    ] == [
+        "introduction",
+        "policy",
+    ]
+    assert section.content_blocks[0].text == (
+        "Example Foods Ltd controls chilled and frozen "
+        "food at Example Kitchen to prevent harmful "
+        "bacteria from growing and to ensure that food "
+        "remains safe. Suitable equipment, approved "
+        "working procedures, temperature checks and "
+        "corrective actions are used for the activities "
+        "carried out at the site."
+    )
+
+
+def test_chilled_storage_uses_approved_source_order(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "4.1.1.1",
+            "chilling",
+            "4.1",
+            instruction=(
+                "Keep chilled food cold.\n"
+                "Use it within its shelf life."
+            ),
+        ),
+        _safety_point(
+            "4.1.1.3",
+            "chilling",
+            "4.1",
+            instruction=(
+                "Check fridge temperatures daily."
+            ),
+        ),
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "4.1.1.3",
+            "4.1.1.1",
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "3.1",
+    )
+
+    assert [
+        block.role
+        for block in subsection.content_blocks
+    ] == [
+        "food_safety_importance",
+        "policy",
+        "procedure",
+        "monitoring",
+        "corrective_action",
+    ]
+    assert subsection.content_blocks[2].items == [
+        (
+            "Keep chilled food cold. Use it within its "
+            "shelf life."
+        ),
+        "Check fridge temperatures daily.",
+    ]
+    assert (
+        subsection.content_blocks[2]
+        .source.safety_point_ids
+    ) == [
+        "4.1.1.1",
+        "4.1.1.3",
+    ]
+
+
+def test_chilled_storage_monitoring_requires_control(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "4.1.1.1",
+            "chilling",
+            "4.1",
+        )
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "4.1.1.1",
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "3.1",
+    )
+
+    assert [
+        block.role
+        for block in subsection.content_blocks
+    ] == [
+        "food_safety_importance",
+        "policy",
+        "procedure",
+        "corrective_action",
+    ]
+
+
+def test_defrosting_uses_document_ready_response(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "4.3.1.1",
+            "chilling",
+            "4.3",
+        )
+    ]
+    approved = [
+        {
+            "safety_point_id": "4.3.1.1",
+            "provenance_references": [
+                "Approved source reference",
+            ],
+            "additional_responses": [
+                {
+                    "question_key": (
+                        "foods_defrosted_under_"
+                        "cold_running_water"
+                    ),
+                    "question_text": (
+                        "Which foods are defrosted?"
+                    ),
+                    "response_text": (
+                        "raw conversational answer"
+                    ),
+                    "document_response_text": (
+                        "Chicken fillets are defrosted "
+                        "under cold running water while "
+                        "sealed in food-safe containers."
+                    ),
+                }
+            ],
+        }
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_points=approved,
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "3.3",
+    )
+    arrangement = next(
+        block
+        for block in subsection.content_blocks
+        if block.role == "business_context"
+    )
+
+    assert arrangement.heading == (
+        "Business-specific arrangement"
+    )
+    assert arrangement.text == (
+        "Chicken fillets are defrosted under cold "
+        "running water while sealed in food-safe "
+        "containers."
+    )
+    assert arrangement.source.safety_point_ids == [
+        "4.3.1.1"
+    ]
+    assert (
+        arrangement.source.additional_question_keys
+    ) == [
+        (
+            "foods_defrosted_under_"
+            "cold_running_water"
+        )
+    ]
+
+    rendered = str(subsection.model_dump())
+
+    assert "raw conversational answer" not in rendered
+    assert "Which foods are defrosted?" not in rendered
+
+
+def test_unapproved_chilling_point_is_not_documented(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "4.2.1.1",
+            "chilling",
+            "4.2",
+            instruction="First applicable procedure.",
+        ),
+        _safety_point(
+            "4.2.1.2",
+            "chilling",
+            "4.2",
+            instruction="Approved procedure.",
+        ),
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "4.2.1.2",
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "3.2",
+    )
+    procedure = next(
+        block
+        for block in subsection.content_blocks
+        if block.role == "procedure"
+    )
+
+    assert procedure.items == [
+        "Approved procedure."
+    ]
+    assert procedure.source.safety_point_ids == [
+        "4.2.1.2"
+    ]
+
+
+def test_equipment_response_is_not_rendered_as_text(
+    monkeypatch,
+):
+    applicable = [
+        _safety_point(
+            "4.1.1.3",
+            "chilling",
+            "4.1",
+        )
+    ]
+    approved = [
+        {
+            "safety_point_id": "4.1.1.3",
+            "additional_responses": [
+                {
+                    "question_key": (
+                        "chilling_equipment_"
+                        "temperature_checks"
+                    ),
+                    "question_text": (
+                        "List chilling equipment."
+                    ),
+                    "response_text": None,
+                    "document_response_text": None,
+                    "current_chilling_equipment": [
+                        {
+                            "equipment_name": (
+                                "Main fridge"
+                            )
+                        }
+                    ],
+                }
+            ],
+        }
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_points=approved,
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        "3.1",
+    )
+
+    assert "business_context" not in {
+        block.role
+        for block in subsection.content_blocks
+    }
+
+
+@pytest.mark.parametrize(
+    (
+        "safety_point_id",
+        "safe_method_id",
+        "subsection_number",
+    ),
+    [
+        (
+            "4.2.1.4",
+            "4.2",
+            "3.2",
+        ),
+        (
+            "4.3.1.1",
+            "4.3",
+            "3.3",
+        ),
+        (
+            "4.4.1.7",
+            "4.4",
+            "3.4",
+        ),
+    ],
+)
+def test_chilling_subsections_have_controlled_block_order(
+    monkeypatch,
+    safety_point_id,
+    safe_method_id,
+    subsection_number,
+):
+    applicable = [
+        _safety_point(
+            safety_point_id,
+            "chilling",
+            safe_method_id,
+        )
+    ]
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            safety_point_id,
+        ],
+    )
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(_profile()),
+            business_profile_id=1,
+        )
+    )
+    subsection = _document_subsection(
+        document,
+        subsection_number,
+    )
+
+    assert [
+        block.role
+        for block in subsection.content_blocks
+    ] == [
+        "food_safety_importance",
+        "policy",
+        "procedure",
+        "monitoring",
+        "corrective_action",
+    ]

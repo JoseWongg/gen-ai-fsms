@@ -79,9 +79,9 @@ def generate_fsms_policy_document_for_profile(
 
     This transitional service does not replace the live FSMS
     endpoint or PDF renderer. It currently populates the
-    controlled Food Safety Policy and Business Scope content;
-    later implementation steps will populate the operational
-    sections.
+    controlled Food Safety Policy, Business Scope and approved
+    chilling-control content. Later implementation steps will
+    populate equipment monitoring and cooking controls.
     """
     profile = (
         db.query(BusinessProfile)
@@ -152,12 +152,37 @@ def generate_fsms_policy_document_for_profile(
         source_name="approved",
     )
 
-    approved_applicable_points = [
-        safety_point
-        for safety_point in applicable_safety_points
-        if safety_point["safety_point_id"]
-        in approved_ids
-    ]
+    approved_points_by_id = {}
+
+    for approved_safety_point in approved_safety_points:
+        approved_id = _required_safety_point_text(
+            approved_safety_point,
+            "safety_point_id",
+        )
+        approved_points_by_id.setdefault(
+            approved_id,
+            approved_safety_point,
+        )
+
+    approved_applicable_points = []
+
+    for safety_point in applicable_safety_points:
+        safety_point_id = _required_safety_point_text(
+            safety_point,
+            "safety_point_id",
+        )
+        approval = approved_points_by_id.get(
+            safety_point_id
+        )
+
+        if approval is None:
+            continue
+
+        merged_safety_point = dict(safety_point)
+        merged_safety_point["_approval"] = approval
+        approved_applicable_points.append(
+            merged_safety_point
+        )
 
     profile_complete = _is_business_profile_complete(
         profile
@@ -263,6 +288,7 @@ def _build_policy_sections(
             "source_section_ids",
             [],
         )
+        section_content_blocks = []
 
         if inclusion in {
             "always",
@@ -310,46 +336,68 @@ def _build_policy_sections(
             if not section_points:
                 continue
 
-            approved_safe_method_ids = {
-                _required_safety_point_text(
-                    safety_point,
-                    "safe_method_id",
-                )
-                for safety_point in section_points
-            }
-
-            subsections = []
-
-            for subsection_config in (
-                _configured_subsections(section_config)
+            if (
+                section_config.get("section_id")
+                == "chilling_and_temperature_control"
             ):
-                if (
-                    subsection_config.get("inclusion")
-                    != "approved_applicable_content"
-                ):
-                    continue
-
-                configured_method_ids = {
-                    str(value).strip()
-                    for value in subsection_config.get(
-                        "source_safe_method_ids",
-                        [],
-                    )
-                    if str(value).strip()
-                }
-
-                if not (
-                    configured_method_ids
-                    & approved_safe_method_ids
-                ):
-                    continue
-
-                subsections.append(
-                    _build_policy_subsection(
-                        subsection_config,
+                section_content_blocks = (
+                    _build_configured_content_blocks(
+                        section_config,
                         profile=profile,
                     )
                 )
+                subsections = (
+                    _build_chilling_operational_subsections(
+                        section_config=section_config,
+                        profile=profile,
+                        safety_points=section_points,
+                    )
+                )
+            else:
+                approved_safe_method_ids = {
+                    _required_safety_point_text(
+                        safety_point,
+                        "safe_method_id",
+                    )
+                    for safety_point in section_points
+                }
+                subsections = []
+
+                for subsection_config in (
+                    _configured_subsections(
+                        section_config
+                    )
+                ):
+                    if (
+                        subsection_config.get(
+                            "inclusion"
+                        )
+                        != "approved_applicable_content"
+                    ):
+                        continue
+
+                    configured_method_ids = {
+                        str(value).strip()
+                        for value
+                        in subsection_config.get(
+                            "source_safe_method_ids",
+                            [],
+                        )
+                        if str(value).strip()
+                    }
+
+                    if not (
+                        configured_method_ids
+                        & approved_safe_method_ids
+                    ):
+                        continue
+
+                    subsections.append(
+                        _build_policy_subsection(
+                            subsection_config,
+                            profile=profile,
+                        )
+                    )
 
             if not subsections:
                 continue
@@ -371,11 +419,383 @@ def _build_policy_sections(
                     section_config,
                     "title",
                 ),
+                content_blocks=section_content_blocks,
                 subsections=subsections,
             )
         )
 
     return sections
+
+
+def _build_chilling_operational_subsections(
+    *,
+    section_config: Dict[str, Any],
+    profile: BusinessProfile,
+    safety_points: List[Dict[str, Any]],
+) -> List[FSMSPolicySubsection]:
+    subsections = []
+
+    for subsection_config in _configured_subsections(
+        section_config
+    ):
+        if (
+            subsection_config.get("inclusion")
+            != "approved_applicable_content"
+        ):
+            continue
+
+        configured_method_ids = set(
+            _configured_string_list(
+                subsection_config,
+                "source_safe_method_ids",
+            )
+        )
+        subsection_points = [
+            safety_point
+            for safety_point in safety_points
+            if _required_safety_point_text(
+                safety_point,
+                "safe_method_id",
+            )
+            in configured_method_ids
+        ]
+
+        if not subsection_points:
+            continue
+
+        subsections.append(
+            _build_operational_subsection(
+                subsection_config=subsection_config,
+                profile=profile,
+                safety_points=subsection_points,
+            )
+        )
+
+    return subsections
+
+
+def _build_operational_subsection(
+    *,
+    subsection_config: Dict[str, Any],
+    profile: BusinessProfile,
+    safety_points: List[Dict[str, Any]],
+) -> FSMSPolicySubsection:
+    definitions = subsection_config.get(
+        "content_definitions"
+    )
+
+    if not isinstance(definitions, list):
+        raise ValueError(
+            "Operational FSMS subsections must contain "
+            "a content definition list."
+        )
+
+    content_blocks: List[
+        FSMSPolicyContentBlock
+    ] = []
+
+    for definition in definitions:
+        if not isinstance(definition, dict):
+            raise ValueError(
+                "Each operational FSMS content "
+                "definition must be a JSON object."
+            )
+
+        dynamic_sources = definition.get(
+            "dynamic_sources",
+            [],
+        )
+
+        if not isinstance(dynamic_sources, list):
+            raise ValueError(
+                "Operational FSMS dynamic sources must "
+                "be a list."
+            )
+
+        if (
+            "approved_safety_point_instructions"
+            in dynamic_sources
+        ):
+            content_blocks.append(
+                _build_operational_procedure_block(
+                    definition=definition,
+                    safety_points=safety_points,
+                )
+            )
+            continue
+
+        if (
+            "approved_additional_responses"
+            in dynamic_sources
+        ):
+            content_blocks.extend(
+                _build_additional_response_blocks(
+                    definition=definition,
+                    safety_points=safety_points,
+                )
+            )
+            continue
+
+        required_safety_point_ids = set(
+            _configured_string_list(
+                definition,
+                "source_safety_point_ids",
+            )
+        )
+        source_points = safety_points
+
+        if required_safety_point_ids:
+            source_points = [
+                safety_point
+                for safety_point in safety_points
+                if _required_safety_point_text(
+                    safety_point,
+                    "safety_point_id",
+                )
+                in required_safety_point_ids
+            ]
+
+            if not source_points:
+                continue
+
+        raw_text = definition.get("template")
+
+        if raw_text is None:
+            raw_text = definition.get("text")
+
+        if (
+            not isinstance(raw_text, str)
+            or not raw_text.strip()
+        ):
+            raise ValueError(
+                "Operational FSMS text content must "
+                "be a non-empty string."
+            )
+
+        heading = definition.get("heading")
+
+        if heading is not None:
+            heading = _required_structure_text(
+                definition,
+                "heading",
+            )
+
+        content_blocks.append(
+            FSMSTextBlock(
+                role=_required_structure_text(
+                    definition,
+                    "role",
+                ),
+                heading=heading,
+                text=_render_policy_template(
+                    raw_text,
+                    _policy_template_values(profile),
+                ),
+                source=_operational_content_source(
+                    safety_points=source_points,
+                    definition=definition,
+                ),
+            )
+        )
+
+    return FSMSPolicySubsection(
+        subsection_number=_required_structure_text(
+            subsection_config,
+            "subsection_number",
+        ),
+        title=_required_structure_text(
+            subsection_config,
+            "title",
+        ),
+        content_blocks=content_blocks,
+    )
+
+
+def _build_operational_procedure_block(
+    *,
+    definition: Dict[str, Any],
+    safety_points: List[Dict[str, Any]],
+) -> FSMSListBlock:
+    items = [
+        _normalise_operational_text(
+            _required_safety_point_text(
+                safety_point,
+                "instruction",
+            )
+        )
+        for safety_point in safety_points
+    ]
+
+    return FSMSListBlock(
+        role=_required_structure_text(
+            definition,
+            "role",
+        ),
+        items=items,
+        source=_operational_content_source(
+            safety_points=safety_points,
+            definition=definition,
+        ),
+    )
+
+
+def _build_additional_response_blocks(
+    *,
+    definition: Dict[str, Any],
+    safety_points: List[Dict[str, Any]],
+) -> List[FSMSTextBlock]:
+    blocks = []
+    heading = definition.get("heading")
+
+    if heading is not None:
+        heading = _required_structure_text(
+            definition,
+            "heading",
+        )
+
+    for safety_point in safety_points:
+        approval = safety_point.get("_approval", {})
+        responses = approval.get(
+            "additional_responses",
+            [],
+        )
+
+        if not isinstance(responses, list):
+            raise ValueError(
+                "Approved safety point responses must "
+                "be a list."
+            )
+
+        for response in responses:
+            if not isinstance(response, dict):
+                raise ValueError(
+                    "Each approved safety point response "
+                    "must be a JSON object."
+                )
+
+            document_response_text = response.get(
+                "document_response_text"
+            )
+
+            if (
+                not isinstance(
+                    document_response_text,
+                    str,
+                )
+                or not document_response_text.strip()
+            ):
+                continue
+
+            question_key = _required_structure_text(
+                response,
+                "question_key",
+            )
+
+            blocks.append(
+                FSMSTextBlock(
+                    role=_required_structure_text(
+                        definition,
+                        "role",
+                    ),
+                    heading=heading,
+                    text=_normalise_operational_text(
+                        document_response_text
+                    ),
+                    source=FSMSContentSource(
+                        safety_point_ids=[
+                            _required_safety_point_text(
+                                safety_point,
+                                "safety_point_id",
+                            )
+                        ],
+                        additional_question_keys=[
+                            question_key
+                        ],
+                        source_references=(
+                            _operational_source_references(
+                                [safety_point],
+                                definition=definition,
+                            )
+                        ),
+                    ),
+                )
+            )
+
+    return blocks
+
+
+def _operational_content_source(
+    *,
+    safety_points: List[Dict[str, Any]],
+    definition: Dict[str, Any],
+) -> FSMSContentSource:
+    return FSMSContentSource(
+        safety_point_ids=[
+            _required_safety_point_text(
+                safety_point,
+                "safety_point_id",
+            )
+            for safety_point in safety_points
+        ],
+        source_references=(
+            _operational_source_references(
+                safety_points,
+                definition=definition,
+            )
+        ),
+    )
+
+
+def _operational_source_references(
+    safety_points: List[Dict[str, Any]],
+    *,
+    definition: Dict[str, Any],
+) -> List[str]:
+    references = []
+
+    for reference in _configured_source_references(
+        definition
+    ):
+        _append_unique(references, reference)
+
+    for safety_point in safety_points:
+        for field_name in [
+            "source_references",
+            "additional_source_references",
+        ]:
+            for reference in _configured_string_list(
+                safety_point,
+                field_name,
+            ):
+                _append_unique(
+                    references,
+                    reference,
+                )
+
+        approval = safety_point.get("_approval", {})
+
+        if isinstance(approval, dict):
+            for reference in _configured_string_list(
+                approval,
+                "provenance_references",
+            ):
+                _append_unique(
+                    references,
+                    reference,
+                )
+
+    return references
+
+
+def _normalise_operational_text(value: str) -> str:
+    cleaned = " ".join(value.split())
+
+    if not cleaned:
+        raise ValueError(
+            "Operational FSMS content must not be empty."
+        )
+
+    return cleaned
 
 
 def _build_business_scope_subsections(

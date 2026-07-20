@@ -405,7 +405,16 @@
         {
           "content_key": "chilling_section_introduction",
           "block_type": "text",
-          "role": "introduction"
+          "role": "introduction",
+          "dynamic_sources": [
+            "business_name",
+            "site_name"
+          ],
+          "template": "{business_name} controls chilled and frozen food at {site_name} to prevent harmful bacteria from growing and to ensure that food remains safe. Suitable equipment, approved working procedures, temperature checks and corrective actions are used for the activities carried out at the site.",
+          "source_references": [
+            "business_profile.business_name",
+            "business_profile.site_name"
+          ]
         },
         {
           "content_key": "chilling_overall_policy",
@@ -414,7 +423,8 @@
           "dynamic_sources": [
             "business_name",
             "site_name"
-          ]
+          ],
+          "text": "Chilled and frozen food must be kept under suitable temperature control throughout storage, preparation, display, cooling, defrosting and freezing. Staff must follow the approved controls relevant to their work, minimise the time food spends outside controlled storage and take immediate action when a required temperature or procedure is not met."
         }
       ],
       "subsections": [
@@ -426,26 +436,56 @@
           "source_safe_method_ids": [
             "4.1"
           ],
-          "content_pattern": [
+          "content_definitions": [
             {
+              "content_key": "food_safety_importance",
               "block_type": "text",
-              "role": "food_safety_importance"
+              "role": "food_safety_importance",
+              "text": "Chilled food can become unsafe when it is kept too warm because harmful bacteria may grow. Some foods require lower storage temperatures or shorter storage periods and must be handled in accordance with their specific requirements."
             },
             {
+              "content_key": "operational_policy",
               "block_type": "text",
-              "role": "policy"
+              "role": "policy",
+              "template": "Chilled food at {site_name} will be stored, prepared and displayed under controlled conditions. Chilling equipment will be operated correctly, food will be used within its safe shelf life and any lower temperature specified by the manufacturer or an approved food-specific control will be followed.",
+              "dynamic_sources": [
+                "site_name"
+              ],
+              "source_references": [
+                "business_profile.site_name"
+              ]
             },
             {
+              "content_key": "approved_procedures",
               "block_type": "list",
-              "role": "procedure"
+              "role": "procedure",
+              "dynamic_sources": [
+                "approved_safety_point_instructions"
+              ]
             },
             {
+              "content_key": "business_specific_arrangements",
               "block_type": "text",
-              "role": "monitoring"
+              "role": "business_context",
+              "heading": "Business-specific arrangement",
+              "dynamic_sources": [
+                "approved_additional_responses"
+              ]
             },
             {
+              "content_key": "operational_monitoring",
               "block_type": "text",
-              "role": "corrective_action"
+              "role": "monitoring",
+              "text": "Fridge and chilled-display temperatures must be checked at least once each day, beginning with the opening checks. The configured check method for each item of equipment must be used. Where a digital display or dial is relied on, it must be checked periodically against an independent thermometer or clean, disinfected probe.",
+              "source_safety_point_ids": [
+                "4.1.1.3"
+              ]
+            },
+            {
+              "content_key": "operational_corrective_action",
+              "block_type": "text",
+              "role": "corrective_action",
+              "text": "When a fridge or chilled-display temperature exceeds its required limit, affected food must not be assumed to be safe. Staff must check the food where necessary, move it to working equipment where appropriate, follow the chilling corrective-action procedure and record the incident and action taken. Food must not be used when its safety cannot be established."
             }
           ]
         },
@@ -457,26 +497,50 @@
           "source_safe_method_ids": [
             "4.2"
           ],
-          "content_pattern": [
+          "content_definitions": [
             {
+              "content_key": "food_safety_importance",
               "block_type": "text",
-              "role": "food_safety_importance"
+              "role": "food_safety_importance",
+              "text": "Harmful bacteria can grow when cooked food is left to cool slowly. Food that will not be served immediately must therefore be cooled as quickly as possible before chilled storage or freezing."
             },
             {
+              "content_key": "operational_policy",
               "block_type": "text",
-              "role": "policy"
+              "role": "policy",
+              "text": "Cooked food intended for later use will be cooled promptly using an approved method and placed under chilled storage as soon as it has cooled sufficiently. Hot food will be properly chilled before it is frozen."
             },
             {
+              "content_key": "approved_procedures",
               "block_type": "list",
-              "role": "procedure"
+              "role": "procedure",
+              "dynamic_sources": [
+                "approved_safety_point_instructions"
+              ]
             },
             {
+              "content_key": "business_specific_arrangements",
               "block_type": "text",
-              "role": "monitoring"
+              "role": "business_context",
+              "heading": "Business-specific arrangement",
+              "dynamic_sources": [
+                "approved_additional_responses"
+              ]
             },
             {
+              "content_key": "operational_monitoring",
               "block_type": "text",
-              "role": "corrective_action"
+              "role": "monitoring",
+              "text": "The temperature of newly cooked food must be checked with a clean probe and checked again at suitable intervals to confirm that it is cooling effectively. A clean, disinfected probe must be used for every check.",
+              "source_safety_point_ids": [
+                "4.2.1.4"
+              ]
+            },
+            {
+              "content_key": "operational_corrective_action",
+              "block_type": "text",
+              "role": "corrective_action",
+              "text": "Food that is not cooling effectively must be divided, transferred or cooled using another approved method without delay. It must not be placed in storage while still cooling inadequately. Food must be discarded where the time or temperature history means its safety cannot be established."
             }
           ]
         },
@@ -488,26 +552,47 @@
           "source_safe_method_ids": [
             "4.3"
           ],
-          "content_pattern": [
+          "content_definitions": [
             {
+              "content_key": "food_safety_importance",
               "block_type": "text",
-              "role": "food_safety_importance"
+              "role": "food_safety_importance",
+              "text": "Food that remains partly frozen may cook unevenly, leaving the centre insufficiently cooked. Food can also become unsafe where its surface becomes too warm during defrosting or where raw food contaminates other food, equipment or surfaces."
             },
             {
+              "content_key": "operational_policy",
               "block_type": "text",
-              "role": "policy"
+              "role": "policy",
+              "text": "Food will be thoroughly defrosted before cooking unless the manufacturer's instructions require cooking from frozen or another approved safe method applies. Defrosting will be carried out using the approved methods applicable to the food and the site."
             },
             {
+              "content_key": "approved_procedures",
               "block_type": "list",
-              "role": "procedure"
+              "role": "procedure",
+              "dynamic_sources": [
+                "approved_safety_point_instructions"
+              ]
             },
             {
+              "content_key": "business_specific_arrangements",
               "block_type": "text",
-              "role": "monitoring"
+              "role": "business_context",
+              "heading": "Business-specific arrangement",
+              "dynamic_sources": [
+                "approved_additional_responses"
+              ]
             },
             {
+              "content_key": "operational_monitoring",
               "block_type": "text",
-              "role": "corrective_action"
+              "role": "monitoring",
+              "text": "Food must be checked before cooking to confirm that it is fully defrosted. The check must be appropriate to the food, including checking for ice crystals, checking the centre where necessary and confirming that poultry joints are flexible."
+            },
+            {
+              "content_key": "operational_corrective_action",
+              "block_type": "text",
+              "role": "corrective_action",
+              "text": "Food that is still partly frozen must continue defrosting and must not be cooked unless cooking from frozen is permitted. Food contaminated during defrosting must be isolated and assessed. Food that cannot safely be refrozen must be used immediately where safe or discarded."
             }
           ]
         },
@@ -519,26 +604,50 @@
           "source_safe_method_ids": [
             "4.4"
           ],
-          "content_pattern": [
+          "content_definitions": [
             {
+              "content_key": "food_safety_importance",
               "block_type": "text",
-              "role": "food_safety_importance"
+              "role": "food_safety_importance",
+              "text": "Food can become unsafe where it begins to defrost, is frozen too slowly or is stored in unsuitable conditions. Prompt freezing and suitable packaging also help protect food from contamination."
             },
             {
+              "content_key": "operational_policy",
               "block_type": "text",
-              "role": "policy"
+              "role": "policy",
+              "text": "Food intended for frozen storage will be frozen promptly, packaged suitably and kept frozen until required. Hot food will be properly cooled before freezing."
             },
             {
+              "content_key": "approved_procedures",
               "block_type": "list",
-              "role": "procedure"
+              "role": "procedure",
+              "dynamic_sources": [
+                "approved_safety_point_instructions"
+              ]
             },
             {
+              "content_key": "business_specific_arrangements",
               "block_type": "text",
-              "role": "monitoring"
+              "role": "business_context",
+              "heading": "Business-specific arrangement",
+              "dynamic_sources": [
+                "approved_additional_responses"
+              ]
             },
             {
+              "content_key": "operational_monitoring",
               "block_type": "text",
-              "role": "corrective_action"
+              "role": "monitoring",
+              "text": "Freezer temperatures must be checked using the configured method for each item of equipment. The check must confirm that the freezer is maintaining the required frozen-storage temperature.",
+              "source_safety_point_ids": [
+                "4.4.1.7"
+              ]
+            },
+            {
+              "content_key": "operational_corrective_action",
+              "block_type": "text",
+              "role": "corrective_action",
+              "text": "Where a freezer is outside its required limit, affected food must be checked and moved to suitable working equipment where appropriate. Food that has begun to defrost must not automatically be refrozen. It must be used promptly where safe or discarded when its safety cannot be established."
             }
           ]
         },
