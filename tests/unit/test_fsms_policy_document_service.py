@@ -2766,3 +2766,222 @@ def test_beyond_scope_sections_are_always_included(
             == []
         )
         assert block.source.source_references == []
+
+def test_document_reflects_active_chilling_equipment_changes(
+    monkeypatch,
+):
+    equipment = [
+        SimpleNamespace(
+            id=1,
+            business_profile_id=1,
+            source_safety_point_id="4.1.1.3",
+            equipment_asset_code="CHILL-001",
+            equipment_name="Prep fridge",
+            equipment_use="storage",
+            equipment_type="fridge",
+            temperature_check_method=(
+                "digital_or_dial_display"
+            ),
+            is_active=True,
+        ),
+    ]
+    applicable = [
+        _safety_point(
+            "4.1.1.3",
+            "chilling",
+            "4.1",
+        ),
+    ]
+
+    _patch_sources(
+        monkeypatch,
+        applicable_safety_points=applicable,
+        approved_safety_point_ids=[
+            "4.1.1.3",
+        ],
+        active_chilling_equipment=equipment,
+    )
+
+    def build_document():
+        return (
+            service
+            .generate_fsms_policy_document_for_profile(
+                db=FakeSession(_profile()),
+                business_profile_id=1,
+            )
+        )
+
+    def table_rows(
+        document,
+        subsection_number,
+        role,
+    ):
+        chilling_section = next(
+            section
+            for section in document.sections
+            if section.section_number == "3"
+        )
+        subsection = next(
+            subsection
+            for subsection
+            in chilling_section.subsections
+            if (
+                subsection.subsection_number
+                == subsection_number
+            )
+        )
+        table = next(
+            block
+            for block in subsection.content_blocks
+            if block.role == role
+        )
+
+        return table.rows
+
+    initial_document = build_document()
+    initial_equipment_rows = table_rows(
+        initial_document,
+        "3.5",
+        "equipment",
+    )
+    initial_checklist_rows = table_rows(
+        initial_document,
+        "3.6",
+        "checklist",
+    )
+
+    assert [
+        row[1]
+        for row in initial_equipment_rows
+    ] == [
+        "Prep fridge",
+    ]
+    assert "Prep fridge" in str(
+        initial_checklist_rows
+    )
+
+    equipment[0].equipment_name = (
+        "Service fridge"
+    )
+    equipment[0].equipment_use = "display"
+    equipment[0].temperature_check_method = (
+        "probe_between_packs"
+    )
+
+    updated_document = build_document()
+    updated_equipment_rows = table_rows(
+        updated_document,
+        "3.5",
+        "equipment",
+    )
+    updated_checklist_rows = table_rows(
+        updated_document,
+        "3.6",
+        "checklist",
+    )
+
+    assert updated_equipment_rows[0][1:5] == [
+        "Service fridge",
+        "Fridge",
+        "Display",
+        "Probe between packs",
+    ]
+    assert "Prep fridge" not in str(
+        updated_equipment_rows
+    )
+    assert "Prep fridge" not in str(
+        updated_checklist_rows
+    )
+    assert "Service fridge" in str(
+        updated_checklist_rows
+    )
+
+    freezer = SimpleNamespace(
+        id=2,
+        business_profile_id=1,
+        source_safety_point_id="4.1.1.3",
+        equipment_asset_code="CHILL-002",
+        equipment_name="Walk-in freezer",
+        equipment_use="storage",
+        equipment_type="freezer",
+        temperature_check_method=(
+            "digital_or_dial_display"
+        ),
+        is_active=True,
+    )
+    equipment.append(freezer)
+
+    added_document = build_document()
+    added_equipment_rows = table_rows(
+        added_document,
+        "3.5",
+        "equipment",
+    )
+    added_checklist_rows = table_rows(
+        added_document,
+        "3.6",
+        "checklist",
+    )
+
+    assert {
+        row[1]
+        for row in added_equipment_rows
+    } == {
+        "Service fridge",
+        "Walk-in freezer",
+    }
+    assert "Service fridge" in str(
+        added_checklist_rows
+    )
+    assert "Walk-in freezer" in str(
+        added_checklist_rows
+    )
+
+    equipment[:] = [
+        freezer,
+    ]
+
+    removed_document = build_document()
+    removed_equipment_rows = table_rows(
+        removed_document,
+        "3.5",
+        "equipment",
+    )
+    removed_checklist_rows = table_rows(
+        removed_document,
+        "3.6",
+        "checklist",
+    )
+
+    assert [
+        row[1]
+        for row in removed_equipment_rows
+    ] == [
+        "Walk-in freezer",
+    ]
+    assert "Service fridge" not in str(
+        removed_equipment_rows
+    )
+    assert "Service fridge" not in str(
+        removed_checklist_rows
+    )
+    assert "Walk-in freezer" in str(
+        removed_checklist_rows
+    )
+
+    equipment.clear()
+
+    empty_document = build_document()
+    chilling_section = next(
+        section
+        for section in empty_document.sections
+        if section.section_number == "3"
+    )
+    subsection_numbers = {
+        subsection.subsection_number
+        for subsection
+        in chilling_section.subsections
+    }
+
+    assert "3.5" not in subsection_numbers
+    assert "3.6" not in subsection_numbers
