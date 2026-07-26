@@ -322,6 +322,8 @@ def test_builder_reset_rebuilds_document_and_progress(
     ] == [
         "1",
         "2",
+        "3",
+        "4",
         "5",
         "6",
         "7",
@@ -329,6 +331,24 @@ def test_builder_reset_rebuilds_document_and_progress(
         "9",
         "10",
     ]
+
+    for section_number in ("3", "4"):
+        operational_section = next(
+            section
+            for section in document.sections
+            if section.section_number == section_number
+        )
+
+        assert [
+            block.text
+            for block
+            in operational_section.content_blocks
+        ] == [
+            (
+                "Not completed. The relevant safety "
+                "points have not yet been approved."
+            )
+        ]
     assert progress.screening_complete is True
     assert (
         progress.completed_applicable_section_count
@@ -420,6 +440,8 @@ def test_profile_reset_returns_downloadable_draft_shell(
     ] == [
         "1",
         "2",
+        "3",
+        "4",
         "5",
         "6",
         "7",
@@ -427,6 +449,25 @@ def test_profile_reset_returns_downloadable_draft_shell(
         "9",
         "10",
     ]
+
+    for section_number in ("3", "4"):
+        operational_section = next(
+            section
+            for section in document.sections
+            if section.section_number == section_number
+        )
+
+        assert [
+            block.text
+            for block
+            in operational_section.content_blocks
+        ] == [
+            (
+                "Not completed. Complete the Food "
+                "Safety Profile to determine which "
+                "controls apply to this section."
+            )
+        ]
 
     operations = document.sections[1].subsections[0]
 

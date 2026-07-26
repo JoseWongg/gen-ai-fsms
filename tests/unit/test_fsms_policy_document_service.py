@@ -207,12 +207,26 @@ def test_partial_approval_builds_draft_shell(
         "1",
         "2",
         "3",
+        "4",
         "5",
         "6",
         "7",
         "8",
         "9",
         "10",
+    ]
+
+    cooking_section = next(
+        section
+        for section in document.sections
+        if section.section_number == "4"
+    )
+
+    assert [
+        block.text
+        for block in cooking_section.content_blocks
+    ] == [
+        service.UNAPPROVED_SECTION_NOTICE
     ]
 
     assert [
@@ -335,19 +349,55 @@ def test_incomplete_foundation_keeps_document_draft(
 
     assert document.document_status == "draft"
     assert document.draft_notice is not None
+    expected_section_numbers = (
+        [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+        ]
+        if not screening_complete
+        else [
+            "1",
+            "2",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+        ]
+    )
+
     assert [
         section.section_number
         for section in document.sections
-    ] == [
-        "1",
-        "2",
-        "5",
-        "6",
-        "7",
-        "8",
-        "9",
-        "10",
-    ]
+    ] == expected_section_numbers
+
+    if not screening_complete:
+        for section_number in ("3", "4"):
+            operational_section = next(
+                section
+                for section in document.sections
+                if (
+                    section.section_number
+                    == section_number
+                )
+            )
+
+            assert [
+                block.text
+                for block
+                in operational_section.content_blocks
+            ] == [
+                service.PROFILE_INCOMPLETE_SECTION_NOTICE
+            ]
 
 
 def test_stale_approval_is_ignored(
@@ -382,12 +432,26 @@ def test_stale_approval_is_ignored(
     ] == [
         "1",
         "2",
+        "4",
         "5",
         "6",
         "7",
         "8",
         "9",
         "10",
+    ]
+
+    cooking_section = next(
+        section
+        for section in document.sections
+        if section.section_number == "4"
+    )
+
+    assert [
+        block.text
+        for block in cooking_section.content_blocks
+    ] == [
+        service.UNAPPROVED_SECTION_NOTICE
     ]
 
 

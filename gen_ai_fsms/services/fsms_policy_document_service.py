@@ -242,6 +242,7 @@ def generate_fsms_policy_document_for_profile(
         active_chilling_equipment=(
             active_chilling_equipment
         ),
+        screening_complete=screening_complete,
     )
 
     return FSMSPolicyDocument(
@@ -271,6 +272,73 @@ def generate_fsms_policy_document_for_profile(
     )
 
 
+PROFILE_INCOMPLETE_SECTION_NOTICE = (
+    "Not completed. Complete the Food Safety Profile "
+    "to determine which controls apply to this section."
+)
+
+UNAPPROVED_SECTION_NOTICE = (
+    "Not completed. The relevant safety points have "
+    "not yet been approved."
+)
+
+PARTIALLY_APPROVED_SECTION_NOTICE = (
+    "Not completed. Some relevant safety points have "
+    "not yet been approved."
+)
+
+
+OPERATIONAL_SECTION_STATE_APPLICABILITY_UNKNOWN = (
+    "applicability_unknown"
+)
+OPERATIONAL_SECTION_STATE_NOT_APPLICABLE = (
+    "not_applicable"
+)
+OPERATIONAL_SECTION_STATE_UNAPPROVED = (
+    "applicable_unapproved"
+)
+OPERATIONAL_SECTION_STATE_PARTIALLY_APPROVED = (
+    "applicable_partially_approved"
+)
+OPERATIONAL_SECTION_STATE_COMPLETE = (
+    "applicable_complete"
+)
+
+
+def _resolve_operational_section_state(
+    *,
+    screening_complete: bool,
+    applicable_ids: Set[str],
+    approved_ids: Set[str],
+) -> str:
+    if not screening_complete:
+        return (
+            OPERATIONAL_SECTION_STATE_APPLICABILITY_UNKNOWN
+        )
+
+    if not applicable_ids:
+        return OPERATIONAL_SECTION_STATE_NOT_APPLICABLE
+
+    if not approved_ids:
+        return OPERATIONAL_SECTION_STATE_UNAPPROVED
+
+    if applicable_ids.issubset(approved_ids):
+        return OPERATIONAL_SECTION_STATE_COMPLETE
+
+    return (
+        OPERATIONAL_SECTION_STATE_PARTIALLY_APPROVED
+    )
+
+
+def _build_operational_section_notice(
+    notice_text: str,
+) -> FSMSTextBlock:
+    return FSMSTextBlock(
+        role="introduction",
+        text=notice_text,
+    )
+
+
 def _build_policy_sections(
     *,
     configured_sections: List[Dict[str, Any]],
@@ -285,6 +353,7 @@ def _build_policy_sections(
     active_chilling_equipment: List[
         BusinessChillingEquipment
     ],
+    screening_complete: bool,
 ) -> List[FSMSPolicySection]:
     approved_points_by_section: Dict[
         str,
@@ -305,14 +374,29 @@ def _build_policy_sections(
             [],
         ).append(safety_point)
 
+    applicable_points_by_section: Dict[
+        str,
+        List[Dict[str, Any]],
+    ] = {}
+
+    for safety_point in applicable_safety_points:
+        section_id = safety_point.get("section_id")
+
+        if not isinstance(section_id, str):
+            raise ValueError(
+                "An applicable safety point is missing "
+                "its source section ID."
+            )
+
+        applicable_points_by_section.setdefault(
+            section_id,
+            [],
+        ).append(safety_point)
+
     sections = []
 
     for section_config in configured_sections:
         inclusion = section_config.get("inclusion")
-        source_section_ids = section_config.get(
-            "source_section_ids",
-            [],
-        )
         section_content_blocks = []
 
         if inclusion in {
@@ -347,7 +431,11 @@ def _build_policy_sections(
                         section_config
                     )
                 ]
-        elif inclusion == "beyond_current_project_scope":
+
+        elif (
+            inclusion
+            == "beyond_current_project_scope"
+        ):
             section_content_blocks = (
                 _build_configured_content_blocks(
                     section_config,
@@ -355,10 +443,33 @@ def _build_policy_sections(
                 )
             )
             subsections = []
-        elif inclusion == "approved_applicable_content":
-            section_points = [
+
+        elif (
+            inclusion
+            == "approved_applicable_content"
+        ):
+            source_section_ids = (
+                _configured_string_list(
+                    section_config,
+                    "source_section_ids",
+                )
+            )
+
+            applicable_section_points = [
                 safety_point
-                for source_section_id in source_section_ids
+                for source_section_id
+                in source_section_ids
+                for safety_point
+                in applicable_points_by_section.get(
+                    source_section_id,
+                    [],
+                )
+            ]
+
+            approved_section_points = [
+                safety_point
+                for source_section_id
+                in source_section_ids
                 for safety_point
                 in approved_points_by_section.get(
                     source_section_id,
@@ -366,94 +477,171 @@ def _build_policy_sections(
                 )
             ]
 
-            if not section_points:
-                continue
+            applicable_ids = _safety_point_ids(
+                applicable_section_points,
+                source_name="applicable",
+            )
+
+            approved_ids = _safety_point_ids(
+                approved_section_points,
+                source_name=(
+                    "approved applicable"
+                ),
+            )
+
+            section_state = (
+                _resolve_operational_section_state(
+                    screening_complete=screening_complete,
+                    applicable_ids=applicable_ids,
+                    approved_ids=approved_ids,
+                )
+            )
 
             if (
-                section_config.get("section_id")
-                == "chilling_and_temperature_control"
+                section_state
+                == (
+                    OPERATIONAL_SECTION_STATE_APPLICABILITY_UNKNOWN
+                )
             ):
-                section_content_blocks = (
-                    _build_configured_content_blocks(
-                        section_config,
-                        profile=profile,
+                section_content_blocks = [
+                    _build_operational_section_notice(
+                        PROFILE_INCOMPLETE_SECTION_NOTICE
                     )
-                )
-                subsections = (
-                    _build_chilling_operational_subsections(
-                        section_config=section_config,
-                        profile=profile,
-                        safety_points=section_points,
-                        active_chilling_equipment=(
-                            active_chilling_equipment
-                        ),
-                    )
-                )
-            elif (
-                section_config.get("section_id")
-                == "cooking_and_reheating"
-            ):
-                section_content_blocks = (
-                    _build_configured_content_blocks(
-                        section_config,
-                        profile=profile,
-                    )
-                )
-                subsections = (
-                    _build_cooking_operational_subsections(
-                        section_config=section_config,
-                        profile=profile,
-                        safety_points=section_points,
-                    )
-                )
-            else:
-                approved_safe_method_ids = {
-                    _required_safety_point_text(
-                        safety_point,
-                        "safe_method_id",
-                    )
-                    for safety_point in section_points
-                }
+                ]
                 subsections = []
 
-                for subsection_config in (
-                    _configured_subsections(
-                        section_config
+            elif (
+                section_state
+                == OPERATIONAL_SECTION_STATE_NOT_APPLICABLE
+            ):
+                continue
+
+            else:
+                subsections = []
+
+                if approved_section_points:
+                    if (
+                        section_config.get("section_id")
+                        == (
+                            "chilling_and_"
+                            "temperature_control"
+                        )
+                    ):
+                        section_content_blocks = (
+                            _build_configured_content_blocks(
+                                section_config,
+                                profile=profile,
+                            )
+                        )
+
+                        subsections = (
+                            _build_chilling_operational_subsections(
+                                section_config=section_config,
+                                profile=profile,
+                                safety_points=(
+                                    approved_section_points
+                                ),
+                                active_chilling_equipment=(
+                                    active_chilling_equipment
+                                ),
+                            )
+                        )
+
+                    elif (
+                        section_config.get("section_id")
+                        == "cooking_and_reheating"
+                    ):
+                        section_content_blocks = (
+                            _build_configured_content_blocks(
+                                section_config,
+                                profile=profile,
+                            )
+                        )
+
+                        subsections = (
+                            _build_cooking_operational_subsections(
+                                section_config=section_config,
+                                profile=profile,
+                                safety_points=(
+                                    approved_section_points
+                                ),
+                            )
+                        )
+
+                    else:
+                        approved_safe_method_ids = {
+                            _required_safety_point_text(
+                                safety_point,
+                                "safe_method_id",
+                            )
+                            for safety_point
+                            in approved_section_points
+                        }
+
+                        for subsection_config in (
+                            _configured_subsections(
+                                section_config
+                            )
+                        ):
+                            if (
+                                subsection_config.get(
+                                    "inclusion"
+                                )
+                                != (
+                                    "approved_"
+                                    "applicable_content"
+                                )
+                            ):
+                                continue
+
+                            configured_method_ids = set(
+                                _configured_string_list(
+                                    subsection_config,
+                                    "source_safe_method_ids",
+                                )
+                            )
+
+                            if not (
+                                configured_method_ids
+                                & approved_safe_method_ids
+                            ):
+                                continue
+
+                            subsections.append(
+                                _build_policy_subsection(
+                                    subsection_config,
+                                    profile=profile,
+                                )
+                            )
+
+                if (
+                    section_state
+                    == OPERATIONAL_SECTION_STATE_UNAPPROVED
+                ):
+                    section_content_blocks.append(
+                        _build_operational_section_notice(
+                            UNAPPROVED_SECTION_NOTICE
+                        )
+                    )
+
+                elif (
+                    section_state
+                    == (
+                        OPERATIONAL_SECTION_STATE_PARTIALLY_APPROVED
                     )
                 ):
-                    if (
-                        subsection_config.get(
-                            "inclusion"
-                        )
-                        != "approved_applicable_content"
-                    ):
-                        continue
-
-                    configured_method_ids = {
-                        str(value).strip()
-                        for value
-                        in subsection_config.get(
-                            "source_safe_method_ids",
-                            [],
-                        )
-                        if str(value).strip()
-                    }
-
-                    if not (
-                        configured_method_ids
-                        & approved_safe_method_ids
-                    ):
-                        continue
-
-                    subsections.append(
-                        _build_policy_subsection(
-                            subsection_config,
-                            profile=profile,
+                    section_content_blocks.append(
+                        _build_operational_section_notice(
+                            PARTIALLY_APPROVED_SECTION_NOTICE
                         )
                     )
 
-            if not subsections:
-                continue
+                if (
+                    not section_content_blocks
+                    and not subsections
+                ):
+                    continue
+
         else:
             raise ValueError(
                 "Unsupported FSMS policy section "
