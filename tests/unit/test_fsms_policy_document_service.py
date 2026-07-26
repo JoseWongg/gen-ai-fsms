@@ -219,7 +219,10 @@ def test_partial_approval_builds_draft_shell(
     cooking_section = next(
         section
         for section in document.sections
-        if section.section_number == "4"
+        if (
+            section.section_id
+            == _configured_section_id("4")
+        )
     )
 
     assert [
@@ -304,7 +307,7 @@ def test_complete_profile_builds_approved_shell(
         in document.sections[3].subsections
     ] == [
         "4.1",
-        "4.6",
+        "4.2",
     ]
 
 
@@ -366,12 +369,12 @@ def test_incomplete_foundation_keeps_document_draft(
         else [
             "1",
             "2",
+            "3",
+            "4",
             "5",
             "6",
             "7",
             "8",
-            "9",
-            "10",
         ]
     )
 
@@ -432,19 +435,22 @@ def test_stale_approval_is_ignored(
     ] == [
         "1",
         "2",
+        "3",
         "4",
         "5",
         "6",
         "7",
         "8",
         "9",
-        "10",
     ]
 
     cooking_section = next(
         section
         for section in document.sections
-        if section.section_number == "4"
+        if (
+            section.section_id
+            == _configured_section_id("4")
+        )
     )
 
     assert [
@@ -497,15 +503,15 @@ def test_operational_subsections_follow_approved_methods(
         subsection.subsection_number
         for subsection
         in document.sections[2].subsections
-    ] == ["3.2"]
+    ] == ["3.1"]
 
     assert [
         subsection.subsection_number
         for subsection
         in document.sections[3].subsections
     ] == [
+        "4.1",
         "4.2",
-        "4.6",
     ]
 
 
@@ -880,15 +886,54 @@ def test_section_one_content_is_same_for_draft_and_approved(
         == approved_document.sections[0].model_dump()
     )
 
-def _scope_subsection(document, subsection_number):
-    scope_section = document.sections[1]
+def _configured_policy_sections():
+    structure = (
+        service.load_fsms_policy_document_structure()
+    )
+
+    return structure["sections"]
+
+
+def _configured_section_id(section_number):
+    return next(
+        section["section_id"]
+        for section in _configured_policy_sections()
+        if section["section_number"] == section_number
+    )
+
+
+def _configured_subsection_id(
+    subsection_number,
+):
+    return next(
+        subsection["subsection_id"]
+        for section in _configured_policy_sections()
+        for subsection in section.get(
+            "subsections",
+            [],
+        )
+        if (
+            subsection["subsection_number"]
+            == subsection_number
+        )
+    )
+
+
+def _scope_subsection(
+    document,
+    subsection_number,
+):
+    subsection_id = _configured_subsection_id(
+        subsection_number
+    )
 
     return next(
         subsection
-        for subsection in scope_section.subsections
-        if subsection.subsection_number
-        == subsection_number
+        for section in document.sections
+        for subsection in section.subsections
+        if subsection.subsection_id == subsection_id
     )
+
 
 
 def test_business_scope_operations_and_control_approach(
@@ -1036,8 +1081,10 @@ def test_activities_subsection_is_omitted_without_supported_activity(
 
     scope_section = document.sections[1]
 
-    assert "2.2" not in {
-        subsection.subsection_number
+    assert _configured_subsection_id(
+        "2.2"
+    ) not in {
+        subsection.subsection_id
         for subsection in scope_section.subsections
     }
 
@@ -1140,35 +1187,44 @@ def test_hazards_subsection_is_omitted_without_applicable_category(
 
     scope_section = document.sections[1]
 
-    assert "2.3" not in {
-        subsection.subsection_number
+    assert _configured_subsection_id(
+        "2.3"
+    ) not in {
+        subsection.subsection_id
         for subsection in scope_section.subsections
     }
 
-def _document_section(document, section_number):
+def _document_section(
+    document,
+    section_number,
+):
+    section_id = _configured_section_id(
+        section_number
+    )
+
     return next(
         section
         for section in document.sections
-        if section.section_number == section_number
+        if section.section_id == section_id
     )
+
 
 
 def _document_subsection(
     document,
     subsection_number,
 ):
-    section_number = subsection_number.split(".")[0]
-    section = _document_section(
-        document,
-        section_number,
+    subsection_id = _configured_subsection_id(
+        subsection_number
     )
 
     return next(
         subsection
+        for section in document.sections
         for subsection in section.subsections
-        if subsection.subsection_number
-        == subsection_number
+        if subsection.subsection_id == subsection_id
     )
+
 
 
 def test_chilling_section_content_is_personalised(
@@ -1733,8 +1789,10 @@ def test_temperature_monitoring_requires_approved_control(
 
     section = _document_section(document, "3")
 
-    assert "3.5" not in {
-        subsection.subsection_number
+    assert _configured_subsection_id(
+        "3.5"
+    ) not in {
+        subsection.subsection_id
         for subsection in section.subsections
     }
 
@@ -1767,12 +1825,16 @@ def test_temperature_monitoring_requires_active_equipment(
 
     section = _document_section(document, "3")
 
-    assert "3.5" not in {
-        subsection.subsection_number
+    assert _configured_subsection_id(
+        "3.5"
+    ) not in {
+        subsection.subsection_id
         for subsection in section.subsections
     }
-    assert "3.6" not in {
-        subsection.subsection_number
+    assert _configured_subsection_id(
+        "3.6"
+    ) not in {
+        subsection.subsection_id
         for subsection in section.subsections
     }
 
@@ -1812,12 +1874,16 @@ def test_checklist_is_included_for_other_chilling_control(
 
     section = _document_section(document, "3")
 
-    assert "3.5" not in {
-        subsection.subsection_number
+    assert _configured_subsection_id(
+        "3.5"
+    ) not in {
+        subsection.subsection_id
         for subsection in section.subsections
     }
-    assert "3.6" in {
-        subsection.subsection_number
+    assert _configured_subsection_id(
+        "3.6"
+    ) in {
+        subsection.subsection_id
         for subsection in section.subsections
     }
 
@@ -2756,18 +2822,22 @@ def test_beyond_scope_sections_are_always_included(
         )
     )
 
-    outline_sections = [
-        section
-        for section in document.sections
-        if section.section_number
-        in {
+    beyond_scope_section_ids = {
+        _configured_section_id(section_number)
+        for section_number in (
             "5",
             "6",
             "7",
             "8",
             "9",
             "10",
-        }
+        )
+    }
+    outline_sections = [
+        section
+        for section in document.sections
+        if section.section_id
+        in beyond_scope_section_ids
     ]
 
     assert [
@@ -2778,27 +2848,27 @@ def test_beyond_scope_sections_are_always_included(
         for section in outline_sections
     ] == [
         (
-            "5",
+            "3",
             "Cross-Contamination Control",
         ),
         (
-            "6",
+            "4",
             "Cleaning and Disinfection",
         ),
         (
-            "7",
+            "5",
             "Allergen Management",
         ),
         (
-            "8",
+            "6",
             "Pest Control",
         ),
         (
-            "9",
+            "7",
             "Deliveries and Traceability",
         ),
         (
-            "10",
+            "8",
             "Training, Responsibilities and Review",
         ),
     ]
@@ -2880,19 +2950,9 @@ def test_document_reflects_active_chilling_equipment_changes(
         subsection_number,
         role,
     ):
-        chilling_section = next(
-            section
-            for section in document.sections
-            if section.section_number == "3"
-        )
-        subsection = next(
-            subsection
-            for subsection
-            in chilling_section.subsections
-            if (
-                subsection.subsection_number
-                == subsection_number
-            )
+        subsection = _document_subsection(
+            document,
+            subsection_number,
         )
         table = next(
             block
@@ -3036,16 +3096,21 @@ def test_document_reflects_active_chilling_equipment_changes(
     equipment.clear()
 
     empty_document = build_document()
-    chilling_section = next(
-        section
-        for section in empty_document.sections
-        if section.section_number == "3"
+    chilling_section = _document_section(
+        empty_document,
+        "3",
     )
-    subsection_numbers = {
-        subsection.subsection_number
+    subsection_ids = {
+        subsection.subsection_id
         for subsection
         in chilling_section.subsections
     }
 
-    assert "3.5" not in subsection_numbers
-    assert "3.6" not in subsection_numbers
+    assert (
+        _configured_subsection_id("3.5")
+        not in subsection_ids
+    )
+    assert (
+        _configured_subsection_id("3.6")
+        not in subsection_ids
+    )

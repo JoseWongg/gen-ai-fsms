@@ -416,3 +416,126 @@ def test_invalid_applicable_point_without_section_is_rejected():
                 }
             ],
         )
+
+
+def test_excluded_section_leaves_no_numbering_gap():
+    beta_point = _safety_point(
+        "B.1.1",
+        "beta",
+        "B.1",
+    )
+
+    sections = _build(
+        screening_complete=True,
+        applicable=[beta_point],
+    )
+
+    assert [
+        (
+            section.section_number,
+            section.title,
+        )
+        for section in sections
+    ] == [
+        ("1", "Foundation"),
+        ("2", "Operational Beta"),
+        ("3", "Future Section"),
+    ]
+
+
+def test_subsections_use_resolved_parent_number():
+    beta_point = _safety_point(
+        "B.1.1",
+        "beta",
+        "B.1",
+    )
+
+    sections = _build(
+        screening_complete=True,
+        applicable=[beta_point],
+        approved=[beta_point],
+    )
+
+    beta = _section(
+        sections,
+        "Operational Beta",
+    )
+
+    assert beta.section_number == "2"
+
+    assert [
+        subsection.subsection_number
+        for subsection in beta.subsections
+    ] == ["2.1"]
+
+
+def test_numbering_does_not_mutate_source_models():
+    original = service.FSMSPolicySection(
+        section_number="7",
+        title="Configured Section",
+        subsections=[
+            service.FSMSPolicySubsection(
+                subsection_number="7.4",
+                title="Configured Subsection",
+            )
+        ],
+    )
+
+    numbered = service._number_policy_sections(
+        [original]
+    )
+
+    assert numbered[0].section_number == "1"
+    assert (
+        numbered[0]
+        .subsections[0]
+        .subsection_number
+        == "1.1"
+    )
+
+    assert original.section_number == "7"
+    assert (
+        original.subsections[0].subsection_number
+        == "7.4"
+    )
+
+
+def test_dynamic_numbering_preserves_internal_ids():
+    beta_point = _safety_point(
+        "B.1.1",
+        "beta",
+        "B.1",
+    )
+
+    sections = _build(
+        screening_complete=True,
+        applicable=[beta_point],
+        approved=[beta_point],
+    )
+
+    assert [
+        (
+            section.section_id,
+            section.section_number,
+        )
+        for section in sections
+    ] == [
+        ("foundation", "1"),
+        ("operational_beta", "2"),
+        ("future_section", "3"),
+    ]
+
+    beta = _section(
+        sections,
+        "Operational Beta",
+    )
+
+    assert [
+        (
+            subsection.subsection_id,
+            subsection.subsection_number,
+        )
+        for subsection in beta.subsections
+    ] == [
+        ("beta_one", "2.1"),
+    ]

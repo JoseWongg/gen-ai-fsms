@@ -284,3 +284,31 @@ def test_table_blocks_support_responsibilities_role():
     )
 
     assert block.role == "responsibilities"
+
+
+def test_policy_identifiers_are_internal_only():
+    subsection = FSMSPolicySubsection(
+        subsection_id="configured_subsection",
+        subsection_number="1.1",
+        title="Configured Subsection",
+    )
+    section = FSMSPolicySection(
+        section_id="configured_section",
+        section_number="1",
+        title="Configured Section",
+        subsections=[subsection],
+    )
+
+    assert section.section_id == "configured_section"
+    assert (
+        section.subsections[0].subsection_id
+        == "configured_subsection"
+    )
+
+    payload = section.model_dump()
+
+    assert "section_id" not in payload
+    assert (
+        "subsection_id"
+        not in payload["subsections"][0]
+    )

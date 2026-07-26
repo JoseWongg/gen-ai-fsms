@@ -134,6 +134,10 @@ FSMSPolicyContentBlock = Annotated[
 
 
 class FSMSPolicySubsection(FSMSPolicyModel):
+    subsection_id: Optional[NonEmptyText] = Field(
+        default=None,
+        exclude=True,
+    )
     subsection_number: NonEmptyText
     title: NonEmptyText
     content_blocks: list[FSMSPolicyContentBlock] = Field(
@@ -142,6 +146,10 @@ class FSMSPolicySubsection(FSMSPolicyModel):
 
 
 class FSMSPolicySection(FSMSPolicyModel):
+    section_id: Optional[NonEmptyText] = Field(
+        default=None,
+        exclude=True,
+    )
     section_number: NonEmptyText
     title: NonEmptyText
     content_blocks: list[FSMSPolicyContentBlock] = Field(

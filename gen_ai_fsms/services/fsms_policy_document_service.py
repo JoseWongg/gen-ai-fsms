@@ -339,6 +339,107 @@ def _build_operational_section_notice(
     )
 
 
+def _attach_policy_identifiers(
+    *,
+    section_config: Dict[str, Any],
+    section: FSMSPolicySection,
+) -> FSMSPolicySection:
+    subsection_ids_by_number: Dict[str, str] = {}
+
+    for subsection_config in _configured_subsections(
+        section_config
+    ):
+        configured_number = _required_structure_text(
+            subsection_config,
+            "subsection_number",
+        )
+        configured_id = _required_structure_text(
+            subsection_config,
+            "subsection_id",
+        )
+
+        if configured_number in subsection_ids_by_number:
+            raise ValueError(
+                "Configured FSMS subsection numbers must "
+                "be unique within a section."
+            )
+
+        subsection_ids_by_number[
+            configured_number
+        ] = configured_id
+
+    identified_subsections = []
+
+    for subsection in section.subsections:
+        subsection_id = subsection_ids_by_number.get(
+            subsection.subsection_number
+        )
+
+        if subsection_id is None:
+            raise ValueError(
+                "A generated FSMS subsection does not "
+                "match a configured subsection number: "
+                f"'{subsection.subsection_number}'."
+            )
+
+        identified_subsections.append(
+            subsection.model_copy(
+                update={
+                    "subsection_id": subsection_id,
+                }
+            )
+        )
+
+    return section.model_copy(
+        update={
+            "section_id": _required_structure_text(
+                section_config,
+                "section_id",
+            ),
+            "subsections": identified_subsections,
+        }
+    )
+
+
+def _number_policy_sections(
+    sections: List[FSMSPolicySection],
+) -> List[FSMSPolicySection]:
+    numbered_sections = []
+
+    for section_index, section in enumerate(
+        sections,
+        start=1,
+    ):
+        section_number = str(section_index)
+
+        numbered_subsections = [
+            subsection.model_copy(
+                update={
+                    "subsection_number": (
+                        f"{section_number}."
+                        f"{subsection_index}"
+                    )
+                }
+            )
+            for subsection_index, subsection
+            in enumerate(
+                section.subsections,
+                start=1,
+            )
+        ]
+
+        numbered_sections.append(
+            section.model_copy(
+                update={
+                    "section_number": section_number,
+                    "subsections": numbered_subsections,
+                }
+            )
+        )
+
+    return numbered_sections
+
+
 def _build_policy_sections(
     *,
     configured_sections: List[Dict[str, Any]],
@@ -648,24 +749,29 @@ def _build_policy_sections(
                 f"inclusion rule: '{inclusion}'."
             )
 
-        sections.append(
-            FSMSPolicySection(
-                section_number=(
-                    _required_structure_text(
-                        section_config,
-                        "section_number",
-                    )
-                ),
-                title=_required_structure_text(
+        section = FSMSPolicySection(
+            section_number=(
+                _required_structure_text(
                     section_config,
-                    "title",
-                ),
-                content_blocks=section_content_blocks,
-                subsections=subsections,
+                    "section_number",
+                )
+            ),
+            title=_required_structure_text(
+                section_config,
+                "title",
+            ),
+            content_blocks=section_content_blocks,
+            subsections=subsections,
+        )
+
+        sections.append(
+            _attach_policy_identifiers(
+                section_config=section_config,
+                section=section,
             )
         )
 
-    return sections
+    return _number_policy_sections(sections)
 
 
 def _build_cooking_operational_subsections(
