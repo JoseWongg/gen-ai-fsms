@@ -951,6 +951,8 @@ def reset_screening(
 
     profile.business_type = None
     profile.business_description = None
+    profile.fsms_responsible_person_user_id = None
+    profile.fsms_responsible_person_name = None
 
     deleted_condition_value_count = (
         db.query(ConditionValue)

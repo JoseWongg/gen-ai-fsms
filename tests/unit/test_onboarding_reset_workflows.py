@@ -51,7 +51,11 @@ class FakeDb:
 def test_safety_point_approval_reset_deletes_parked_facts_before_session_delete(
     monkeypatch,
 ):
-    profile = SimpleNamespace(id=100)
+    profile = SimpleNamespace(
+        id=100,
+        fsms_responsible_person_user_id=7,
+        fsms_responsible_person_name="Jose Wong",
+    )
     approval_sessions = [
         SimpleNamespace(id=10, phase="safety_point_approval"),
         SimpleNamespace(id=11, phase="safety_point_approval"),
@@ -98,6 +102,12 @@ def test_safety_point_approval_reset_deletes_parked_facts_before_session_delete(
     assert response["deleted_business_context_fact_count"] == 2
     assert response["deleted_approved_safety_point_count"] == 3
 
+    assert profile.fsms_responsible_person_user_id == 7
+    assert (
+        profile.fsms_responsible_person_name
+        == "Jose Wong"
+    )
+
     assert db.events == [
         ("delete_business_context_facts", 100, ()),
         ("delete_session", 10, "safety_point_approval"),
@@ -114,6 +124,8 @@ def test_screening_reset_deletes_parked_facts_before_sessions_and_values(
         id=200,
         business_type="bakery",
         business_description="Cake business",
+        fsms_responsible_person_user_id=8,
+        fsms_responsible_person_name="Jose Wong",
     )
     screening_sessions = [
         SimpleNamespace(id=20, phase="screening"),
@@ -164,6 +176,14 @@ def test_screening_reset_deletes_parked_facts_before_sessions_and_values(
 
     assert profile.business_type is None
     assert profile.business_description is None
+    assert (
+        profile.fsms_responsible_person_user_id
+        is None
+    )
+    assert (
+        profile.fsms_responsible_person_name
+        is None
+    )
 
     assert response["deleted_screening_session_count"] == 1
     assert response["deleted_approval_session_count"] == 1
