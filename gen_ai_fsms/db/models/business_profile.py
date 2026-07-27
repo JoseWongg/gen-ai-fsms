@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.sql import func
 from gen_ai_fsms.db.base import Base
 
@@ -10,6 +10,18 @@ class BusinessProfile(Base):
     site_name = Column(String(255), nullable=False)
     business_type = Column(String(50), nullable=True)
     business_description = Column(Text, nullable=True)
+
+    fsms_responsible_person_user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    fsms_responsible_person_name = Column(
+        String(255),
+        nullable=True,
+    )
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     status = Column(String(50), default="active")
