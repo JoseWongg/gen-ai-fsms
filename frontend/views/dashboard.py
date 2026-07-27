@@ -511,14 +511,7 @@ def load_fsms_document_dashboard_progress(token):
     )
     completed_count = (
         data.get(
-            "completed_applicable_section_count",
-            0,
-        )
-        or 0
-    )
-    applicable_count = (
-        data.get(
-            "applicable_supported_section_count",
+            "completed_supported_section_count",
             0,
         )
         or 0
@@ -544,7 +537,7 @@ def load_fsms_document_dashboard_progress(token):
 
     if screening_complete:
         caption = (
-            f"{completed_count}/{applicable_count} "
+            f"{completed_count}/{supported_count} "
             f"current · {supported_count}/"
             f"{planned_count} supported"
         )

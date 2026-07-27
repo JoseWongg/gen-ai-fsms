@@ -351,12 +351,8 @@ def test_builder_reset_rebuilds_document_and_progress(
         ]
     assert progress.screening_complete is True
     assert (
-        progress.completed_applicable_section_count
+        progress.completed_supported_section_count
         == 2
-    )
-    assert (
-        progress.applicable_supported_section_count
-        == 4
     )
     assert progress.completion_percentage == 50
     assert progress.supported_section_count == 4

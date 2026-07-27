@@ -69,24 +69,20 @@ def _safety_point(
     }
 
 
-def test_not_started_counts_applicable_current_sections():
+def test_not_started_counts_all_supported_current_sections():
     result = (
         progress_service
         .calculate_fsms_policy_document_progress(
             structure_config=_structure(),
             screening_complete=False,
-            applicable_safety_points=[
-                _safety_point("4.1.1.1", "4"),
-                _safety_point("5.1.1.1", "5"),
-            ],
+            applicable_safety_points=[],
             approved_safety_points=[],
         )
     )
 
     assert result == FSMSPolicyDocumentProgress(
         screening_complete=False,
-        completed_applicable_section_count=0,
-        applicable_supported_section_count=4,
+        completed_supported_section_count=0,
         completion_percentage=0,
         supported_section_count=4,
         planned_section_count=10,
@@ -120,11 +116,11 @@ def test_partial_approval_returns_in_progress_status():
     )
 
     assert (
-        result.completed_applicable_section_count
+        result.completed_supported_section_count
         == 3
     )
     assert (
-        result.applicable_supported_section_count
+        result.supported_section_count
         == 4
     )
     assert result.screening_complete is True
@@ -136,7 +132,7 @@ def test_partial_approval_returns_in_progress_status():
     )
 
 
-def test_non_applicable_operational_section_is_excluded():
+def test_non_applicable_operational_section_counts_as_complete():
     result = (
         progress_service
         .calculate_fsms_policy_document_progress(
@@ -152,18 +148,18 @@ def test_non_applicable_operational_section_is_excluded():
     )
 
     assert (
-        result.completed_applicable_section_count
-        == 3
+        result.completed_supported_section_count
+        == 4
     )
     assert (
-        result.applicable_supported_section_count
-        == 3
+        result.supported_section_count
+        == 4
     )
     assert result.completion_percentage == 100
     assert result.document_status == "completed"
     assert result.main_value == "100%"
     assert result.completion_caption == (
-        "3 of 3 current sections complete"
+        "4 of 4 current sections complete"
     )
 
 
@@ -184,14 +180,14 @@ def test_every_applicable_point_must_be_approved():
     )
 
     assert (
-        result.completed_applicable_section_count
-        == 2
-    )
-    assert (
-        result.applicable_supported_section_count
+        result.completed_supported_section_count
         == 3
     )
-    assert result.completion_percentage == 67
+    assert (
+        result.supported_section_count
+        == 4
+    )
+    assert result.completion_percentage == 75
     assert result.document_status == "in_progress"
 
 
@@ -207,12 +203,8 @@ def test_beyond_scope_sections_affect_coverage_only():
     )
 
     assert (
-        result.completed_applicable_section_count
-        == 2
-    )
-    assert (
-        result.applicable_supported_section_count
-        == 2
+        result.completed_supported_section_count
+        == 4
     )
     assert result.completion_percentage == 100
     assert result.supported_section_count == 4
@@ -304,8 +296,8 @@ def test_generator_loads_live_business_sources(
 
     assert result.completion_percentage == 100
     assert (
-        result.applicable_supported_section_count
-        == 3
+        result.supported_section_count
+        == 4
     )
     assert calls == {
         "screening": (db, 42),
@@ -385,8 +377,7 @@ def test_progress_schema_rejects_invalid_percentage():
     with pytest.raises(ValidationError):
         FSMSPolicyDocumentProgress(
             screening_complete=False,
-            completed_applicable_section_count=0,
-            applicable_supported_section_count=4,
+            completed_supported_section_count=0,
             completion_percentage=101,
             supported_section_count=4,
             planned_section_count=10,

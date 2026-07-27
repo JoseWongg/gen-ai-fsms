@@ -162,10 +162,7 @@ class FSMSPolicySection(FSMSPolicyModel):
 
 class FSMSPolicyDocumentProgress(FSMSPolicyModel):
     screening_complete: bool
-    completed_applicable_section_count: int = Field(
-        ge=0
-    )
-    applicable_supported_section_count: int = Field(
+    completed_supported_section_count: int = Field(
         ge=0
     )
     completion_percentage: int = Field(

@@ -63,8 +63,7 @@ def _policy_document(
 def _policy_progress():
     return FSMSPolicyDocumentProgress(
         screening_complete=True,
-        completed_applicable_section_count=3,
-        applicable_supported_section_count=4,
+        completed_supported_section_count=3,
         completion_percentage=75,
         supported_section_count=4,
         planned_section_count=10,
@@ -444,8 +443,7 @@ def test_progress_route_serializes_contract(
 
     assert jsonable_encoder(result) == {
         "screening_complete": True,
-        "completed_applicable_section_count": 3,
-        "applicable_supported_section_count": 4,
+        "completed_supported_section_count": 3,
         "completion_percentage": 75,
         "supported_section_count": 4,
         "planned_section_count": 10,

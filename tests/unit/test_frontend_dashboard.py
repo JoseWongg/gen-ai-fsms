@@ -46,8 +46,7 @@ def test_load_fsms_document_progress_uses_canonical_endpoint(
             status_code=200,
             payload={
                 "screening_complete": True,
-                "completed_applicable_section_count": 3,
-                "applicable_supported_section_count": 4,
+                "completed_supported_section_count": 3,
                 "completion_percentage": 75,
                 "supported_section_count": 4,
                 "planned_section_count": 10,
@@ -103,8 +102,7 @@ def test_completed_fsms_document_card_is_green(
             status_code=200,
             payload={
                 "screening_complete": True,
-                "completed_applicable_section_count": 3,
-                "applicable_supported_section_count": 3,
+                "completed_supported_section_count": 4,
                 "completion_percentage": 100,
                 "supported_section_count": 4,
                 "planned_section_count": 10,
@@ -124,7 +122,7 @@ def test_completed_fsms_document_card_is_green(
         "title": "FSMS Document",
         "value": "100%",
         "caption": (
-            "3/3 current · 4/10 supported"
+            "4/4 current · 4/10 supported"
         ),
         "colour_class": "green",
     }
@@ -141,8 +139,7 @@ def test_incomplete_profile_uses_clear_document_caption(
             status_code=200,
             payload={
                 "screening_complete": False,
-                "completed_applicable_section_count": 0,
-                "applicable_supported_section_count": 2,
+                "completed_supported_section_count": 0,
                 "completion_percentage": 0,
                 "supported_section_count": 4,
                 "planned_section_count": 10,

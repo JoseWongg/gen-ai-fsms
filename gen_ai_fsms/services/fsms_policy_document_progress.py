@@ -85,9 +85,11 @@ def calculate_fsms_policy_document_progress(
     Calculate business completion and product coverage.
 
     Sections beyond the current project scope contribute
-    to product coverage only. Supported operational
-    sections are excluded from the business denominator
-    when they are not applicable to the business.
+    to product coverage only. Every currently supported
+    section remains in the business progress denominator.
+    A supported operational section is complete when all
+    of its applicable safety points are approved, or when
+    completed screening confirms that it is not applicable.
     """
     configured_sections = structure_config.get(
         "sections"
@@ -111,8 +113,7 @@ def calculate_fsms_policy_document_progress(
 
     planned_section_count = len(configured_sections)
     supported_section_count = 0
-    applicable_supported_count = 0
-    completed_applicable_count = 0
+    completed_supported_count = 0
 
     for section_config in configured_sections:
         if not isinstance(section_config, dict):
@@ -129,10 +130,8 @@ def calculate_fsms_policy_document_progress(
         supported_section_count += 1
 
         if inclusion in FOUNDATION_INCLUSIONS:
-            applicable_supported_count += 1
-
             if screening_complete:
-                completed_applicable_count += 1
+                completed_supported_count += 1
 
             continue
 
@@ -152,15 +151,17 @@ def calculate_fsms_policy_document_progress(
                     )
                 )
 
-            if not section_applicable_ids:
+            if not screening_complete:
                 continue
 
-            applicable_supported_count += 1
+            if not section_applicable_ids:
+                completed_supported_count += 1
+                continue
 
             if section_applicable_ids.issubset(
                 approved_ids
             ):
-                completed_applicable_count += 1
+                completed_supported_count += 1
 
             continue
 
@@ -170,21 +171,18 @@ def calculate_fsms_policy_document_progress(
         )
 
     completion_percentage = _completion_percentage(
-        completed_count=completed_applicable_count,
-        applicable_count=applicable_supported_count,
+        completed_count=completed_supported_count,
+        total_count=supported_section_count,
     )
     document_status = _progress_status(
-        completed_count=completed_applicable_count,
-        applicable_count=applicable_supported_count,
+        completed_count=completed_supported_count,
+        total_count=supported_section_count,
     )
 
     return FSMSPolicyDocumentProgress(
         screening_complete=screening_complete,
-        completed_applicable_section_count=(
-            completed_applicable_count
-        ),
-        applicable_supported_section_count=(
-            applicable_supported_count
+        completed_supported_section_count=(
+            completed_supported_count
         ),
         completion_percentage=completion_percentage,
         supported_section_count=supported_section_count,
@@ -193,8 +191,8 @@ def calculate_fsms_policy_document_progress(
         main_value=f"{completion_percentage}%",
         completion_caption=(
             (
-                f"{completed_applicable_count} of "
-                f"{applicable_supported_count} current "
+                f"{completed_supported_count} of "
+                f"{supported_section_count} current "
                 "sections complete"
             )
             if screening_complete
@@ -318,14 +316,14 @@ def _configured_source_section_ids(
 def _completion_percentage(
     *,
     completed_count: int,
-    applicable_count: int,
+    total_count: int,
 ) -> int:
-    if applicable_count == 0:
+    if total_count == 0:
         return 0
 
     return round(
         completed_count
-        / applicable_count
+        / total_count
         * 100
     )
 
@@ -333,12 +331,12 @@ def _completion_percentage(
 def _progress_status(
     *,
     completed_count: int,
-    applicable_count: int,
+    total_count: int,
 ) -> str:
     if completed_count == 0:
         return "not_started"
 
-    if completed_count == applicable_count:
+    if completed_count == total_count:
         return "completed"
 
     return "in_progress"
