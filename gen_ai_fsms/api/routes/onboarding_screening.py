@@ -151,6 +151,30 @@ def normalise_business_type(answer: str) -> str | None:
     return BUSINESS_TYPE_VALUES_BY_NORMALISED_LABEL.get(cleaned.lower())
 
 
+def record_fsms_responsible_person(
+    profile: BusinessProfile,
+    current_user: User,
+) -> None:
+    first_name = " ".join(
+        (current_user.first_name or "").split()
+    )
+    last_name = " ".join(
+        (current_user.last_name or "").split()
+    )
+    full_name = " ".join(
+        part
+        for part in (first_name, last_name)
+        if part
+    )
+
+    profile.fsms_responsible_person_user_id = (
+        current_user.id
+    )
+    profile.fsms_responsible_person_name = (
+        full_name or None
+    )
+
+
 def start_first_screening_question(
     state: dict,
     business_description: str | None = None,
@@ -693,6 +717,10 @@ def submit_answer(
         )
 
         add_display_message(state, "assistant", completion_message)
+        record_fsms_responsible_person(
+            profile,
+            current_user,
+        )
         update_session(db, session_obj.id, json.dumps(state), "completed")
 
         return {
