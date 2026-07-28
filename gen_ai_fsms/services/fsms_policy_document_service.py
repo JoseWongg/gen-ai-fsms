@@ -2591,7 +2591,25 @@ def _policy_template_values(
                 )
             )
         ),
+        "fsms_responsible_person_name": (
+            _fsms_responsible_person_name(profile)
+        ),
     }
+
+
+def _fsms_responsible_person_name(
+    profile: BusinessProfile,
+) -> str:
+    value = getattr(
+        profile,
+        "fsms_responsible_person_name",
+        None,
+    )
+
+    if not isinstance(value, str) or not value.strip():
+        return "Name not recorded"
+
+    return " ".join(value.split())
 
 
 def _profile_fields_are_available(

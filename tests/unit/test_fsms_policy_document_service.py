@@ -38,6 +38,8 @@ def _profile(**overrides):
         "business_description": (
             "A bakery making chilled desserts."
         ),
+        "fsms_responsible_person_user_id": 7,
+        "fsms_responsible_person_name": "Jose Wong",
     }
     values.update(overrides)
 
@@ -583,7 +585,6 @@ def test_food_safety_policy_content_order_and_personalisation(
             "responsibilities",
             "responsibilities",
             "responsibilities",
-            "responsibilities",
         ],
         [
             "monitoring",
@@ -656,11 +657,10 @@ def test_food_safety_policy_responsibilities_and_review(
 
     assert responsibilities.content_blocks[1].items == [
         (
-            "The business owner or responsible manager must "
-            "maintain this FSMS, provide suitable resources, "
-            "ensure staff are trained and supervised, and "
-            "review the system when operations or risks "
-            "change."
+            "The FSMS Responsible Person must maintain this "
+            "FSMS, provide suitable resources, ensure staff "
+            "are trained and supervised, and review the "
+            "system when operations or risks change."
         ),
         (
             "The person in charge of each shift must ensure "
@@ -681,24 +681,8 @@ def test_food_safety_policy_responsibilities_and_review(
         ),
     ]
 
-    pending_notice = responsibilities.content_blocks[2]
-
-    assert pending_notice.block_type == "text"
-    assert pending_notice.role == "responsibilities"
-    assert pending_notice.heading == (
-        "Pending feature — named responsibility "
-        "assignments"
-    )
-    assert pending_notice.text == (
-        "The current application does not yet capture "
-        "the names of the people assigned to these "
-        "roles. This table is included to show how "
-        "named responsibilities will appear in the "
-        "completed Food Safety Management System."
-    )
-
     named_responsibilities = (
-        responsibilities.content_blocks[3]
+        responsibilities.content_blocks[2]
     )
 
     assert named_responsibilities.block_type == "table"
@@ -708,16 +692,13 @@ def test_food_safety_policy_responsibilities_and_review(
     )
     assert named_responsibilities.headers == [
         "Role",
-        "Named person(s)",
+        "Named person",
         "Main responsibility",
     ]
     assert named_responsibilities.rows == [
         [
-            (
-                "Business owner or responsible "
-                "manager"
-            ),
-            "Not yet recorded",
+            "FSMS Responsible Person",
+            "Jose Wong",
             (
                 "Maintain the FSMS, provide suitable "
                 "resources, ensure staff are trained "
@@ -725,26 +706,16 @@ def test_food_safety_policy_responsibilities_and_review(
                 "when operations or risks change."
             ),
         ],
-        [
-            "Person in charge of each shift",
-            "Not yet recorded",
-            (
-                "Ensure required checks are completed, "
-                "records are accurate, and food-safety "
-                "problems are acted on or escalated."
-            ),
-        ],
-        [
-            "Food handlers",
-            "Not yet recorded",
-            (
-                "Follow approved procedures, complete "
-                "assigned checks, report problems "
-                "immediately and protect food from "
-                "contamination or unsafe temperatures."
-            ),
-        ],
     ]
+    assert (
+        named_responsibilities.source.source_references
+        == [
+            (
+                "business_profile."
+                "fsms_responsible_person_name"
+            ),
+        ]
+    )
 
     assert monitoring_and_review.content_blocks[0].text == (
         "Relevant food safety controls are monitored through "
@@ -775,6 +746,42 @@ def test_food_safety_policy_responsibilities_and_review(
     )
 
 
+def test_responsibilities_use_missing_name_fallback(
+    monkeypatch,
+):
+    _patch_sources(monkeypatch)
+
+    document = (
+        service.generate_fsms_policy_document_for_profile(
+            db=FakeSession(
+                _profile(
+                    fsms_responsible_person_user_id=None,
+                    fsms_responsible_person_name=None,
+                )
+            ),
+            business_profile_id=1,
+        )
+    )
+
+    responsibilities = (
+        document.sections[0].subsections[2]
+    )
+    table = responsibilities.content_blocks[2]
+
+    assert table.rows == [
+        [
+            "FSMS Responsible Person",
+            "Name not recorded",
+            (
+                "Maintain the FSMS, provide suitable "
+                "resources, ensure staff are trained "
+                "and supervised, and review the system "
+                "when operations or risks change."
+            ),
+        ],
+    ]
+
+
 def test_policy_personalisation_sources_are_recorded(
     monkeypatch,
 ):
@@ -803,9 +810,28 @@ def test_policy_personalisation_sources_are_recorded(
         "business_profile.site_name",
     ]
 
-    for subsection in policy_section.subsections[2:]:
-        for block in subsection.content_blocks:
-            assert block.source.source_references == []
+    responsibilities = policy_section.subsections[2]
+
+    for block in responsibilities.content_blocks[:2]:
+        assert block.source.source_references == []
+
+    assert (
+        responsibilities
+        .content_blocks[2]
+        .source
+        .source_references
+        == [
+            (
+                "business_profile."
+                "fsms_responsible_person_name"
+            ),
+        ]
+    )
+
+    monitoring_and_review = policy_section.subsections[3]
+
+    for block in monitoring_and_review.content_blocks:
+        assert block.source.source_references == []
 
 
 @pytest.mark.parametrize(

@@ -433,46 +433,32 @@ def test_named_responsibilities_content_is_controlled():
     ] == [
         "responsibilities_introduction",
         "responsibilities_list",
-        "named_responsibilities_pending_notice",
         "named_responsibilities_table",
     ]
 
-    assert definitions[2] == {
-        "content_key": (
-            "named_responsibilities_pending_notice"
-        ),
-        "block_type": "text",
-        "role": "responsibilities",
-        "heading": (
-            "Pending feature — named responsibility "
-            "assignments"
-        ),
-        "text": (
-            "The current application does not yet "
-            "capture the names of the people assigned "
-            "to these roles. This table is included "
-            "to show how named responsibilities will "
-            "appear in the completed Food Safety "
-            "Management System."
-        ),
-    }
+    assert definitions[1]["items"][0] == (
+        "The FSMS Responsible Person must maintain this "
+        "FSMS, provide suitable resources, ensure staff "
+        "are trained and supervised, and review the "
+        "system when operations or risks change."
+    )
 
-    assert definitions[3] == {
+    assert definitions[2] == {
         "content_key": "named_responsibilities_table",
         "block_type": "table",
         "role": "responsibilities",
+        "dynamic_sources": [
+            "fsms_responsible_person_name",
+        ],
         "headers": [
             "Role",
-            "Named person(s)",
+            "Named person",
             "Main responsibility",
         ],
         "rows": [
             [
-                (
-                    "Business owner or responsible "
-                    "manager"
-                ),
-                "Not yet recorded",
+                "FSMS Responsible Person",
+                "{fsms_responsible_person_name}",
                 (
                     "Maintain the FSMS, provide suitable "
                     "resources, ensure staff are trained "
@@ -481,26 +467,11 @@ def test_named_responsibilities_content_is_controlled():
                     "change."
                 ),
             ],
-            [
-                "Person in charge of each shift",
-                "Not yet recorded",
-                (
-                    "Ensure required checks are "
-                    "completed, records are accurate, "
-                    "and food-safety problems are acted "
-                    "on or escalated."
-                ),
-            ],
-            [
-                "Food handlers",
-                "Not yet recorded",
-                (
-                    "Follow approved procedures, "
-                    "complete assigned checks, report "
-                    "problems immediately and protect "
-                    "food from contamination or unsafe "
-                    "temperatures."
-                ),
-            ],
+        ],
+        "source_references": [
+            (
+                "business_profile."
+                "fsms_responsible_person_name"
+            ),
         ],
     }
