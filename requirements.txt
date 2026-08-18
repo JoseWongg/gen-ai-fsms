@@ -74,6 +74,7 @@ python-jose==3.5.0
 python-multipart==0.0.27
 PyYAML==6.0.3
 referencing==0.37.0
+reportlab==5.0.0
 requests==2.33.1
 requests-toolbelt==1.0.0
 rich==15.0.0
@@ -106,4 +107,3 @@ watchfiles==1.1.1
 websockets==16.0
 xxhash==3.7.0
 zstandard==0.25.0
-reportlab==5.0.0
